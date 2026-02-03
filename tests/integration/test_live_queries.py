@@ -26,7 +26,11 @@ except ImportError:
     )
     sys.exit(1)
 
-API_URL = UNRAID_API_URL or "https://192.168.1.101/graphql"
+API_URL = UNRAID_API_URL
+
+if not API_URL:
+    print("WARNING: UNRAID_API_URL is not set. Skipping integration tests.")
+    sys.exit(0)
 API_KEY = UNRAID_API_KEY
 
 if not API_KEY:
@@ -257,8 +261,10 @@ async def run_tests():
                     continue
                 if "errors" in data and data["errors"]:
                     err_msgs = "; ".join(e.get("message", str(e))[:120] for e in data["errors"])
+                    _data_content = data.get("data")
                     has_data = bool(
-                        data.get("data") and any(v is not None for v in data["data"].values())
+                        isinstance(_data_content, dict)
+                        and any(v is not None for v in _data_content.values())
                     )
                     if name in KNOWN_SERVER_ISSUES:
                         status = "KNOWN_BUG"
@@ -323,6 +329,8 @@ async def run_tests():
     else:
         print("\nNo unexpected failures.")
 
+    return len(failures)
+
 
 if __name__ == "__main__":
-    asyncio.run(run_tests())
+    sys.exit(asyncio.run(run_tests()))

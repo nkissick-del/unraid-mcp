@@ -153,10 +153,14 @@ def extract_root_field(query: str) -> tuple[str, str | None]:
         op_type = "mutation"
     elif cleaned.strip().startswith("subscription"):
         op_type = "subscription"
+    elif cleaned.strip().startswith("{"):
+        # Shorthand query support
+        op_type = "query"
 
     # Remove operation definition (e.g., "query MyQuery($var: Type) {")
     # This is rough; a real parser is better but requires external deps.
     # We assume standard formatting from our codebase: "query Name { rootField ... }"
+    # OR shorthand "{ rootField ... }"
 
     # helper to find the first opening brace
     start_idx = cleaned.find("{")
@@ -168,9 +172,6 @@ def extract_root_field(query: str) -> tuple[str, str | None]:
     # The first word should be the root field
     # Stop at space, (, {, or :
     # e.g. "docker {" or "docker(arg: val)" or "alias: docker"
-
-    # Handle aliases? "myAlias: fieldName" -> we want fieldName
-    # But for now let's grab the first token.
 
     # Detect alias: "myAlias: fieldName"
     # We scan for the first token. If it ends with ':' or is followed immediately by ':', it's an alias.
@@ -208,16 +209,66 @@ class QueryCollector(ast.NodeVisitor):
         self.queries = []  # List of (filename, lineno, query_str)
 
     def visit_Assign(self, node):
-        # Look for assignments where value is a string containing "query " or "mutation "
-        if isinstance(node.value, ast.Constant) and isinstance(node.value.value, str):
-            val = node.value.value.strip()
-            if (
-                val.startswith("query ")
-                or val.startswith("mutation ")
-                or val.startswith("subscription ")
-            ) and "{" in val:
-                self.queries.append((getattr(node, "lineno", 0), val))
+        """Handle assignments: x = 'query ...'"""
+        self._check_value(node.value, getattr(node, "lineno", 0))
         self.generic_visit(node)
+
+    def visit_AnnAssign(self, node):
+        """Handle annotated assignments: x: str = 'query ...'"""
+        if node.value:
+            self._check_value(node.value, getattr(node, "lineno", 0))
+        self.generic_visit(node)
+
+    def visit_Expr(self, node):
+        """Handle standalone expressions (like docstrings or Just strings)"""
+        self._check_value(node.value, getattr(node, "lineno", 0))
+        self.generic_visit(node)
+
+    def visit_FunctionDef(self, node):
+        """Handle default values in function arguments."""
+        # Check defaults
+        for default in node.args.defaults:
+            self._check_value(default, getattr(node, "lineno", 0))
+        # Check kw_defaults
+        for default in node.args.kw_defaults:
+            if default:
+                self._check_value(default, getattr(node, "lineno", 0))
+        self.generic_visit(node)
+
+    def _check_value(self, node, lineno):
+        val = self._extract_string(node)
+        if val:
+            stripped = val.strip()
+            # Simple heuristic: must look like a GraphQL operation or shorthand
+            if (
+                stripped.startswith("query ")
+                or stripped.startswith("mutation ")
+                or stripped.startswith("subscription ")
+                or stripped.startswith("{")
+            ) and "{" in stripped:
+                self.queries.append((lineno, val))
+
+    def _extract_string(self, node):
+        """Recursively extract string content from AST nodes."""
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            return node.value
+        elif isinstance(node, ast.JoinedStr):
+            # f-string: try to combine parts if they are mostly constant
+            # This is a best-effort extraction for simple f-strings
+            parts = []
+            for value in node.values:
+                part = self._extract_string(value)
+                if part is None:
+                    return None  # Non-string part found (e.g. variable), abort
+                parts.append(part)
+            return "".join(parts)
+        elif isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+            # String concatenation: "a" + "b"
+            left = self._extract_string(node.left)
+            right = self._extract_string(node.right)
+            if left is not None and right is not None:
+                return left + right
+        return None
 
 
 async def fetch_schema() -> dict[str, Any]:
@@ -276,6 +327,15 @@ async def fetch_schema() -> dict[str, Any]:
             if "errors" in data:
                 console.print(f"[bold red]GraphQL Errors:[/bold red] {data['errors']}")
                 sys.exit(1)
+
+            # Guard against missing data or __schema
+            if "data" not in data or data["data"] is None or "__schema" not in data["data"]:
+                console.print(
+                    "[bold red]Invalid Schema Response:[/bold red] Missing 'data.__schema'"
+                )
+                console.print(f"[dim]Full Response: {data}[/dim]")
+                sys.exit(1)
+
             return data["data"]["__schema"]
         except httpx.ConnectError as e:
             console.print(f"[bold red]Connection Refused:[/bold red] {e}")
@@ -325,7 +385,7 @@ def scan_files() -> list[tuple[str, int, str]]:
     tools_dir = PROJECT_ROOT / "unraid_mcp" / "tools"
     all_queries = []
 
-    for py_file in tools_dir.glob("*.py"):
+    for py_file in tools_dir.rglob("*.py"):
         try:
             content = py_file.read_text()
             tree = ast.parse(content)
@@ -355,6 +415,7 @@ async def main():
     console.print("[green]Schema Fetched Successfully[/green]")
     console.print(f"Query Root Fields: {len(query_root_fields)}")
     console.print(f"Mutation Root Fields: {len(mutation_root_fields)}")
+    console.print(f"Subscription Root Fields: {len(sub_root_fields)}")
 
     # 2. Scan Codebase
     console.print("\n[bold]Scanning Codebase for Queries...[/bold]")

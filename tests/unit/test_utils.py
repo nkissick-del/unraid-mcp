@@ -1,12 +1,8 @@
-import sys
 import unittest
-from pathlib import Path
 
-# Ensure we can import unraid_mcp
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.append(str(PROJECT_ROOT))
-
-from unraid_mcp.tools.api import _strip_comments  # noqa: E402
+# unraid_mcp.tools.api is now importable thanks to conftest.py or pip install -e .
+from unraid_mcp.tools.api import _strip_comments
+from unraid_mcp.tools.system import format_kb
 
 
 class TestUtils(unittest.TestCase):
@@ -32,27 +28,19 @@ class TestUtils(unittest.TestCase):
         stripped_block = _strip_comments(query_block)
         self.assertIn('""""""', stripped_block)  # It replaces block strings
 
-    def test_format_kb_overflow_logic_simulation(self):
+    def test_format_kb(self):
         """
-        Verify the logic used in format_kb to handle overflows.
-        Note: format_kb is nested inside _get_array_status, so we test a replica of the logic here
-        or rely on the fact that the logic pattern is standard Python exception handling.
+        Verify the logic of the real format_kb function directly.
         """
+        # Test overflow/special cases
+        self.assertEqual(format_kb(float("inf")), "inf")
+        self.assertEqual(format_kb("not_a_number"), "not_a_number")
+        self.assertEqual(format_kb(None), "N/A")
 
-        def format_kb_logic(k):
-            if k is None:
-                return "N/A"
-            try:
-                k = int(float(k))
-            except (ValueError, TypeError, OverflowError):
-                return str(k)
-            return "OK"
-
-        # Test overflow
-        self.assertEqual(format_kb_logic(float("inf")), "inf")
-        self.assertEqual(format_kb_logic("not_a_number"), "not_a_number")
-        self.assertEqual(format_kb_logic(None), "N/A")
-        self.assertEqual(format_kb_logic(1024), "OK")
+        # Test formatting
+        self.assertEqual(format_kb(1024), "1.00 MB")
+        self.assertEqual(format_kb(1024 * 1024), "1.00 GB")
+        self.assertEqual(format_kb(512), "512 KB")
 
 
 if __name__ == "__main__":

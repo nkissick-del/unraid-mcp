@@ -15,6 +15,24 @@ from ..core.client import make_graphql_request
 from ..core.exceptions import ToolError
 
 
+def format_kb(k: Any) -> str:
+    """Helper to format KB into TB/GB/MB"""
+    if k is None:
+        return "N/A"
+    try:
+        k = int(float(k))
+    except (ValueError, TypeError, OverflowError):
+        return str(k)
+
+    if k >= 1024 * 1024 * 1024:
+        return f"{k / (1024 * 1024 * 1024):.2f} TB"
+    if k >= 1024 * 1024:
+        return f"{k / (1024 * 1024):.2f} GB"
+    if k >= 1024:
+        return f"{k / 1024:.2f} MB"
+    return f"{k} KB"
+
+
 # Standalone functions for use by subscription resources
 async def _get_system_info() -> dict[str, Any]:
     """Standalone function to get system info - used by subscriptions and tools."""
@@ -125,22 +143,6 @@ async def _get_array_status() -> dict[str, Any]:
             kb_cap = raw_array_info["capacity"]["kilobytes"]
 
             # Helper to format KB into TB/GB/MB
-            def format_kb(k: Any) -> str:
-                if k is None:
-                    return "N/A"
-                try:
-                    k = int(float(k))
-                except (ValueError, TypeError, OverflowError):
-                    return str(k)
-
-                if k >= 1024 * 1024 * 1024:
-                    return f"{k / (1024 * 1024 * 1024):.2f} TB"
-                if k >= 1024 * 1024:
-                    return f"{k / (1024 * 1024):.2f} GB"
-                if k >= 1024:
-                    return f"{k / 1024:.2f} MB"
-                return f"{k} KB"
-
             summary["capacity_total"] = format_kb(kb_cap.get("total"))
             summary["capacity_used"] = format_kb(kb_cap.get("used"))
             summary["capacity_free"] = format_kb(kb_cap.get("free"))
