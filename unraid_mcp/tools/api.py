@@ -105,36 +105,41 @@ def register_api_tools(mcp: FastMCP) -> None:
         """Execute a read-only GraphQL query against the Unraid API. Mutations are blocked for safety."""
 
         # Block mutations
-        # Block mutations
         def _strip_comments(q: str) -> str:
-            """Strip comments while preserving strings."""
+            """Strip comments and replace string literals with placeholders."""
             out = []
             i = 0
             n = len(q)
+
+            def is_escaped(s: str, idx: int) -> bool:
+                """Check if character at idx is escaped by counting preceding backslashes."""
+                count = 0
+                idx -= 1
+                while idx >= 0 and s[idx] == "\\":
+                    count += 1
+                    idx -= 1
+                return count % 2 == 1
+
             while i < n:
                 c = q[i]
                 if c == '"':
                     is_block = i + 2 < n and q[i + 1 : i + 3] == '""'
                     if is_block:
-                        out.append('"""')
+                        out.append('""""""')  # Replace block string content with empty block string
                         i += 3
                         while i < n:
-                            # End of block string if """ and not escaped (approximation)
-                            if i + 2 < n and q[i : i + 3] == '""' and (i == 0 or q[i - 1] != "\\"):
-                                out.append('"""')
+                            # End of block string if """ and not escaped
+                            if i + 2 < n and q[i : i + 3] == '"""' and not is_escaped(q, i):
                                 i += 3
                                 break
-                            out.append(q[i])
                             i += 1
                     else:
-                        out.append('"')
+                        out.append('""')  # Replace string literal with empty string
                         i += 1
                         while i < n:
-                            if q[i] == '"' and (i == 0 or q[i - 1] != "\\"):
-                                out.append('"')
+                            if q[i] == '"' and not is_escaped(q, i):
                                 i += 1
                                 break
-                            out.append(q[i])
                             i += 1
                 elif c == "#":
                     while i < n and q[i] != "\n":

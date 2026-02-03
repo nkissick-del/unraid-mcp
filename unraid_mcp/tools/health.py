@@ -182,9 +182,7 @@ def register_health_tools(mcp: FastMCP) -> None:
                 "status": "unhealthy",
                 "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 "error": str(e),
-                "api_latency_ms": round((time.time() - start_time) * 1000, 2)
-                if "start_time" in locals()
-                else None,
+                "api_latency_ms": round((time.time() - start_time) * 1000, 2),
                 "server": {
                     "name": "Unraid MCP Server",
                     "version": "0.1.0",

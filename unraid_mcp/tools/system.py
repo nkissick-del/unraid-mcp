@@ -5,6 +5,7 @@ array status with health analysis, network configuration, registration info,
 and system variables.
 """
 
+import json
 from typing import Any
 
 from fastmcp import FastMCP
@@ -57,8 +58,10 @@ async def _get_system_info() -> dict[str, Any]:
 
         if raw_info.get("cpu"):
             cpu_info = raw_info["cpu"]
+            cores = cpu_info.get("cores") or "unknown"
+            threads = cpu_info.get("threads") or "unknown"
             summary["cpu"] = (
-                f"{cpu_info.get('manufacturer', '')} {cpu_info.get('brand', '')} ({cpu_info.get('cores')} cores, {cpu_info.get('threads')} threads)"
+                f"{cpu_info.get('manufacturer', '')} {cpu_info.get('brand', '')} ({cores} cores, {threads} threads)"
             )
 
         if raw_info.get("memory") and raw_info["memory"].get("layout"):
@@ -80,10 +83,7 @@ async def _get_system_info() -> dict[str, Any]:
             )
 
         if raw_info.get("versions"):
-            ver = raw_info["versions"]
-            core = ver.get("core", {})
-            pkgs = ver.get("packages", {})
-            summary["versions"] = f"core: {core}; packages: {pkgs}"
+            summary["versions"] = json.dumps(raw_info["versions"], default=str)
 
         # Include a key for the full details if needed by an LLM for deeper dives
         return {"summary": summary, "details": raw_info}
@@ -128,9 +128,11 @@ async def _get_array_status() -> dict[str, Any]:
             def format_kb(k: Any) -> str:
                 if k is None:
                     return "N/A"
-                k = int(
-                    k
-                )  # Values are strings in SDL for PrefixedID containing types like capacity
+                try:
+                    k = int(float(k))
+                except (ValueError, TypeError):
+                    return str(k)
+
                 if k >= 1024 * 1024 * 1024:
                     return f"{k / (1024 * 1024 * 1024):.2f} TB"
                 if k >= 1024 * 1024:
@@ -306,7 +308,12 @@ def register_system_tools(mcp: FastMCP) -> None:
                     # Look for connect-related keys in the unified settings
                     connect_settings = {}
                     for key, value in values.items():
-                        if "connect" in key.lower() or key in ["accessType", "forwardType", "port"]:
+                        key_lower = key.lower()
+                        if "connect" in key_lower or key_lower in {
+                            "accesstype",
+                            "forwardtype",
+                            "port",
+                        }:
                             connect_settings[key] = value
                     return connect_settings if connect_settings else values
                 return dict(values) if isinstance(values, dict) else {}

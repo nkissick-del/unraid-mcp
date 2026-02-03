@@ -181,6 +181,9 @@ def extract_root_field(query: str) -> tuple[str, str | None]:
 
         token = content[start:i]
 
+        if not token:
+            return op_type, None
+
         # Check delimiter
         if i < n and content[i] == ":":
             # It was an alias, skip the colon and continue to find real field
@@ -207,12 +210,6 @@ class QueryCollector(ast.NodeVisitor):
                 or val.startswith("subscription ")
             ) and "{" in val:
                 self.queries.append((getattr(node, "lineno", 0), val))
-        self.generic_visit(node)
-
-    def visit_AsyncFunctionDef(self, node):
-        self.generic_visit(node)
-
-    def visit_FunctionDef(self, node):
         self.generic_visit(node)
 
 
@@ -397,7 +394,6 @@ async def main():
             status = f"[red]INVALID: Field '{root_field}' not found in {op_type} root[/red]"
             issues_found += 1
 
-        short_file = Path(filename).name
         table.add_row(f"{short_file}:{lineno}", op_type, root_field, status)
 
     console.print(table)

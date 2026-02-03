@@ -204,7 +204,7 @@ TESTS = [
 
 async def run_tests():
     results = []
-    # SSL verification can be toggle via env var (default False for local testing)
+    # SSL verification can be toggled via env var (default False for local testing)
     verify_ssl = os.getenv("UNRAID_VERIFY_SSL", "false").lower() == "true"
     async with httpx.AsyncClient(verify=verify_ssl, follow_redirects=False) as client:
         for name, query, variables in TESTS:
@@ -280,7 +280,9 @@ async def run_tests():
     unavail = sum(1 for _, s, _, _ in results if s == "UNAVAIL")
     known = sum(1 for _, s, _, _ in results if s == "KNOWN_BUG")
     partial = sum(1 for _, s, _, _ in results if s == "PARTIAL")
-    fail = sum(1 for _, s, _, _ in results if s in ("GQL_ERROR", "HTTP_ERROR", "EXCEPTION"))
+    fail = sum(
+        1 for _, s, _, _ in results if s in ("GQL_ERROR", "HTTP_ERROR", "EXCEPTION", "JSON_ERR")
+    )
     print(
         f"\nTotal: {len(results)} | OK: {ok} | Unavailable: {unavail} | Known bugs: {known} | Partial: {partial} | Failed: {fail}"
     )
@@ -289,7 +291,7 @@ async def run_tests():
     failures = [
         (n, s, e)
         for n, s, e, _ in results
-        if s in ("GQL_ERROR", "HTTP_ERROR", "EXCEPTION", "PARTIAL")
+        if s in ("GQL_ERROR", "HTTP_ERROR", "EXCEPTION", "PARTIAL", "JSON_ERR")
     ]
     if failures:
         print("\n=== UNEXPECTED FAILURES ===")
