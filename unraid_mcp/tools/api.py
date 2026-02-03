@@ -83,12 +83,12 @@ def register_api_tools(mcp: FastMCP) -> None:
                 response_data = await make_graphql_request(query)
                 schema = response_data.get("__schema", {})
                 result: dict[str, Any] = {}
-                if schema.get("queryType"):
-                    result["queries"] = schema["queryType"]["fields"]
-                if schema.get("mutationType"):
-                    result["mutations"] = schema["mutationType"]["fields"]
-                if schema.get("subscriptionType"):
-                    result["subscriptions"] = schema["subscriptionType"]["fields"]
+                if q := schema.get("queryType", {}).get("fields"):
+                    result["queries"] = q
+                if m := schema.get("mutationType", {}).get("fields"):
+                    result["mutations"] = m
+                if s := schema.get("subscriptionType", {}).get("fields"):
+                    result["subscriptions"] = s
                 return result
 
         except ToolError:
@@ -103,8 +103,49 @@ def register_api_tools(mcp: FastMCP) -> None:
         variables: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Execute a read-only GraphQL query against the Unraid API. Mutations are blocked for safety."""
+
         # Block mutations
-        stripped = re.sub(r"#[^\n]*", "", graphql_query)
+        # Block mutations
+        def _strip_comments(q: str) -> str:
+            """Strip comments while preserving strings."""
+            out = []
+            i = 0
+            n = len(q)
+            while i < n:
+                c = q[i]
+                if c == '"':
+                    is_block = i + 2 < n and q[i + 1 : i + 3] == '""'
+                    if is_block:
+                        out.append('"""')
+                        i += 3
+                        while i < n:
+                            # End of block string if """ and not escaped (approximation)
+                            if i + 2 < n and q[i : i + 3] == '""' and (i == 0 or q[i - 1] != "\\"):
+                                out.append('"""')
+                                i += 3
+                                break
+                            out.append(q[i])
+                            i += 1
+                    else:
+                        out.append('"')
+                        i += 1
+                        while i < n:
+                            if q[i] == '"' and (i == 0 or q[i - 1] != "\\"):
+                                out.append('"')
+                                i += 1
+                                break
+                            out.append(q[i])
+                            i += 1
+                elif c == "#":
+                    while i < n and q[i] != "\n":
+                        i += 1
+                    out.append("\n")
+                else:
+                    out.append(c)
+                    i += 1
+            return "".join(out)
+
+        stripped = _strip_comments(graphql_query)
         if re.search(r"\bmutation\b", stripped, re.IGNORECASE):
             raise ToolError(
                 "Mutations are not allowed through this tool. "

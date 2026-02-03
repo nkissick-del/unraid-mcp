@@ -19,10 +19,9 @@ Usage:
 
 import ast
 import asyncio
-import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any
 
 import httpx
 from rich.console import Console
@@ -134,7 +133,7 @@ INTROSPECTION_QUERY = """
 """
 
 
-def extract_root_field(query: str) -> Tuple[str, str | None]:
+def extract_root_field(query: str) -> tuple[str, str | None]:
     """
     Extracts the operation type and the root field from a GraphQL query string.
     Returns (operation_type, root_field_name).
@@ -166,13 +165,32 @@ def extract_root_field(query: str) -> Tuple[str, str | None]:
     # Handle aliases? "myAlias: fieldName" -> we want fieldName
     # But for now let's grab the first token.
 
-    root_token = ""
-    for char in content:
-        if char in " ({:":
-            break
-        root_token += char
+    # Detect alias: "myAlias: fieldName"
+    # We scan for the first token. If it ends with ':' or is followed immediately by ':', it's an alias.
+    i = 0
+    n = len(content)
+    while i < n:
+        # Skip leading whitespace
+        while i < n and content[i].isspace():
+            i += 1
 
-    return op_type, root_token
+        # Start of token
+        start = i
+        while i < n and content[i] not in " ({:":
+            i += 1
+
+        token = content[start:i]
+
+        # Check delimiter
+        if i < n and content[i] == ":":
+            # It was an alias, skip the colon and continue to find real field
+            i += 1
+            continue
+
+        # Token found (not an alias)
+        return op_type, token
+
+    return op_type, None
 
 
 class QueryCollector(ast.NodeVisitor):
@@ -192,15 +210,13 @@ class QueryCollector(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_AsyncFunctionDef(self, node):
-        # Also look for string variables inside functions
-        for child in node.body:
-            if isinstance(child, ast.Assign):
-                self.visit_Assign(child)
-            # Also handle `query = """..."""` which is Assign
+        self.generic_visit(node)
+
+    def visit_FunctionDef(self, node):
         self.generic_visit(node)
 
 
-async def fetch_schema() -> Dict[str, Any]:
+async def fetch_schema() -> dict[str, Any]:
     """Fetch schema from Unraid API."""
     if not UNRAID_API_URL or not UNRAID_API_KEY:
         console.print(
@@ -241,8 +257,8 @@ async def fetch_schema() -> Dict[str, Any]:
 
             if "text/html" in content_type:
                 console.print(
-                    f"[bold red]Got HTML instead of JSON.[/bold red] "
-                    f"The URL may be wrong or the API is not enabled."
+                    "[bold red]Got HTML instead of JSON.[/bold red] "
+                    "The URL may be wrong or the API is not enabled."
                 )
                 console.print(f"[dim]Response preview: {response.text[:300]}[/dim]")
                 sys.exit(1)
@@ -259,14 +275,16 @@ async def fetch_schema() -> Dict[str, Any]:
             return data["data"]["__schema"]
         except httpx.ConnectError as e:
             console.print(f"[bold red]Connection Refused:[/bold red] {e}")
-            console.print("[yellow]Check that the Unraid server is reachable and the port is correct.[/yellow]")
+            console.print(
+                "[yellow]Check that the Unraid server is reachable and the port is correct.[/yellow]"
+            )
             sys.exit(1)
         except Exception as e:
             console.print(f"[bold red]Connection Failed:[/bold red] {e}")
             sys.exit(1)
 
 
-def build_type_map(schema: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+def build_type_map(schema: dict[str, Any]) -> dict[str, dict[str, Any]]:
     """Organize schema types by name for easy lookup."""
     type_map = {}
     for type_def in schema["types"]:
@@ -274,11 +292,11 @@ def build_type_map(schema: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     return type_map
 
 
-def get_root_fields(schema: Dict[str, Any], type_map: Dict[str, Any], op_type: str) -> Set[str]:
+def get_root_fields(schema: dict[str, Any], type_map: dict[str, Any], op_type: str) -> set[str]:
     """Get all valid root fields for a given operation type (query/mutation)."""
     root_type_name = None
     if op_type == "query":
-        root_type_name = schema["queryType"]["name"]
+        root_type_name = schema.get("queryType", {}).get("name")
     elif op_type == "mutation":
         root_type_name = schema.get("mutationType", {}).get("name")
     elif op_type == "subscription":
@@ -298,9 +316,9 @@ def get_root_fields(schema: Dict[str, Any], type_map: Dict[str, Any], op_type: s
     return fields
 
 
-def scan_files() -> List[Tuple[str, int, str]]:
+def scan_files() -> list[tuple[str, int, str]]:
     """Scan tool files for queries."""
-    tools_dir = Path("unraid_mcp/tools")
+    tools_dir = Path(__file__).parent / "unraid_mcp" / "tools"
     all_queries = []
 
     for py_file in tools_dir.glob("*.py"):
@@ -330,7 +348,7 @@ async def main():
     mutation_root_fields = get_root_fields(schema, type_map, "mutation")
     sub_root_fields = get_root_fields(schema, type_map, "subscription")
 
-    console.print(f"[green]Schema Fetched Successfully[/green]")
+    console.print("[green]Schema Fetched Successfully[/green]")
     console.print(f"Query Root Fields: {len(query_root_fields)}")
     console.print(f"Mutation Root Fields: {len(mutation_root_fields)}")
 
@@ -354,6 +372,14 @@ async def main():
 
     for filename, lineno, query_str in queries:
         op_type, root_field = extract_root_field(query_str)
+
+        short_file = Path(filename).name
+
+        if root_field is None:
+            status = "[red]UNPARSEABLE: could not parse query[/red]"
+            issues_found += 1
+            table.add_row(f"{short_file}:{lineno}", op_type, "None", status)
+            continue
 
         status = "[green]OK[/green]"
         valid_roots = set()
