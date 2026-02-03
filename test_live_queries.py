@@ -263,6 +263,7 @@ async def run_tests():
         "GQL_ERROR": "FAIL",
         "HTTP_ERROR": "FAIL",
         "EXCEPTION": "FAIL",
+        "JSON_ERR": "FAIL",
     }
     print(f"{'Tool':<42} {'Status':<12} {'Time':>6}  Detail")
     print("-" * 130)

@@ -130,7 +130,7 @@ async def _get_array_status() -> dict[str, Any]:
                     return "N/A"
                 try:
                     k = int(float(k))
-                except (ValueError, TypeError):
+                except (ValueError, TypeError, OverflowError):
                     return str(k)
 
                 if k >= 1024 * 1024 * 1024:
