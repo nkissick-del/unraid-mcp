@@ -225,6 +225,10 @@ def register_storage_tools(mcp: FastMCP) -> None:
             serialNum
             size
             temperature
+            interfaceType
+            smartStatus
+            isSpinning
+            partitions { name size type fsType }
           }
         }
         """
@@ -258,8 +262,6 @@ def register_storage_tools(mcp: FastMCP) -> None:
                 'interface_type': raw_disk.get('interfaceType'),
                 'smart_status': raw_disk.get('smartStatus'),
                 'is_spinning': raw_disk.get('isSpinning'),
-                'power_on_hours': raw_disk.get('powerOnHours'),
-                'reallocated_sectors': raw_disk.get('reallocatedSectorCount'),
                 'partition_count': len(raw_disk.get('partitions', [])),
                 'total_partition_size': format_bytes(sum(p.get('size', 0) for p in raw_disk.get('partitions', []) if p.get('size')))
             }
