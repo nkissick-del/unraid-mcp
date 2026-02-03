@@ -28,13 +28,20 @@ from rich.console import Console
 from rich.table import Table
 
 # Add project root to path to allow imports if needed, though we primarily parse text
-sys.path.append(str(Path(__file__).parent))
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+sys.path.append(str(PROJECT_ROOT))
 
-from unraid_mcp.config.settings import (
-    UNRAID_API_KEY,
-    UNRAID_API_URL,
-    UNRAID_VERIFY_SSL,
-)
+# Now import from the application config
+try:
+    from unraid_mcp.config.settings import (
+        UNRAID_API_KEY,
+        UNRAID_API_URL,
+        UNRAID_VERIFY_SSL,
+    )
+except ImportError:
+    # Fallback or error if not found
+    print("Error: Could not import unraid_mcp.config.settings")
+    sys.exit(1)
 
 console = Console()
 
@@ -315,7 +322,7 @@ def get_root_fields(schema: dict[str, Any], type_map: dict[str, Any], op_type: s
 
 def scan_files() -> list[tuple[str, int, str]]:
     """Scan tool files for queries."""
-    tools_dir = Path(__file__).parent / "unraid_mcp" / "tools"
+    tools_dir = PROJECT_ROOT / "unraid_mcp" / "tools"
     all_queries = []
 
     for py_file in tools_dir.glob("*.py"):

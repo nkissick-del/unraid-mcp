@@ -2,18 +2,39 @@
 """Live API test: fires every GraphQL query from the codebase against the Unraid server."""
 
 import asyncio
-import os
+import sys
 import time
+from pathlib import Path
 
 import httpx
 
-API_URL = os.getenv("API_URL", "https://192.168.1.101/graphql")
-API_KEY = os.getenv("API_KEY")
+# Add project root to path
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+sys.path.append(str(PROJECT_ROOT))
+
+# Now import from the application config
+try:
+    from unraid_mcp.config.settings import (
+        UNRAID_API_KEY,
+        UNRAID_API_URL,
+        UNRAID_VERIFY_SSL,
+    )
+except ImportError:
+    # Fallback or error if not found (e.g. if not installed as package)
+    print(
+        "Error: Could not import unraid_mcp.config.settings. Ensure project root is in PYTHONPATH."
+    )
+    sys.exit(1)
+
+API_URL = UNRAID_API_URL or "https://192.168.1.101/graphql"
+API_KEY = UNRAID_API_KEY
 
 if not API_KEY:
     # Fail loudly if API_KEY is missing, to prevent accidental commits of secrets
     # or running without proper configuration.
-    raise ValueError("API_KEY environment variable is required (e.g. export API_KEY='...')")
+    raise ValueError(
+        "UNRAID_API_KEY environment variable is required (check .env file or export UNRAID_API_KEY='...')"
+    )
 
 HEADERS = {
     "Content-Type": "application/json",
@@ -205,7 +226,7 @@ TESTS = [
 async def run_tests():
     results = []
     # SSL verification can be toggled via env var (default False for local testing)
-    verify_ssl = os.getenv("UNRAID_VERIFY_SSL", "false").lower() == "true"
+    verify_ssl = UNRAID_VERIFY_SSL
     async with httpx.AsyncClient(verify=verify_ssl, follow_redirects=False) as client:
         for name, query, variables in TESTS:
             payload = {"query": query}
