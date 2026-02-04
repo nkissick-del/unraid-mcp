@@ -26,6 +26,22 @@ _PROCESS_START_TIME = time.time()
 API_LATENCY_WARNING_MS = 5000
 API_LATENCY_DEGRADED_MS = 10000
 
+# Severity ranking for health status aggregation
+_SEVERITY_RANK = {
+    "healthy": 0,
+    "warning": 1,
+    "degraded": 2,
+    "unhealthy": 3,
+    "critical": 3,
+}  # critical reserved for future use
+
+
+def _update_health_status(current: str, new: str) -> str:
+    """Update status only if the new status is more severe."""
+    if _SEVERITY_RANK.get(new, 0) > _SEVERITY_RANK.get(current, 0):
+        return new
+    return current
+
 
 def register_health_tools(mcp: FastMCP) -> None:
     """Register all health tools with the FastMCP instance.
@@ -41,15 +57,6 @@ def register_health_tools(mcp: FastMCP) -> None:
         process_start_time = _PROCESS_START_TIME  # snapshot for consistent timing
         health_status = "healthy"
         issues = []
-
-        # Severity ranking for health status aggregation
-        SEVERITY_RANK = {"healthy": 0, "warning": 1, "degraded": 2, "unhealthy": 3, "critical": 3}
-
-        def update_status(current: str, new: str) -> str:
-            """Update status only if the new status is more severe."""
-            if SEVERITY_RANK.get(new, 0) > SEVERITY_RANK.get(current, 0):
-                return new
-            return current
 
         try:
             # Enhanced health check with multiple system components
@@ -116,7 +123,7 @@ def register_health_tools(mcp: FastMCP) -> None:
                     "uptime": info.get("os", {}).get("uptime"),
                 }
             else:
-                health_status = update_status(health_status, "degraded")
+                health_status = _update_health_status(health_status, "degraded")
                 issues.append("Unable to retrieve system info")
 
             # Array health analysis
@@ -128,10 +135,10 @@ def register_health_tools(mcp: FastMCP) -> None:
                     "healthy": array_state in ["STARTED", "STOPPED"],
                 }
                 if array_state not in ["STARTED", "STOPPED"]:
-                    health_status = update_status(health_status, "warning")
+                    health_status = _update_health_status(health_status, "warning")
                     issues.append(f"Array in unexpected state: {array_state}")
             else:
-                health_status = update_status(health_status, "warning")
+                health_status = _update_health_status(health_status, "warning")
                 issues.append("Unable to retrieve array status")
 
             # Notifications analysis
@@ -150,7 +157,7 @@ def register_health_tools(mcp: FastMCP) -> None:
                 }
 
                 if alert_count > 0:
-                    health_status = update_status(health_status, "warning")
+                    health_status = _update_health_status(health_status, "warning")
                     issues.append(f"{alert_count} unread alert notification(s)")
 
             # Docker services analysis
@@ -171,10 +178,10 @@ def register_health_tools(mcp: FastMCP) -> None:
 
             # API performance assessment
             if api_latency > API_LATENCY_DEGRADED_MS:  # > 10 seconds
-                health_status = update_status(health_status, "degraded")
+                health_status = _update_health_status(health_status, "degraded")
                 issues.append(f"Very high API latency: {api_latency}ms")
             elif api_latency > API_LATENCY_WARNING_MS:  # > 5 seconds
-                health_status = update_status(health_status, "warning")
+                health_status = _update_health_status(health_status, "warning")
                 issues.append(f"High API latency: {api_latency}ms")
 
             # Final status determination
