@@ -87,11 +87,10 @@ async def _get_system_info() -> dict[str, Any]:
             summary["memory_layout_details"] = []  # Renamed for clarity
             # The API is not returning 'size' for individual sticks in the layout, even if queried.
             # So, we cannot calculate total from layout currently.
-            for stick in mem_layout:
-                # stick_size = stick.get('size') # This is None in the actual API response
-                summary["memory_layout_details"].append(
-                    f"Bank {stick.get('bank', '?')}: Type {stick.get('type', '?')}, Speed {stick.get('clockSpeed', '?')}MHz, Manufacturer: {stick.get('manufacturer', '?')}, Part: {stick.get('partNum', '?')}"
-                )
+            summary["memory_layout_details"] = [
+                f"Bank {stick.get('bank', '?')}: Type {stick.get('type', '?')}, Speed {stick.get('clockSpeed', '?')}MHz, Manufacturer: {stick.get('manufacturer', '?')}, Part: {stick.get('partNum', '?')}"
+                for stick in mem_layout
+            ]
             summary["memory_summary"] = (
                 "Stick layout details retrieved. Overall total/used/free memory stats are unavailable due to API limitations (Int overflow or data not provided by API)."
             )

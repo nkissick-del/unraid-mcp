@@ -22,6 +22,10 @@ from unraid_mcp.core.client import make_graphql_request
 
 _PROCESS_START_TIME = time.time()
 
+# Performance thresholds for health assessment
+API_LATENCY_WARNING_MS = 5000
+API_LATENCY_DEGRADED_MS = 10000
+
 
 def register_health_tools(mcp: FastMCP) -> None:
     """Register all health tools with the FastMCP instance.
@@ -34,6 +38,7 @@ def register_health_tools(mcp: FastMCP) -> None:
     async def health_check() -> dict[str, Any]:
         """Returns comprehensive health status of the Unraid MCP server and system for monitoring purposes."""
         start_time = time.time()
+        process_start_time = _PROCESS_START_TIME  # snapshot to avoid race condition
         health_status = "healthy"
         issues = []
 
@@ -79,7 +84,7 @@ def register_health_tools(mcp: FastMCP) -> None:
                     "transport": UNRAID_MCP_TRANSPORT,
                     "host": UNRAID_MCP_HOST,
                     "port": UNRAID_MCP_PORT,
-                    "process_uptime_seconds": round(time.time() - _PROCESS_START_TIME, 2),
+                    "process_uptime_seconds": round(time.time() - process_start_time, 2),
                 },
             }
 
@@ -156,10 +161,10 @@ def register_health_tools(mcp: FastMCP) -> None:
                 }
 
             # API performance assessment
-            if api_latency > 5000:  # > 5 seconds
+            if api_latency > API_LATENCY_WARNING_MS:  # > 5 seconds
                 health_status = "warning"
                 issues.append(f"High API latency: {api_latency}ms")
-            elif api_latency > 10000:  # > 10 seconds
+            elif api_latency > API_LATENCY_DEGRADED_MS:  # > 10 seconds
                 health_status = "degraded"
                 issues.append(f"Very high API latency: {api_latency}ms")
 

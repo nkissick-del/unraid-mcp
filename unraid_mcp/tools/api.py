@@ -4,6 +4,7 @@ This module provides tools for exploring the Unraid GraphQL schema
 and executing read-only queries directly against the API.
 """
 
+import json
 import re
 from typing import Any
 
@@ -58,6 +59,72 @@ def _strip_comments(q: str) -> str:
             out.append(c)
             i += 1
     return "".join(out)
+
+
+def _validate_variables(variables: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Validate GraphQL variables for safety and JSON serializability.
+
+    Args:
+        variables: Raw variables dict (may be None)
+
+    Returns:
+        Validated variables dict (or None)
+
+    Raises:
+        ToolError: If variables are invalid or contain dangerous content
+    """
+    if variables is None:
+        return None
+
+    # Ensure variables are a dictionary
+    if not isinstance(variables, dict):
+        raise ToolError("GraphQL variables must be a dictionary")
+
+    # Check for maximum depth to prevent recursion attacks
+    def check_depth(obj, current_depth=0, max_depth=10):
+        if current_depth > max_depth:
+            raise ToolError(f"Variables nesting depth exceeds maximum {max_depth}")
+        if isinstance(obj, dict):
+            for v in obj.values():
+                check_depth(v, current_depth + 1, max_depth)
+        elif isinstance(obj, list):
+            for item in obj:
+                check_depth(item, current_depth + 1, max_depth)
+
+    try:
+        check_depth(variables)
+    except RecursionError as e:
+        raise ToolError("Variables contain recursive structures") from e
+
+    # Ensure JSON serializability
+    try:
+        json.dumps(variables)
+    except (TypeError, ValueError) as e:
+        raise ToolError(f"Variables are not JSON serializable: {e}") from e
+
+    # Basic injection prevention: reject variables that look like system commands
+    # This is a simple heuristic; proper GraphQL validation is done by the API
+    def contains_suspicious_content(obj):
+        if isinstance(obj, str):
+            # Block obvious shell injection patterns
+            suspicious = [";", "$(", "`", "||", "&&", ">", "<", "|"]
+            for pat in suspicious:
+                if pat in obj:
+                    return True
+        elif isinstance(obj, dict):
+            for v in obj.values():
+                if contains_suspicious_content(v):
+                    return True
+        elif isinstance(obj, list):
+            for item in obj:
+                if contains_suspicious_content(item):
+                    return True
+        return False
+
+    if contains_suspicious_content(variables):
+        raise ToolError("Variables contain potentially dangerous content")
+
+    return variables
 
 
 def register_api_tools(mcp: FastMCP) -> None:
@@ -158,10 +225,13 @@ def register_api_tools(mcp: FastMCP) -> None:
                 "Use the dedicated management tools for write operations."
             )
 
+        # Validate variables for security
+        validated_variables = _validate_variables(variables)
+
         try:
             logger.info("Executing raw GraphQL query via query_unraid_api")
             logger.debug(f"Query: {graphql_query[:200]}")
-            response_data = await make_graphql_request(graphql_query, variables)
+            response_data = await make_graphql_request(graphql_query, validated_variables)
             return response_data
         except ToolError:
             raise
