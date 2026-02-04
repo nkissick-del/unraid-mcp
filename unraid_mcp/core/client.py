@@ -105,14 +105,22 @@ async def make_graphql_request(
     logger.debug(f"Query: {sanitized}")
     if variables:
         # Mask variables to prevent logging secrets
-        # Selective redaction for sensitive keys
-        sensitive_keys = {"password", "pass", "token", "secret", "key"}
-        masked = {}
-        for k, v in variables.items():
-            if any(s in k.lower() for s in sensitive_keys):
-                masked[k] = "[REDACTED]"
-            else:
-                masked[k] = v
+        def _redact_recursive(obj: Any) -> Any:
+            sensitive_keys = {"password", "pass", "token", "secret", "key"}
+            if isinstance(obj, dict):
+                return {
+                    k: "[REDACTED]"
+                    if any(s in k.lower() for s in sensitive_keys)
+                    else _redact_recursive(v)
+                    for k, v in obj.items()
+                }
+            elif isinstance(obj, list):
+                return [_redact_recursive(i) for i in obj]
+            elif isinstance(obj, tuple):
+                return tuple(_redact_recursive(i) for i in obj)
+            return obj
+
+        masked = _redact_recursive(variables)
         logger.debug(f"Variables: {masked}")
 
     current_timeout = custom_timeout if custom_timeout is not None else DEFAULT_TIMEOUT

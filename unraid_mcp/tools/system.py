@@ -84,7 +84,7 @@ async def _get_system_info() -> dict[str, Any]:
 
         if raw_info.get("memory") and raw_info["memory"].get("layout"):
             mem_layout = raw_info["memory"]["layout"]
-            # summary["memory_layout_details"] = [] - Removed redundant assignment
+
             # The API is not returning 'size' for individual sticks in the layout, even if queried.
             # So, we cannot calculate total from layout currently.
             summary["memory_layout_details"] = [

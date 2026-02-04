@@ -71,7 +71,7 @@ def _validate_variables(variables: dict[str, Any] | None) -> dict[str, Any] | No
         Validated variables dict (or None)
 
     Raises:
-        ToolError: If variables are invalid or contain dangerous content
+        ToolError: If variables are invalid or fail validation (e.g., recursion, JSON serializability).
     """
     if variables is None:
         return None
@@ -102,10 +102,10 @@ def _validate_variables(variables: dict[str, Any] | None) -> dict[str, Any] | No
     except (TypeError, ValueError) as e:
         raise ToolError(f"Variables are not JSON serializable: {e}") from e
 
-    # Basic injection prevention: reject variables that look like system commands
-    # This is a simple heuristic; proper GraphQL validation is done by the API
-    # Removed heuristic `contains_suspicious_content` as GraphQL variables are JSON
-    # and not shell-executed. If specific vulnerabilities are found, add targeted checks here.
+    # Basic injection prevention:
+    # Previous heuristic `contains_suspicious_content` was removed as GraphQL variables are JSON
+    # and not shell-executed, and proper GraphQL validation is performed by the API.
+    # Targeted checks can be re-added here if specific vulnerabilities are discovered.
 
     return variables
 
