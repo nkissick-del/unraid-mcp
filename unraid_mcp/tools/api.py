@@ -104,25 +104,8 @@ def _validate_variables(variables: dict[str, Any] | None) -> dict[str, Any] | No
 
     # Basic injection prevention: reject variables that look like system commands
     # This is a simple heuristic; proper GraphQL validation is done by the API
-    def contains_suspicious_content(obj):
-        if isinstance(obj, str):
-            # Block obvious shell injection patterns
-            suspicious = [";", "$(", "`", "||", "&&", ">", "<", "|"]
-            for pat in suspicious:
-                if pat in obj:
-                    return True
-        elif isinstance(obj, dict):
-            for v in obj.values():
-                if contains_suspicious_content(v):
-                    return True
-        elif isinstance(obj, list):
-            for item in obj:
-                if contains_suspicious_content(item):
-                    return True
-        return False
-
-    if contains_suspicious_content(variables):
-        raise ToolError("Variables contain potentially dangerous content")
+    # Removed heuristic `contains_suspicious_content` as GraphQL variables are JSON
+    # and not shell-executed. If specific vulnerabilities are found, add targeted checks here.
 
     return variables
 

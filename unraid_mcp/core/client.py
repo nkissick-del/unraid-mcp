@@ -20,7 +20,11 @@ DISK_TIMEOUT = httpx.Timeout(10.0, read=TIMEOUT_CONFIG["disk_operations"], conne
 
 
 def sanitize_query(query: str) -> str:
-    """Remove potential secrets from query string before logging."""
+    """Remove potential secrets from query string before logging.
+
+    Primary secret protection is performed by variables masking. This function
+    serves as defense-in-depth for type naming and definitions.
+    """
     # Remove variable definitions and replace with placeholders
     # This is a basic sanitization; for production, consider a proper GraphQL parser
     # Remove variable definitions like $var: Type
@@ -101,7 +105,14 @@ async def make_graphql_request(
     logger.debug(f"Query: {sanitized}")
     if variables:
         # Mask variables to prevent logging secrets
-        masked = dict.fromkeys(variables, "[REDACTED]")
+        # Selective redaction for sensitive keys
+        sensitive_keys = {"password", "pass", "token", "secret", "key"}
+        masked = {}
+        for k, v in variables.items():
+            if any(s in k.lower() for s in sensitive_keys):
+                masked[k] = "[REDACTED]"
+            else:
+                masked[k] = v
         logger.debug(f"Variables: {masked}")
 
     current_timeout = custom_timeout if custom_timeout is not None else DEFAULT_TIMEOUT

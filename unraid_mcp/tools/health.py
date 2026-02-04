@@ -38,7 +38,7 @@ def register_health_tools(mcp: FastMCP) -> None:
     async def health_check() -> dict[str, Any]:
         """Returns comprehensive health status of the Unraid MCP server and system for monitoring purposes."""
         start_time = time.time()
-        process_start_time = _PROCESS_START_TIME  # snapshot to avoid race condition
+        process_start_time = _PROCESS_START_TIME  # snapshot for consistent timing
         health_status = "healthy"
         issues = []
 
@@ -161,12 +161,12 @@ def register_health_tools(mcp: FastMCP) -> None:
                 }
 
             # API performance assessment
-            if api_latency > API_LATENCY_WARNING_MS:  # > 5 seconds
-                health_status = "warning"
-                issues.append(f"High API latency: {api_latency}ms")
-            elif api_latency > API_LATENCY_DEGRADED_MS:  # > 10 seconds
+            if api_latency > API_LATENCY_DEGRADED_MS:  # > 10 seconds
                 health_status = "degraded"
                 issues.append(f"Very high API latency: {api_latency}ms")
+            elif api_latency > API_LATENCY_WARNING_MS:  # > 5 seconds
+                health_status = "warning"
+                issues.append(f"High API latency: {api_latency}ms")
 
             # Final status determination
             health_info["status"] = health_status
