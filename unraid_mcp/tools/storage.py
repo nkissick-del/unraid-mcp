@@ -82,7 +82,7 @@ def register_storage_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     async def list_notifications(
-        type: str, offset: int, limit: int, importance: str | None = None
+        notification_type: str, offset: int, limit: int, importance: str | None = None
     ) -> list[dict[str, Any]]:
         """Lists notifications with filtering. Type: UNREAD/ARCHIVE. Importance: INFO/WARNING/ALERT."""
         query = """
@@ -104,7 +104,7 @@ def register_storage_tools(mcp: FastMCP) -> None:
         """
         variables = {
             "filter": {
-                "type": type.upper(),
+                "type": notification_type.upper(),
                 "offset": offset,
                 "limit": limit,
                 "importance": importance.upper() if importance else None,
@@ -116,7 +116,7 @@ def register_storage_tools(mcp: FastMCP) -> None:
 
         try:
             logger.info(
-                f"Executing list_notifications: type={type}, offset={offset}, limit={limit}, importance={importance}"
+                f"Executing list_notifications: type={notification_type}, offset={offset}, limit={limit}, importance={importance}"
             )
             response_data = await make_graphql_request(query, variables)
             if response_data.get("notifications"):
@@ -286,7 +286,7 @@ def register_storage_tools(mcp: FastMCP) -> None:
 
             return {
                 "summary": summary,
-                "partitions": raw_disk.get("partitions", []),
+                "partitions": partitions,
                 "details": raw_disk,
             }
 

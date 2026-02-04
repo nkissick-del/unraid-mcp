@@ -99,8 +99,10 @@ def register_rclone_tools(mcp: FastMCP) -> None:
             return dict(form_data) if isinstance(form_data, dict) else {}
 
         except Exception as e:
-            logger.error(f"Failed to get RClone config form: {str(e)}")
-            raise ToolError(f"Failed to get RClone config form: {str(e)}") from e
+            if isinstance(e, ToolError):
+                raise e
+            logger.error(f"Failed to get RClone config form: {e}")
+            raise ToolError(f"Failed to get RClone config form: {e}") from e
 
     @mcp.tool()
     async def create_rclone_remote(

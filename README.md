@@ -194,7 +194,7 @@ UNRAID_VERIFY_SSL=true  # true, false, or path to CA bundle
 ### Monitoring & Diagnostics
 - `health_check()` - Comprehensive system health assessment
 - `get_notifications_overview()` - Notification counts by severity
-- `list_notifications(type, offset, limit)` - Filtered notification listing
+- `list_notifications(notification_type, offset, limit)` - Filtered notification listing
 - `list_available_log_files()` - Available system logs
 - `get_logs(path, tail_lines)` - Log file content retrieval
 
