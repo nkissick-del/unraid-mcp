@@ -54,6 +54,8 @@ def register_rclone_tools(mcp: FastMCP) -> None:
             return list(remotes) if isinstance(remotes, list) else []
 
         except Exception as e:
+            if isinstance(e, ToolError):
+                raise e
             logger.error(f"Failed to list RClone remotes: {str(e)}")
             raise ToolError(f"Failed to list RClone remotes: {str(e)}") from e
 
@@ -145,6 +147,8 @@ def register_rclone_tools(mcp: FastMCP) -> None:
             raise ToolError("Failed to create RClone remote")
 
         except Exception as e:
+            if isinstance(e, ToolError):
+                raise e
             logger.error(f"Failed to create RClone remote {name}: {str(e)}")
             raise ToolError(f"Failed to create RClone remote {name}: {str(e)}") from e
 
@@ -176,6 +180,8 @@ def register_rclone_tools(mcp: FastMCP) -> None:
             raise ToolError(f"Failed to delete RClone remote '{name}'")
 
         except Exception as e:
+            if isinstance(e, ToolError):
+                raise e
             logger.error(f"Failed to delete RClone remote {name}: {str(e)}")
             raise ToolError(f"Failed to delete RClone remote {name}: {str(e)}") from e
 

@@ -340,5 +340,3 @@ if FASTMCP_AVAILABLE:
 else:
     # Fallback to our custom logger if FastMCP is not available
     logger = setup_logger()
-    # Setup uvicorn logging when module is imported
-    setup_uvicorn_logging()
