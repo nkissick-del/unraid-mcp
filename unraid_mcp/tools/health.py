@@ -11,14 +11,15 @@ from typing import Any
 
 from fastmcp import FastMCP
 
-from unraid_mcp.config.logging import logger
-from unraid_mcp.config.settings import (
+from .. import __version__
+from ..config.logging import logger
+from ..config.settings import (
     UNRAID_API_URL,
     UNRAID_MCP_HOST,
     UNRAID_MCP_PORT,
     UNRAID_MCP_TRANSPORT,
 )
-from unraid_mcp.core.client import make_graphql_request
+from ..core.client import make_graphql_request
 
 _PROCESS_START_TIME = time.time()
 
@@ -96,7 +97,7 @@ def register_health_tools(mcp: FastMCP) -> None:
                 "api_latency_ms": api_latency,
                 "server": {
                     "name": "Unraid MCP Server",
-                    "version": "0.1.0",
+                    "version": __version__,
                     "transport": UNRAID_MCP_TRANSPORT,
                     "host": UNRAID_MCP_HOST,
                     "port": UNRAID_MCP_PORT,
@@ -206,7 +207,7 @@ def register_health_tools(mcp: FastMCP) -> None:
                 "api_latency_ms": round((time.time() - start_time) * 1000, 2),
                 "server": {
                     "name": "Unraid MCP Server",
-                    "version": "0.1.0",
+                    "version": __version__,
                     "transport": UNRAID_MCP_TRANSPORT,
                     "host": UNRAID_MCP_HOST,
                     "port": UNRAID_MCP_PORT,

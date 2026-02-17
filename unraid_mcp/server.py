@@ -8,6 +8,7 @@ import sys
 
 from fastmcp import FastMCP
 
+from . import __version__
 from .config.logging import logger
 from .config.settings import (
     UNRAID_API_KEY,
@@ -17,7 +18,6 @@ from .config.settings import (
     UNRAID_MCP_TRANSPORT,
 )
 from .subscriptions.diagnostics import register_diagnostic_tools
-from .subscriptions.manager import SubscriptionManager
 from .subscriptions.resources import register_subscription_resources
 from .tools.api import register_api_tools
 from .tools.docker import register_docker_tools
@@ -31,23 +31,8 @@ from .tools.virtualization import register_vm_tools
 mcp = FastMCP(
     name="Unraid MCP Server",
     instructions="Provides tools to interact with an Unraid server's GraphQL API.",
-    version="0.1.0",
+    version=__version__,
 )
-
-# Initialize subscription manager
-subscription_manager = SubscriptionManager()
-
-
-async def autostart_subscriptions() -> None:
-    """Auto-start all subscriptions marked for auto-start in SubscriptionManager"""
-    logger.info("[AUTOSTART] Initiating subscription auto-start process...")
-
-    try:
-        # Use the SubscriptionManager auto-start method
-        await subscription_manager.auto_start_all_subscriptions()
-        logger.info("[AUTOSTART] Auto-start process completed successfully")
-    except Exception as e:
-        logger.error(f"[AUTOSTART] Failed during auto-start process: {e}", exc_info=True)
 
 
 def register_all_modules() -> None:

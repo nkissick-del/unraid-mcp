@@ -70,10 +70,12 @@ def register_diagnostic_tools(mcp: FastMCP) -> None:
                 if init_response.get("type") != "connection_ack":
                     return {"error": f"Connection failed: {init_response}"}
 
-                # Send subscription
+                # Send subscription using protocol-appropriate message type
+                selected_proto = websocket.subprotocol or "graphql-ws"
+                start_type = "subscribe" if selected_proto == "graphql-transport-ws" else "start"
                 await websocket.send(json.dumps({
                     "id": "test",
-                    "type": "start",
+                    "type": start_type,
                     "payload": {"query": subscription_query}
                 }))
 
@@ -86,7 +88,9 @@ def register_diagnostic_tools(mcp: FastMCP) -> None:
                     return {
                         "success": True,
                         "response": result,
-                        "query_tested": subscription_query
+                        "query_tested": subscription_query,
+                        "protocol": selected_proto,
+                        "message_type": start_type,
                     }
 
                 except asyncio.TimeoutError:
@@ -94,6 +98,8 @@ def register_diagnostic_tools(mcp: FastMCP) -> None:
                         "success": True,
                         "response": "No immediate response (subscriptions may only send data on changes)",
                         "query_tested": subscription_query,
+                        "protocol": selected_proto,
+                        "message_type": start_type,
                         "note": "Connection successful, subscription may be waiting for events"
                     }
 

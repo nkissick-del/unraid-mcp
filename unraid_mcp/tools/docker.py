@@ -5,6 +5,8 @@ including listing containers with caching options, start/stop operations,
 and detailed container information retrieval.
 """
 
+import asyncio
+import re
 from typing import Any
 
 from fastmcp import FastMCP
@@ -12,6 +14,17 @@ from fastmcp import FastMCP
 from ..config.logging import logger
 from ..core.client import make_graphql_request
 from ..core.exceptions import ToolError
+
+
+def _is_container_id(identifier: str) -> bool:
+    """Check if a string looks like a Docker container ID.
+
+    Docker container IDs are 64-char hex strings (full) or 12+ char hex prefixes (short).
+    The Unraid API uses colon-delimited prefixed IDs (e.g., 'sha256:abc123...').
+    """
+    if ":" in identifier:
+        return True
+    return bool(re.fullmatch(r"[0-9a-fA-F]{12,64}", identifier))
 
 
 def find_container_by_identifier(container_identifier: str, containers: list[dict[str, Any]]) -> dict[str, Any] | None:
@@ -115,8 +128,6 @@ def register_docker_tools(mcp: FastMCP) -> None:
         Returns:
             Dict containing operation result and container information
         """
-        import asyncio
-
         if action.lower() not in ["start", "stop"]:
             logger.warning(f"Invalid action '{action}' for manage_docker_container")
             raise ToolError("Invalid action. Must be 'start' or 'stop'.")
@@ -144,7 +155,7 @@ def register_docker_tools(mcp: FastMCP) -> None:
 
             # Step 1: Resolve container identifier to actual container ID if needed
             actual_container_id = container_id
-            if not container_id.startswith("3cb1026338736ed07b8afec2c484e429710b0f6550dc65d0c5c410ea9d0fa6b2:"):
+            if not _is_container_id(container_id):
                 # This looks like a name, not a full container ID - need to resolve it
                 logger.info(f"Resolving container identifier '{container_id}' to actual container ID")
                 list_query = """

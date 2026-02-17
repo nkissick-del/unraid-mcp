@@ -33,14 +33,13 @@ dependencies = [
     "websockets>=13.1,<14.0",
     "rich>=14.1.0",
     "pytz>=2025.2",
-    "mypy>=1.17.1",
-    "ruff>=0.12.8",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.4.1",
     "pytest-asyncio>=1.1.0",
+    "pytest-cov>=6.0.0",
     "black>=25.1.0",
     "ruff>=0.12.8",
     "mypy>=1.17.1",
