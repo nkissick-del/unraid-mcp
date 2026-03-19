@@ -81,7 +81,7 @@ def _validate_variables(variables: dict[str, Any] | None) -> dict[str, Any] | No
         raise ToolError("GraphQL variables must be a dictionary")
 
     # Check for maximum depth to prevent recursion attacks
-    def check_depth(obj, current_depth=0, max_depth=10):
+    def check_depth(obj: Any, current_depth: int = 0, max_depth: int = 10) -> None:
         if current_depth > max_depth:
             raise ToolError(f"Variables nesting depth exceeds maximum {max_depth}")
         if isinstance(obj, dict):
@@ -161,7 +161,7 @@ def register_api_tools(mcp: FastMCP) -> None:
                 }
                 """
                 response_data = await make_graphql_request(query, {"name": type_name})
-                type_info = response_data.get("__type")
+                type_info: dict[str, Any] = response_data.get("__type", {})
                 if not type_info:
                     raise ToolError(f"Type '{type_name}' not found in schema")
                 return type_info

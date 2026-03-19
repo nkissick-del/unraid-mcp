@@ -7,6 +7,7 @@ that cap at 10MB and start over (no rotation) for consistent use across all modu
 import logging
 import os
 from datetime import datetime
+from pathlib import Path
 
 import pytz
 from rich.align import Align
@@ -32,7 +33,14 @@ console = Console(stderr=True, force_terminal=True)
 class OverwriteFileHandler(logging.FileHandler):
     """Custom file handler that overwrites the log file when it reaches max size."""
 
-    def __init__(self, filename, max_bytes=10 * 1024 * 1024, mode="a", encoding=None, delay=False):
+    def __init__(
+        self,
+        filename: str | Path,
+        max_bytes: int = 10 * 1024 * 1024,
+        mode: str = "a",
+        encoding: str | None = None,
+        delay: bool = False,
+    ) -> None:
         """Initialize the handler.
 
 
@@ -46,7 +54,7 @@ class OverwriteFileHandler(logging.FileHandler):
         self.max_bytes = max_bytes
         super().__init__(filename, mode, encoding, delay)
 
-    def emit(self, record):
+    def emit(self, record: logging.LogRecord) -> None:
         """Emit a record, checking file size and overwriting if needed."""
         # Check file size before writing
         if self.stream and hasattr(self.stream, "name"):
@@ -54,12 +62,8 @@ class OverwriteFileHandler(logging.FileHandler):
                 if os.path.exists(self.baseFilename):
                     file_size = os.path.getsize(self.baseFilename)
                     if file_size >= self.max_bytes:
-                        # Close current stream
-                        if self.stream:
-                            self.stream.close()
-                            self.stream = None
-
-                        # Remove the old file and start fresh
+                        # Close current stream and remove old file
+                        self.close()
                         if os.path.exists(self.baseFilename):
                             os.remove(self.baseFilename)
 
