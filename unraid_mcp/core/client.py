@@ -14,6 +14,7 @@ import httpx
 from ..config.logging import logger
 from ..config.settings import TIMEOUT_CONFIG, UNRAID_API_KEY, UNRAID_API_URL, UNRAID_VERIFY_SSL
 from ..core.exceptions import ToolError
+from ..core.utils import truncate_for_error
 
 # HTTP timeout configuration
 DEFAULT_TIMEOUT = httpx.Timeout(10.0, read=30.0, connect=5.0)
@@ -187,8 +188,9 @@ async def make_graphql_request(
         return data if isinstance(data, dict) else {}  # Ensure we return dict
 
     except httpx.HTTPStatusError as e:
-        logger.error(f"HTTP error occurred: {e.response.status_code} - {e.response.text}")
-        raise ToolError(f"HTTP error {e.response.status_code}: {e.response.text}") from e
+        truncated = truncate_for_error(e.response.text)
+        logger.error(f"HTTP error occurred: {e.response.status_code} - {truncated}")
+        raise ToolError(f"HTTP error {e.response.status_code}: {truncated}") from e
     except httpx.RequestError as e:
         logger.error(f"Request error occurred: {e}")
         raise ToolError(f"Network connection error: {str(e)}") from e

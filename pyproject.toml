@@ -25,14 +25,14 @@ classifiers = [
 keywords = ["unraid", "mcp", "graphql", "api", "server"]
 
 dependencies = [
-    "python-dotenv>=1.1.1",
-    "fastmcp>=2.11.2",
-    "httpx>=0.28.1",
-    "fastapi>=0.116.1",
-    "uvicorn>=0.35.0",
+    "python-dotenv>=1.1.1,<2.0",
+    "fastmcp>=2.11.2,<3.0",
+    "httpx>=0.28.1,<1.0",
+    "fastapi>=0.116.1,<1.0",
+    "uvicorn>=0.35.0,<1.0",
     "websockets>=13.1,<14.0",
-    "rich>=14.1.0",
-    "pytz>=2025.2",
+    "rich>=14.1.0,<15.0",
+    "pytz>=2025.2,<2027.0",
 ]
 
 [project.optional-dependencies]

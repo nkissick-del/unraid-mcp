@@ -14,7 +14,35 @@ from fastmcp import FastMCP
 from ..config.logging import logger
 from ..core.client import make_graphql_request
 from ..core.exceptions import ToolError
-from ..core.utils import ensure_list
+from ..core.utils import ensure_list, validate_enum, validate_string_not_empty
+
+# Pre-built mutation queries keyed by action — eliminates f-string interpolation of user input
+_DOCKER_ACTION_MUTATIONS: dict[str, str] = {
+    "start": """
+        mutation ManageDockerContainer($id: PrefixedID!) {
+          docker {
+            start(id: $id) {
+              id
+              names
+              state
+              status
+            }
+          }
+        }
+    """,
+    "stop": """
+        mutation ManageDockerContainer($id: PrefixedID!) {
+          docker {
+            stop(id: $id) {
+              id
+              names
+              state
+              status
+            }
+          }
+        }
+    """,
+}
 
 
 def _is_container_id(identifier: str) -> bool:
@@ -136,25 +164,9 @@ def register_docker_tools(mcp: FastMCP) -> None:
         Returns:
             Dict containing operation result and container information
         """
-        if action.lower() not in ["start", "stop"]:
-            logger.warning(f"Invalid action '{action}' for manage_docker_container")
-            raise ToolError("Invalid action. Must be 'start' or 'stop'.")
-
-        mutation_name = action.lower()
-
-        # Step 1: Execute the operation mutation
-        operation_query = f"""
-        mutation ManageDockerContainer($id: PrefixedID!) {{
-          docker {{
-            {mutation_name}(id: $id) {{
-              id
-              names
-              state
-              status
-            }}
-          }}
-        }}
-        """
+        validate_string_not_empty(container_id, "container_id")
+        mutation_name = validate_enum(action.lower(), list(_DOCKER_ACTION_MUTATIONS), "action")
+        operation_query = _DOCKER_ACTION_MUTATIONS[mutation_name]
 
         variables = {"id": container_id}
 
@@ -360,6 +372,7 @@ def register_docker_tools(mcp: FastMCP) -> None:
         Returns:
             Dict containing detailed container information
         """
+        validate_string_not_empty(container_identifier, "container_identifier")
         # This tool fetches all containers and then filters by ID or name.
         # More detailed query for a single container if found:
         detailed_query_fields = """

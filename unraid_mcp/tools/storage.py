@@ -13,7 +13,15 @@ from fastmcp import FastMCP
 from ..config.logging import logger
 from ..core.client import make_graphql_request
 from ..core.exceptions import ToolError
-from ..core.utils import ensure_dict, ensure_list, format_bytes
+from ..core.utils import (
+    ensure_dict,
+    ensure_list,
+    format_bytes,
+    validate_enum,
+    validate_log_file_path,
+    validate_positive_int,
+    validate_string_not_empty,
+)
 
 
 def register_storage_tools(mcp: FastMCP) -> None:
@@ -86,6 +94,13 @@ def register_storage_tools(mcp: FastMCP) -> None:
         notification_type: str, offset: int, limit: int, importance: str | None = None
     ) -> list[dict[str, Any]]:
         """Lists notifications with filtering. Type: UNREAD/ARCHIVE. Importance: INFO/WARNING/ALERT."""
+        notification_type_upper = notification_type.upper()
+        validate_enum(notification_type_upper, ["UNREAD", "ARCHIVE"], "notification_type")
+        validate_positive_int(offset, "offset")
+        validate_positive_int(limit, "limit", max_value=1000)
+        importance_upper = importance.upper() if importance else None
+        if importance_upper:
+            validate_enum(importance_upper, ["INFO", "WARNING", "ALERT"], "importance")
         query = """
         query ListNotifications($filter: NotificationFilter!) {
           notifications {
@@ -105,10 +120,10 @@ def register_storage_tools(mcp: FastMCP) -> None:
         """
         variables = {
             "filter": {
-                "type": notification_type.upper(),
+                "type": notification_type_upper,
                 "offset": offset,
                 "limit": limit,
-                "importance": importance.upper() if importance else None,
+                "importance": importance_upper,
             }
         }
         # Remove null importance from variables if not provided, as GraphQL might be strict
@@ -153,6 +168,8 @@ def register_storage_tools(mcp: FastMCP) -> None:
     @mcp.tool()
     async def get_logs(log_file_path: str, tail_lines: int = 100) -> dict[str, Any]:
         """Retrieves content from a specific log file, defaulting to the last 100 lines."""
+        validate_log_file_path(log_file_path)
+        validate_positive_int(tail_lines, "tail_lines", max_value=10000)
         # The Unraid GraphQL API Query.logFile takes 'lines' and 'startLine'.
         # To implement 'tail_lines', we would ideally need to know the total lines first,
         # then calculate startLine. However, Query.logFile itself returns totalLines.
@@ -217,6 +234,7 @@ def register_storage_tools(mcp: FastMCP) -> None:
     @mcp.tool()
     async def get_disk_details(disk_id: str) -> dict[str, Any]:
         """Retrieves detailed SMART information and partition data for a specific physical disk."""
+        validate_string_not_empty(disk_id, "disk_id")
         # Enhanced query with more comprehensive disk information
         query = """
         query GetDiskDetails($id: PrefixedID!) {

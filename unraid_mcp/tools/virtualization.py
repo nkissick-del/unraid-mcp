@@ -12,7 +12,46 @@ from fastmcp import FastMCP
 from ..config.logging import logger
 from ..core.client import make_graphql_request
 from ..core.exceptions import ToolError
-from ..core.utils import ensure_dict, ensure_list
+from ..core.utils import ensure_dict, ensure_list, validate_enum, validate_string_not_empty
+
+# Pre-built mutation queries keyed by action — eliminates f-string interpolation of user input
+_VM_ACTION_MUTATIONS: dict[str, str] = {
+    "start": """
+        mutation ManageVM($id: PrefixedID!) {
+          vm { start(id: $id) }
+        }
+    """,
+    "stop": """
+        mutation ManageVM($id: PrefixedID!) {
+          vm { stop(id: $id) }
+        }
+    """,
+    "pause": """
+        mutation ManageVM($id: PrefixedID!) {
+          vm { pause(id: $id) }
+        }
+    """,
+    "resume": """
+        mutation ManageVM($id: PrefixedID!) {
+          vm { resume(id: $id) }
+        }
+    """,
+    "forceStop": """
+        mutation ManageVM($id: PrefixedID!) {
+          vm { forceStop(id: $id) }
+        }
+    """,
+    "reboot": """
+        mutation ManageVM($id: PrefixedID!) {
+          vm { reboot(id: $id) }
+        }
+    """,
+    "reset": """
+        mutation ManageVM($id: PrefixedID!) {
+          vm { reset(id: $id) }
+        }
+    """,
+}
 
 
 def register_vm_tools(mcp: FastMCP) -> None:
@@ -74,27 +113,9 @@ def register_vm_tools(mcp: FastMCP) -> None:
         Returns:
             Dict containing operation success status and details
         """
-        valid_actions = [
-            "start",
-            "stop",
-            "pause",
-            "resume",
-            "forceStop",
-            "reboot",
-            "reset",
-        ]  # Added reset operation
-        if action not in valid_actions:
-            logger.warning(f"Invalid action '{action}' for manage_vm")
-            raise ToolError(f"Invalid action. Must be one of {valid_actions}.")
-
-        mutation_name = action
-        query = f"""
-        mutation ManageVM($id: PrefixedID!) {{
-          vm {{
-            {mutation_name}(id: $id)
-          }}
-        }}
-        """
+        validate_string_not_empty(vm_uuid, "vm_uuid")
+        mutation_name = validate_enum(action, list(_VM_ACTION_MUTATIONS), "action")
+        query = _VM_ACTION_MUTATIONS[mutation_name]
         variables = {"id": vm_uuid}
         try:
             logger.info(f"Executing manage_vm tool: action={action}, uuid={vm_uuid}")
@@ -118,6 +139,7 @@ def register_vm_tools(mcp: FastMCP) -> None:
         Returns:
             Dict containing detailed VM information
         """
+        validate_string_not_empty(vm_identifier, "vm_identifier")
         # Make direct GraphQL call instead of calling list_vms() tool
         query = """
         query GetVmDetails {
