@@ -12,6 +12,7 @@ from fastmcp import FastMCP
 from ..config.logging import logger
 from ..core.client import make_graphql_request
 from ..core.exceptions import ToolError
+from ..core.utils import ensure_dict, ensure_list
 
 
 def register_rclone_tools(mcp: FastMCP) -> None:
@@ -51,7 +52,7 @@ def register_rclone_tools(mcp: FastMCP) -> None:
                 return []
 
             logger.info(f"Retrieved {len(remotes)} RClone remotes")
-            return list(remotes) if isinstance(remotes, list) else []
+            return ensure_list(remotes)
 
         except ToolError:
             raise
@@ -98,7 +99,7 @@ def register_rclone_tools(mcp: FastMCP) -> None:
                 raise ToolError("No RClone config form data received")
 
             logger.info(f"Retrieved RClone config form for {provider_type or 'general'}")
-            return dict(form_data) if isinstance(form_data, dict) else {}
+            return ensure_dict(form_data)
 
         except ToolError:
             raise

@@ -1,8 +1,9 @@
 import unittest
 
+from unraid_mcp.core.utils import ensure_dict, ensure_list, format_bytes, format_kb
+
 # unraid_mcp.tools.api is now importable thanks to conftest.py or pip install -e .
 from unraid_mcp.tools.api import _strip_comments
-from unraid_mcp.tools.system import format_kb
 
 
 class TestUtils(unittest.TestCase):
@@ -41,6 +42,31 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(format_kb(1024), "1.00 MB")
         self.assertEqual(format_kb(1024 * 1024), "1.00 GB")
         self.assertEqual(format_kb(512), "512 KB")
+
+    def test_ensure_dict(self):
+        self.assertEqual(ensure_dict({"a": 1}), {"a": 1})
+        self.assertEqual(ensure_dict(None), {})
+        self.assertEqual(ensure_dict([1, 2]), {})
+        self.assertEqual(ensure_dict("string"), {})
+        self.assertEqual(ensure_dict(42), {})
+
+    def test_ensure_list(self):
+        self.assertEqual(ensure_list([1, 2, 3]), [1, 2, 3])
+        self.assertEqual(ensure_list(None), [])
+        self.assertEqual(ensure_list({"a": 1}), [])
+        self.assertEqual(ensure_list("string"), [])
+        self.assertEqual(ensure_list(42), [])
+
+    def test_format_bytes(self):
+        self.assertEqual(format_bytes(None), "N/A")
+        self.assertEqual(format_bytes(0), "0.00 B")
+        self.assertEqual(format_bytes(1024), "1.00 KB")
+        self.assertEqual(format_bytes(1024 * 1024), "1.00 MB")
+        self.assertEqual(format_bytes(1024 * 1024 * 1024), "1.00 GB")
+        self.assertEqual(format_bytes(1024**4), "1.00 TB")
+        self.assertEqual(format_bytes(1024**5), "1.00 PB")
+        self.assertEqual(format_bytes(1024**6), "1.00 EB")
+        self.assertEqual(format_bytes(500), "500.00 B")
 
 
 if __name__ == "__main__":

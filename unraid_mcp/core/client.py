@@ -4,6 +4,7 @@ This module provides the HTTP client interface for making GraphQL requests
 to the Unraid API with proper timeout handling and error management.
 """
 
+import asyncio
 import json
 import re
 from typing import Any
@@ -17,6 +18,36 @@ from ..core.exceptions import ToolError
 # HTTP timeout configuration
 DEFAULT_TIMEOUT = httpx.Timeout(10.0, read=30.0, connect=5.0)
 DISK_TIMEOUT = httpx.Timeout(10.0, read=TIMEOUT_CONFIG["disk_operations"], connect=5.0)
+
+# Module-level HTTP client singleton for connection pooling
+_http_client: httpx.AsyncClient | None = None
+_http_client_lock = asyncio.Lock()
+
+
+async def _get_http_client() -> httpx.AsyncClient:
+    """Get or create the singleton HTTP client with connection pooling."""
+    global _http_client
+    if _http_client is None or _http_client.is_closed:
+        async with _http_client_lock:
+            # Double-check after acquiring lock
+            if _http_client is None or _http_client.is_closed:
+                _http_client = httpx.AsyncClient(
+                    headers={
+                        "Content-Type": "application/json",
+                        "X-API-Key": UNRAID_API_KEY or "",
+                        "User-Agent": "UnraidMCPServer/0.1.0",
+                    },
+                    verify=UNRAID_VERIFY_SSL,
+                )
+    return _http_client
+
+
+async def close_http_client() -> None:
+    """Close the HTTP client and release connections."""
+    global _http_client
+    if _http_client is not None and not _http_client.is_closed:
+        await _http_client.aclose()
+        _http_client = None
 
 
 def sanitize_query(query: str) -> str:
@@ -90,12 +121,6 @@ async def make_graphql_request(
     if not UNRAID_API_KEY:
         raise ToolError("UNRAID_API_KEY not configured")
 
-    headers = {
-        "Content-Type": "application/json",
-        "X-API-Key": UNRAID_API_KEY,
-        "User-Agent": "UnraidMCPServer/0.1.0",  # Custom user-agent
-    }
-
     payload: dict[str, Any] = {"query": query}
     if variables:
         payload["variables"] = variables
@@ -109,9 +134,11 @@ async def make_graphql_request(
             sensitive_keys = {"password", "pass", "token", "secret", "key"}
             if isinstance(obj, dict):
                 return {
-                    k: "[REDACTED]"
-                    if any(s in k.lower() for s in sensitive_keys)
-                    else _redact_recursive(v)
+                    k: (
+                        "[REDACTED]"
+                        if any(s in k.lower() for s in sensitive_keys)
+                        else _redact_recursive(v)
+                    )
                     for k, v in obj.items()
                 }
             elif isinstance(obj, list):
@@ -124,40 +151,40 @@ async def make_graphql_request(
         logger.debug(f"Variables: {masked}")
 
     current_timeout = custom_timeout if custom_timeout is not None else DEFAULT_TIMEOUT
+    client = await _get_http_client()
 
     try:
-        async with httpx.AsyncClient(timeout=current_timeout, verify=UNRAID_VERIFY_SSL) as client:
-            response = await client.post(UNRAID_API_URL, json=payload, headers=headers)
-            response.raise_for_status()  # Raise an exception for HTTP error codes 4xx/5xx
+        response = await client.post(UNRAID_API_URL, json=payload, timeout=current_timeout)
+        response.raise_for_status()  # Raise an exception for HTTP error codes 4xx/5xx
 
-            response_data = response.json()
-            if "errors" in response_data and response_data["errors"]:
-                error_details = "; ".join(
-                    [err.get("message", str(err)) for err in response_data["errors"]]
-                )
+        response_data = response.json()
+        if "errors" in response_data and response_data["errors"]:
+            error_details = "; ".join(
+                [err.get("message", str(err)) for err in response_data["errors"]]
+            )
 
-                # Check if this is an idempotent error that should be treated as success
-                if operation_context and operation_context.get("operation"):
-                    operation = operation_context["operation"]
-                    if is_idempotent_error(error_details, operation):
-                        logger.warning(
-                            f"Idempotent operation '{operation}' - treating as success: {error_details}"
-                        )
-                        # Return a success response with the current state information
-                        return {
-                            "idempotent_success": True,
-                            "operation": operation,
-                            "message": error_details,
-                            "original_errors": response_data["errors"],
-                        }
+            # Check if this is an idempotent error that should be treated as success
+            if operation_context and operation_context.get("operation"):
+                operation = operation_context["operation"]
+                if is_idempotent_error(error_details, operation):
+                    logger.warning(
+                        f"Idempotent operation '{operation}' - treating as success: {error_details}"
+                    )
+                    # Return a success response with the current state information
+                    return {
+                        "idempotent_success": True,
+                        "operation": operation,
+                        "message": error_details,
+                        "original_errors": response_data["errors"],
+                    }
 
-                logger.error(f"GraphQL API returned errors: {response_data['errors']}")
-                # Use ToolError for GraphQL errors to provide better feedback to LLM
-                raise ToolError(f"GraphQL API error: {error_details}")
+            logger.error(f"GraphQL API returned errors: {response_data['errors']}")
+            # Use ToolError for GraphQL errors to provide better feedback to LLM
+            raise ToolError(f"GraphQL API error: {error_details}")
 
-            logger.debug("GraphQL request successful.")
-            data = response_data.get("data", {})
-            return data if isinstance(data, dict) else {}  # Ensure we return dict
+        logger.debug("GraphQL request successful.")
+        data = response_data.get("data", {})
+        return data if isinstance(data, dict) else {}  # Ensure we return dict
 
     except httpx.HTTPStatusError as e:
         logger.error(f"HTTP error occurred: {e.response.status_code} - {e.response.text}")

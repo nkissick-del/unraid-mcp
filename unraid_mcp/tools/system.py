@@ -13,24 +13,7 @@ from fastmcp import FastMCP
 from ..config.logging import logger
 from ..core.client import make_graphql_request
 from ..core.exceptions import ToolError
-
-
-def format_kb(k: Any) -> str:
-    """Helper to format KB into TB/GB/MB"""
-    if k is None:
-        return "N/A"
-    try:
-        k = int(float(k))
-    except (ValueError, TypeError, OverflowError):
-        return str(k)
-
-    if k >= 1024 * 1024 * 1024:
-        return f"{k / (1024 * 1024 * 1024):.2f} TB"
-    if k >= 1024 * 1024:
-        return f"{k / (1024 * 1024):.2f} GB"
-    if k >= 1024:
-        return f"{k / 1024:.2f} MB"
-    return f"{k} KB"
+from ..core.utils import ensure_dict, format_kb
 
 
 # Standalone functions for use by subscription resources
@@ -255,7 +238,7 @@ def register_system_tools(mcp: FastMCP) -> None:
             logger.info("Executing get_network_config tool")
             response_data = await make_graphql_request(query)
             network = response_data.get("network", {})
-            return dict(network) if isinstance(network, dict) else {}
+            return ensure_dict(network)
         except Exception as e:
             logger.error(f"Error in get_network_config: {e}", exc_info=True)
             raise ToolError(f"Failed to retrieve network configuration: {str(e)}") from e
@@ -279,7 +262,7 @@ def register_system_tools(mcp: FastMCP) -> None:
             logger.info("Executing get_registration_info tool")
             response_data = await make_graphql_request(query)
             registration = response_data.get("registration", {})
-            return dict(registration) if isinstance(registration, dict) else {}
+            return ensure_dict(registration)
         except Exception as e:
             logger.error(f"Error in get_registration_info: {e}", exc_info=True)
             raise ToolError(f"Failed to retrieve registration information: {str(e)}") from e
@@ -317,7 +300,7 @@ def register_system_tools(mcp: FastMCP) -> None:
                         }:
                             connect_settings[key] = value
                     return connect_settings if connect_settings else values
-                return dict(values) if isinstance(values, dict) else {}
+                return ensure_dict(values)
             return {}
         except Exception as e:
             logger.error(f"Error in get_connect_settings: {e}", exc_info=True)
@@ -415,7 +398,7 @@ def register_system_tools(mcp: FastMCP) -> None:
             logger.info("Executing get_unraid_variables tool with a selective query")
             response_data = await make_graphql_request(query)
             vars_data = response_data.get("vars", {})
-            return dict(vars_data) if isinstance(vars_data, dict) else {}
+            return ensure_dict(vars_data)
         except Exception as e:
             logger.error(f"Error in get_unraid_variables: {e}", exc_info=True)
             raise ToolError(f"Failed to retrieve Unraid variables: {str(e)}") from e

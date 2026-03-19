@@ -13,6 +13,7 @@ from fastmcp import FastMCP
 from ..config.logging import logger
 from ..core.client import make_graphql_request
 from ..core.exceptions import ToolError
+from ..core.utils import ensure_dict, ensure_list, format_bytes
 
 
 def register_storage_tools(mcp: FastMCP) -> None:
@@ -51,7 +52,7 @@ def register_storage_tools(mcp: FastMCP) -> None:
             logger.info("Executing get_shares_info tool")
             response_data = await make_graphql_request(query)
             shares = response_data.get("shares", [])
-            return list(shares) if isinstance(shares, list) else []
+            return ensure_list(shares)
         except Exception as e:
             logger.error(f"Error in get_shares_info: {e}", exc_info=True)
             raise ToolError(f"Failed to retrieve shares information: {str(e)}") from e
@@ -74,7 +75,7 @@ def register_storage_tools(mcp: FastMCP) -> None:
             response_data = await make_graphql_request(query)
             if response_data.get("notifications"):
                 overview = response_data["notifications"].get("overview", {})
-                return dict(overview) if isinstance(overview, dict) else {}
+                return ensure_dict(overview)
             return {}
         except Exception as e:
             logger.error(f"Error in get_notifications_overview: {e}", exc_info=True)
@@ -121,7 +122,7 @@ def register_storage_tools(mcp: FastMCP) -> None:
             response_data = await make_graphql_request(query, variables)
             if response_data.get("notifications"):
                 notifications_list = response_data["notifications"].get("list", [])
-                return list(notifications_list) if isinstance(notifications_list, list) else []
+                return ensure_list(notifications_list)
             return []
         except Exception as e:
             logger.error(f"Error in list_notifications: {e}", exc_info=True)
@@ -144,7 +145,7 @@ def register_storage_tools(mcp: FastMCP) -> None:
             logger.info("Executing list_available_log_files tool")
             response_data = await make_graphql_request(query)
             log_files = response_data.get("logFiles", [])
-            return list(log_files) if isinstance(log_files, list) else []
+            return ensure_list(log_files)
         except Exception as e:
             logger.error(f"Error in list_available_log_files: {e}", exc_info=True)
             raise ToolError(f"Failed to list available log files: {str(e)}") from e
@@ -182,7 +183,7 @@ def register_storage_tools(mcp: FastMCP) -> None:
             logger.info(f"Executing get_logs for {log_file_path}, tail_lines={tail_lines}")
             response_data = await make_graphql_request(query, variables)
             log_file = response_data.get("logFile", {})
-            return dict(log_file) if isinstance(log_file, dict) else {}
+            return ensure_dict(log_file)
         except Exception as e:
             logger.error(f"Error in get_logs for {log_file_path}: {e}", exc_info=True)
             raise ToolError(f"Failed to retrieve logs from {log_file_path}: {str(e)}") from e
@@ -208,7 +209,7 @@ def register_storage_tools(mcp: FastMCP) -> None:
             long_timeout = httpx.Timeout(10.0, read=90.0, connect=5.0)
             response_data = await make_graphql_request(query, custom_timeout=long_timeout)
             disks = response_data.get("disks", [])
-            return list(disks) if isinstance(disks, list) else []
+            return ensure_list(disks)
         except Exception as e:
             logger.error(f"Error in list_physical_disks: {e}", exc_info=True)
             raise ToolError(f"Failed to list physical disks: {str(e)}") from e
@@ -242,21 +243,6 @@ def register_storage_tools(mcp: FastMCP) -> None:
             if not raw_disk:
                 raise ToolError(f"Disk '{disk_id}' not found")
 
-            # Process disk information for human-readable output
-            def format_bytes(bytes_value: int | None) -> str:
-                if bytes_value is None:
-                    return "N/A"
-                try:
-                    value = float(int(bytes_value))
-                except (ValueError, TypeError):
-                    return "N/A"
-
-                for unit in ["B", "KB", "MB", "GB", "TB", "PB"]:
-                    if value < 1024.0:
-                        return f"{value:.2f} {unit}"
-                    value /= 1024.0
-                return f"{value:.2f} EB"
-
             partitions = raw_disk.get("partitions") or []
 
             # Safely calculate total partition size
@@ -274,9 +260,11 @@ def register_storage_tools(mcp: FastMCP) -> None:
                 "name": raw_disk.get("name"),
                 "serial_number": raw_disk.get("serialNum"),
                 "size_formatted": format_bytes(raw_disk.get("size")),
-                "temperature": f"{raw_disk.get('temperature')}°C"
-                if raw_disk.get("temperature")
-                else "N/A",
+                "temperature": (
+                    f"{raw_disk.get('temperature')}°C"
+                    if raw_disk.get("temperature") is not None
+                    else "N/A"
+                ),
                 "interface_type": raw_disk.get("interfaceType"),
                 "smart_status": raw_disk.get("smartStatus"),
                 "is_spinning": raw_disk.get("isSpinning"),

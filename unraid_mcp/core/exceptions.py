@@ -15,34 +15,29 @@ class ToolError(FastMCPToolError):
 
     Inherits from FastMCP's ToolError to ensure proper MCP protocol handling.
     """
+
     pass
 
 
 class ConfigurationError(ToolError):
     """Raised when there are configuration-related errors."""
+
     pass
 
 
 class UnraidAPIError(ToolError):
     """Raised when the Unraid API returns an error or is unreachable."""
+
     pass
 
 
 class SubscriptionError(ToolError):
     """Raised when there are WebSocket subscription-related errors."""
+
     pass
 
 
 class ValidationError(ToolError):
     """Raised when input validation fails."""
-    pass
 
-
-class IdempotentOperationError(ToolError):
-    """Raised when an operation is idempotent (already in desired state).
-
-    This is used internally to signal that an operation was already complete,
-    which should typically be converted to a success response rather than
-    propagated as an error to the user.
-    """
     pass
