@@ -7,6 +7,7 @@ that cap at 10MB and start over (no rotation) for consistent use across all modu
 import json
 import logging
 import os
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -108,6 +109,48 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(log_entry)
 
 
+class RedactingFilter(logging.Filter):
+    """Logging filter that redacts sensitive patterns from log messages."""
+
+    _STATIC_PATTERNS = [
+        re.compile(r"Bearer\s+\S+"),
+        re.compile(r"[Aa]pi[_-]?[Kk]ey\s*[:=]\s*\S+"),
+        re.compile(r"[Xx]-[Aa]pi-[Kk]ey\s*[:=]\s*\S+"),
+    ]
+
+    def __init__(self, name: str = "") -> None:
+        super().__init__(name)
+        self._dynamic_patterns: list[re.Pattern[str]] = []
+        self._build_dynamic_patterns()
+
+    def _build_dynamic_patterns(self) -> None:
+        """Build patterns from actual configured secrets."""
+        from .settings import UNRAID_API_KEY
+
+        if UNRAID_API_KEY and len(UNRAID_API_KEY) >= 8:
+            self._dynamic_patterns.append(re.compile(re.escape(UNRAID_API_KEY)))
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        record.msg = self._redact(record.msg)
+        if record.args:
+            if isinstance(record.args, dict):
+                record.args = {
+                    k: self._redact(v) if isinstance(v, str) else v for k, v in record.args.items()
+                }
+            elif isinstance(record.args, tuple):
+                record.args = tuple(
+                    self._redact(a) if isinstance(a, str) else a for a in record.args
+                )
+        return True
+
+    def _redact(self, msg: object) -> object:
+        if not isinstance(msg, str):
+            return msg
+        for pattern in self._STATIC_PATTERNS + self._dynamic_patterns:
+            msg = pattern.sub("[REDACTED]", msg)
+        return msg
+
+
 def setup_logger(name: str = "UnraidMCPServer") -> logging.Logger:
     """Set up and configure the logger with console and file handlers.
 
@@ -128,10 +171,13 @@ def setup_logger(name: str = "UnraidMCPServer") -> logging.Logger:
     # Clear any existing handlers
     logger.handlers.clear()
 
+    redacting_filter = RedactingFilter()
+
     if LOG_FORMAT == "json":
         json_handler = logging.StreamHandler(sys.stderr)
         json_handler.setLevel(numeric_log_level)
         json_handler.setFormatter(JsonFormatter())
+        json_handler.addFilter(redacting_filter)
         logger.addHandler(json_handler)
     else:
         # Rich Console Handler for beautiful output
@@ -144,6 +190,7 @@ def setup_logger(name: str = "UnraidMCPServer") -> logging.Logger:
             tracebacks_show_locals=True,
         )
         console_handler.setLevel(numeric_log_level)
+        console_handler.addFilter(redacting_filter)
         logger.addHandler(console_handler)
 
     # File Handler with 10MB cap (overwrites instead of rotating)
@@ -158,6 +205,7 @@ def setup_logger(name: str = "UnraidMCPServer") -> logging.Logger:
             "%(asctime)s - %(name)s - %(levelname)s - %(module)s - %(funcName)s - %(lineno)d - %(message)s"
         )
         file_handler.setFormatter(file_formatter)
+    file_handler.addFilter(redacting_filter)
     logger.addHandler(file_handler)
 
     return logger
@@ -178,12 +226,15 @@ def configure_fastmcp_logger_with_rich() -> logging.Logger | None:
     fastmcp_logger.handlers.clear()
     fastmcp_logger.propagate = False
 
+    redacting_filter = RedactingFilter()
+
     if LOG_FORMAT == "json":
         json_formatter = JsonFormatter()
 
         fmcp_json_handler = logging.StreamHandler(sys.stderr)
         fmcp_json_handler.setLevel(numeric_log_level)
         fmcp_json_handler.setFormatter(json_formatter)
+        fmcp_json_handler.addFilter(redacting_filter)
         fastmcp_logger.addHandler(fmcp_json_handler)
     else:
         # Rich Console Handler
@@ -197,6 +248,7 @@ def configure_fastmcp_logger_with_rich() -> logging.Logger | None:
             markup=True,
         )
         fmcp_rich_handler.setLevel(numeric_log_level)
+        fmcp_rich_handler.addFilter(redacting_filter)
         fastmcp_logger.addHandler(fmcp_rich_handler)
 
     # Shared file handler — one instance for both loggers to avoid duplicate
@@ -213,6 +265,7 @@ def configure_fastmcp_logger_with_rich() -> logging.Logger | None:
                 "%(asctime)s - %(name)s - %(levelname)s - %(module)s - %(funcName)s - %(lineno)d - %(message)s"
             )
         )
+    shared_file_handler.addFilter(redacting_filter)
     fastmcp_logger.addHandler(shared_file_handler)
 
     fastmcp_logger.setLevel(numeric_log_level)
@@ -226,6 +279,7 @@ def configure_fastmcp_logger_with_rich() -> logging.Logger | None:
         root_json_handler = logging.StreamHandler(sys.stderr)
         root_json_handler.setLevel(numeric_log_level)
         root_json_handler.setFormatter(JsonFormatter())
+        root_json_handler.addFilter(redacting_filter)
         root_logger.addHandler(root_json_handler)
     else:
         # Rich Console Handler for root logger
@@ -239,6 +293,7 @@ def configure_fastmcp_logger_with_rich() -> logging.Logger | None:
             markup=True,
         )
         root_rich_handler.setLevel(numeric_log_level)
+        root_rich_handler.addFilter(redacting_filter)
         root_logger.addHandler(root_rich_handler)
 
     # Reuse the same file handler for root logger
@@ -281,6 +336,17 @@ def log_configuration_status(logger: logging.Logger) -> None:
     logger.info(f"UNRAID_MCP_HOST set to: {config['server_host']}")
     logger.info(f"UNRAID_MCP_TRANSPORT set to: {config['transport']}")
     logger.info(f"UNRAID_MCP_LOG_LEVEL set to: {config['log_level']}")
+
+    ssl_verify = config["ssl_verify"]
+    if ssl_verify is False:
+        logger.warning(
+            "UNRAID_VERIFY_SSL is disabled — TLS certificates will NOT be validated. "
+            "This is insecure for production use."
+        )
+    elif isinstance(ssl_verify, str):
+        logger.info(f"UNRAID_VERIFY_SSL using custom CA bundle: {ssl_verify}")
+    else:
+        logger.info("UNRAID_VERIFY_SSL is enabled (default)")
 
     if not config["config_valid"]:
         logger.error(f"Missing required configuration: {config['missing_config']}")

@@ -17,7 +17,7 @@ from websockets.legacy.protocol import Subprotocol
 from ..config.logging import logger
 from ..config.settings import UNRAID_API_KEY, UNRAID_API_URL, UNRAID_VERIFY_SSL
 from ..core.exceptions import ToolError
-from .manager import _build_ws_url, subscription_manager
+from .manager import _build_ws_url, _validate_subscription_query, subscription_manager
 from .resources import ensure_subscriptions_started
 
 
@@ -42,6 +42,9 @@ def register_diagnostic_tools(mcp: FastMCP) -> None:
         """
         try:
             logger.info(f"[TEST_SUBSCRIPTION] Testing query: {subscription_query}")
+
+            # Validate that the query is a subscription operation
+            _validate_subscription_query(subscription_query)
 
             # Build WebSocket URL
             if not UNRAID_API_URL:
@@ -127,7 +130,7 @@ def register_diagnostic_tools(mcp: FastMCP) -> None:
             logger.info("[DIAGNOSTIC] Running subscription diagnostics...")
 
             # Get comprehensive status
-            status = subscription_manager.get_subscription_status()
+            status = await subscription_manager.get_subscription_status()
 
             # Initialize connection issues list with proper type
             connection_issues: list[dict[str, Any]] = []

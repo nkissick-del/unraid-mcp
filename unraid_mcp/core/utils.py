@@ -1,8 +1,13 @@
 """Shared utility helpers for Unraid MCP tools."""
 
+import re
 from typing import Any
 
-from ..core.constants import ALLOWED_LOG_PREFIXES, ERROR_TRUNCATION_LENGTH
+from ..core.constants import (
+    ALLOWED_LOG_PREFIXES,
+    ERROR_TRUNCATION_LENGTH,
+    RCLONE_REMOTE_NAME_PATTERN,
+)
 from ..core.exceptions import ValidationError
 
 
@@ -74,6 +79,17 @@ def validate_string_not_empty(value: str, name: str) -> str:
     if not value or not value.strip():
         raise ValidationError(f"{name} must not be empty")
     return value
+
+
+def validate_rclone_remote_name(name: str) -> str:
+    """Validate an RClone remote name (alphanumeric start, max 64 chars)."""
+    validate_string_not_empty(name, "remote name")
+    if not re.fullmatch(RCLONE_REMOTE_NAME_PATTERN, name):
+        raise ValidationError(
+            f"Invalid remote name '{name}'. Must start with alphanumeric, "
+            "contain only alphanumeric/hyphen/underscore, max 64 characters."
+        )
+    return name
 
 
 def validate_log_file_path(path: str) -> str:

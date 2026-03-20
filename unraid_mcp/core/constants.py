@@ -10,6 +10,10 @@ HTTP_DEFAULT_READ_TIMEOUT_S = 30.0
 HTTP_DEFAULT_CONNECT_TIMEOUT_S = 5.0
 HTTP_DISK_READ_TIMEOUT_S = 90.0
 
+# HTTP connection pool limits
+HTTP_MAX_CONNECTIONS = 20
+HTTP_MAX_KEEPALIVE_CONNECTIONS = 5
+
 # WebSocket connection parameters
 WS_CONNECT_TIMEOUT_S = 10
 WS_ACK_TIMEOUT_S = 30
@@ -36,6 +40,12 @@ DOCKER_OPERATION_SETTLE_DELAY_S = 1.0
 # Container ID pattern
 CONTAINER_ID_PATTERN = r"[0-9a-fA-F]{12,64}"
 
+# Prefixed container ID pattern (e.g., sha256:abcdef123456...)
+CONTAINER_PREFIXED_ID_PATTERN = r"^[a-z0-9]+:[0-9a-fA-F]{12,64}$"
+
+# RClone remote name validation
+RCLONE_REMOTE_NAME_PATTERN = r"^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$"
+
 # Disk status strings
 DISK_STATUS_OK = "DISK_OK"
 DISK_STATUS_DISABLED = "DISK_DSBL"
@@ -52,6 +62,14 @@ LOG_FILE_MAX_BYTES = 10 * 1024 * 1024  # 10MB
 
 # Sensitive keys for variable redaction
 SENSITIVE_VARIABLE_KEYS = frozenset({"password", "pass", "token", "secret", "key"})
+
+# Allowed log directory prefixes (for server's own log output)
+ALLOWED_LOG_DIR_PREFIXES = (
+    "/app/logs",
+    "/app/",
+    "/var/log/",
+    "/tmp",
+)
 
 # Allowed log file path prefixes (Unraid standard locations)
 ALLOWED_LOG_PREFIXES = (

@@ -265,7 +265,7 @@ def register_system_tools(mcp: FastMCP) -> None:
           registration {
             id
             type
-            keyFile { location contents }
+            keyFile { location }
             state
             expiration
             updateExpiration

@@ -4,10 +4,12 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from unraid_mcp.core.exceptions import ValidationError
 from unraid_mcp.subscriptions.manager import (
     SubscriptionManager,
     _build_ws_auth_payload,
     _build_ws_url,
+    _validate_subscription_query,
 )
 
 
@@ -59,6 +61,34 @@ class TestBuildWsUrl:
             _build_ws_url("ftp://host")
 
 
+class TestValidateSubscriptionQuery:
+    def test_valid_subscription(self):
+        _validate_subscription_query("subscription { onUpdate }")
+
+    def test_named_subscription(self):
+        _validate_subscription_query("subscription MySubscription { onUpdate { id } }")
+
+    def test_mutation_rejected(self):
+        with pytest.raises(ValidationError, match="Only subscription operations are allowed"):
+            _validate_subscription_query("mutation { delete }")
+
+    def test_query_rejected(self):
+        with pytest.raises(ValidationError, match="Only subscription operations are allowed"):
+            _validate_subscription_query("query { info }")
+
+    def test_anonymous_query_rejected(self):
+        with pytest.raises(ValidationError, match="Only subscription operations are allowed"):
+            _validate_subscription_query("{ info }")
+
+    def test_invalid_syntax_rejected(self):
+        with pytest.raises(ValidationError, match="Invalid GraphQL syntax"):
+            _validate_subscription_query("not a valid query {{{")
+
+    def test_mixed_operations_rejected(self):
+        with pytest.raises(ValidationError, match="Only subscription operations are allowed"):
+            _validate_subscription_query("subscription Sub { onUpdate } query Q { info }")
+
+
 class TestSubscriptionManagerInit:
     def test_default_state(self):
         with patch("unraid_mcp.subscriptions.manager.UNRAID_API_KEY", "key"):
@@ -69,12 +99,14 @@ class TestSubscriptionManagerInit:
 
 
 class TestGetResourceData:
-    def test_none_for_unknown(self):
+    @pytest.mark.asyncio
+    async def test_none_for_unknown(self):
         with patch("unraid_mcp.subscriptions.manager.UNRAID_API_KEY", "key"):
             mgr = SubscriptionManager()
-            assert mgr.get_resource_data("nonexistent") is None
+            assert await mgr.get_resource_data("nonexistent") is None
 
-    def test_returns_data_for_known(self):
+    @pytest.mark.asyncio
+    async def test_returns_data_for_known(self):
         from datetime import datetime
 
         from unraid_mcp.core.types import SubscriptionData
@@ -86,7 +118,7 @@ class TestGetResourceData:
                 last_updated=datetime.now(),
                 subscription_type="test",
             )
-            assert mgr.get_resource_data("test") == {"value": 42}
+            assert await mgr.get_resource_data("test") == {"value": 42}
 
 
 class TestListActiveSubscriptions:
@@ -97,10 +129,11 @@ class TestListActiveSubscriptions:
 
 
 class TestGetSubscriptionStatus:
-    def test_returns_expected_structure(self):
+    @pytest.mark.asyncio
+    async def test_returns_expected_structure(self):
         with patch("unraid_mcp.subscriptions.manager.UNRAID_API_KEY", "key"):
             mgr = SubscriptionManager()
-            status = mgr.get_subscription_status()
+            status = await mgr.get_subscription_status()
             assert "logFileSubscription" in status
             sub = status["logFileSubscription"]
             assert "config" in sub

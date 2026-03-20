@@ -34,5 +34,14 @@ services:
 
       # Optional: Custom log file path for subscription auto-start diagnostics
       - UNRAID_AUTOSTART_LOG_PATH=${UNRAID_AUTOSTART_LOG_PATH}
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
+    mem_limit: 512m
+    cpus: 1.0
     volumes:
       - ./logs:/app/logs

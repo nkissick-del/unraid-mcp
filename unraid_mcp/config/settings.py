@@ -10,6 +10,8 @@ from typing import Any
 
 from dotenv import load_dotenv
 
+from ..core.constants import ALLOWED_LOG_DIR_PREFIXES
+
 # Get the script directory (config module location)
 SCRIPT_DIR = Path(__file__).parent  # /home/user/code/unraid-mcp/unraid_mcp/config/
 UNRAID_MCP_DIR = SCRIPT_DIR.parent  # /home/user/code/unraid-mcp/unraid_mcp/
@@ -51,8 +53,37 @@ else:  # Path to CA bundle
 LOG_LEVEL_STR = os.getenv("UNRAID_MCP_LOG_LEVEL", "INFO").upper()
 LOG_FILE_NAME = os.getenv("UNRAID_MCP_LOG_FILE", "unraid-mcp.log")
 LOGS_DIR = Path(os.getenv("UNRAID_MCP_LOG_DIR", "/tmp"))
-LOG_FILE_PATH = LOGS_DIR / LOG_FILE_NAME
 LOG_FORMAT = os.getenv("UNRAID_MCP_LOG_FORMAT", "text").lower()
+
+# Validate log directory is under an allowed prefix
+# Check both the literal path and the resolved path (macOS /tmp -> /private/tmp)
+_logs_dir_literal = str(LOGS_DIR)
+_logs_dir_resolved = str(LOGS_DIR.resolve()) if LOGS_DIR.exists() else _logs_dir_literal
+if not any(
+    _logs_dir_literal.startswith(p) or _logs_dir_resolved.startswith(p)
+    for p in ALLOWED_LOG_DIR_PREFIXES
+):
+    import warnings
+
+    warnings.warn(
+        f"UNRAID_MCP_LOG_DIR '{LOGS_DIR}' is outside allowed prefixes "
+        f"{ALLOWED_LOG_DIR_PREFIXES}, falling back to /tmp",
+        stacklevel=1,
+    )
+    LOGS_DIR = Path("/tmp")
+
+# Validate log file name has no path separators
+if "/" in LOG_FILE_NAME or ".." in LOG_FILE_NAME:
+    import warnings
+
+    warnings.warn(
+        f"UNRAID_MCP_LOG_FILE '{LOG_FILE_NAME}' contains path separators, "
+        "falling back to 'unraid-mcp.log'",
+        stacklevel=1,
+    )
+    LOG_FILE_NAME = "unraid-mcp.log"
+
+LOG_FILE_PATH = LOGS_DIR / LOG_FILE_NAME
 
 # Ensure logs directory exists
 LOGS_DIR.mkdir(parents=True, exist_ok=True)

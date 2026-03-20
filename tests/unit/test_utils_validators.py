@@ -8,6 +8,7 @@ from unraid_mcp.core.utils import (
     validate_enum,
     validate_log_file_path,
     validate_positive_int,
+    validate_rclone_remote_name,
     validate_string_not_empty,
 )
 
@@ -93,6 +94,45 @@ class TestValidateLogFilePath:
     def test_disallowed_root_raises(self):
         with pytest.raises(ValidationError, match="must start with one of"):
             validate_log_file_path("/home/user/file")
+
+
+class TestValidateRcloneRemoteName:
+    def test_valid_simple(self):
+        assert validate_rclone_remote_name("myremote") == "myremote"
+
+    def test_valid_with_hyphens_underscores(self):
+        assert validate_rclone_remote_name("my-remote_1") == "my-remote_1"
+
+    def test_valid_single_char(self):
+        assert validate_rclone_remote_name("a") == "a"
+
+    def test_valid_max_length(self):
+        name = "a" * 64
+        assert validate_rclone_remote_name(name) == name
+
+    def test_empty_raises(self):
+        with pytest.raises(ValidationError, match="must not be empty"):
+            validate_rclone_remote_name("")
+
+    def test_starts_with_hyphen_raises(self):
+        with pytest.raises(ValidationError, match="Invalid remote name"):
+            validate_rclone_remote_name("-bad")
+
+    def test_contains_colon_raises(self):
+        with pytest.raises(ValidationError, match="Invalid remote name"):
+            validate_rclone_remote_name("my:remote")
+
+    def test_contains_space_raises(self):
+        with pytest.raises(ValidationError, match="Invalid remote name"):
+            validate_rclone_remote_name("my remote")
+
+    def test_too_long_raises(self):
+        with pytest.raises(ValidationError, match="Invalid remote name"):
+            validate_rclone_remote_name("a" * 65)
+
+    def test_path_traversal_raises(self):
+        with pytest.raises(ValidationError, match="Invalid remote name"):
+            validate_rclone_remote_name("../etc/passwd")
 
 
 class TestTruncateForError:

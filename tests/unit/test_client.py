@@ -12,7 +12,11 @@ from unraid_mcp.core.client import (
     make_graphql_request,
     sanitize_query,
 )
-from unraid_mcp.core.constants import QUERY_TRUNCATION_LENGTH
+from unraid_mcp.core.constants import (
+    HTTP_MAX_CONNECTIONS,
+    HTTP_MAX_KEEPALIVE_CONNECTIONS,
+    QUERY_TRUNCATION_LENGTH,
+)
 from unraid_mcp.core.exceptions import ToolError
 
 
@@ -152,7 +156,7 @@ class TestMakeGraphqlRequest:
             patch("unraid_mcp.core.client.UNRAID_API_URL", "http://test"),
             patch("unraid_mcp.core.client.UNRAID_API_KEY", "key"),
         ):
-            with pytest.raises(ToolError, match="HTTP error"):
+            with pytest.raises(ToolError, match="Unraid API returned HTTP"):
                 await make_graphql_request("query { test }")
 
     @pytest.mark.asyncio
@@ -186,6 +190,12 @@ class TestMakeGraphqlRequest:
         ):
             with pytest.raises(ToolError, match="Invalid JSON"):
                 await make_graphql_request("query { test }")
+
+
+class TestPoolLimits:
+    def test_pool_limits_are_reasonable(self):
+        assert 1 <= HTTP_MAX_KEEPALIVE_CONNECTIONS <= HTTP_MAX_CONNECTIONS
+        assert HTTP_MAX_CONNECTIONS <= 100
 
 
 class TestGetTimeoutForOperation:

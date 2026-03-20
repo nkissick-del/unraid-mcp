@@ -12,7 +12,12 @@ from fastmcp import FastMCP
 from ..config.logging import logger
 from ..core.client import make_graphql_request
 from ..core.exceptions import ToolError
-from ..core.utils import ensure_dict, ensure_list
+from ..core.utils import (
+    ensure_dict,
+    ensure_list,
+    validate_rclone_remote_name,
+    validate_string_not_empty,
+)
 
 
 def register_rclone_tools(mcp: FastMCP) -> None:
@@ -120,6 +125,8 @@ def register_rclone_tools(mcp: FastMCP) -> None:
             provider_type: Type of provider (e.g., 's3', 'drive', 'dropbox', 'ftp')
             config_data: Configuration parameters specific to the provider type
         """
+        validate_rclone_remote_name(name)
+        validate_string_not_empty(provider_type, "provider_type")
         try:
             mutation = """
             mutation CreateRCloneRemote($input: CreateRCloneRemoteInput!) {
@@ -162,6 +169,7 @@ def register_rclone_tools(mcp: FastMCP) -> None:
         Args:
             name: Name of the remote to delete
         """
+        validate_rclone_remote_name(name)
         try:
             mutation = """
             mutation DeleteRCloneRemote($input: DeleteRCloneRemoteInput!) {

@@ -13,7 +13,12 @@ import httpx
 
 from ..config.logging import logger
 from ..config.settings import TIMEOUT_CONFIG, UNRAID_API_KEY, UNRAID_API_URL, UNRAID_VERIFY_SSL
-from ..core.constants import QUERY_TRUNCATION_LENGTH, SENSITIVE_VARIABLE_KEYS
+from ..core.constants import (
+    HTTP_MAX_CONNECTIONS,
+    HTTP_MAX_KEEPALIVE_CONNECTIONS,
+    QUERY_TRUNCATION_LENGTH,
+    SENSITIVE_VARIABLE_KEYS,
+)
 from ..core.exceptions import ToolError
 from ..core.utils import truncate_for_error
 
@@ -40,6 +45,10 @@ async def _get_http_client() -> httpx.AsyncClient:
                         "User-Agent": "UnraidMCPServer/0.1.0",
                     },
                     verify=UNRAID_VERIFY_SSL,
+                    limits=httpx.Limits(
+                        max_connections=HTTP_MAX_CONNECTIONS,
+                        max_keepalive_connections=HTTP_MAX_KEEPALIVE_CONNECTIONS,
+                    ),
                 )
     return _http_client
 
@@ -190,7 +199,7 @@ async def make_graphql_request(
     except httpx.HTTPStatusError as e:
         truncated = truncate_for_error(e.response.text)
         logger.error(f"HTTP error occurred: {e.response.status_code} - {truncated}")
-        raise ToolError(f"HTTP error {e.response.status_code}: {truncated}") from e
+        raise ToolError(f"Unraid API returned HTTP {e.response.status_code}") from e
     except httpx.RequestError as e:
         logger.error(f"Request error occurred: {e}")
         raise ToolError(f"Network connection error: {str(e)}") from e

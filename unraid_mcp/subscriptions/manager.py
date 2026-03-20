@@ -13,6 +13,10 @@ from typing import Any
 from urllib.parse import urlparse, urlunparse
 
 import websockets
+from graphql import OperationType
+from graphql import parse as gql_parse
+from graphql.error import GraphQLSyntaxError
+from graphql.language.ast import OperationDefinitionNode
 from websockets.legacy.protocol import Subprotocol
 
 from ..config.logging import logger
@@ -26,6 +30,7 @@ from ..core.constants import (
     WS_PING_TIMEOUT_S,
     WS_RETRY_BACKOFF_FACTOR,
 )
+from ..core.exceptions import ValidationError
 from ..core.types import SubscriptionData
 
 
@@ -56,12 +61,33 @@ def _build_ws_url(api_url: str) -> str:
     return urlunparse((ws_scheme, parsed.netloc, path, "", parsed.query, ""))
 
 
+def _validate_subscription_query(query: str) -> None:
+    """Validate that a GraphQL query contains only subscription operations."""
+    try:
+        document = gql_parse(query)
+    except GraphQLSyntaxError as e:
+        raise ValidationError(f"Invalid GraphQL syntax: {e}") from e
+
+    operations = [
+        defn for defn in document.definitions if isinstance(defn, OperationDefinitionNode)
+    ]
+    if not operations:
+        raise ValidationError("Query contains no operation definitions")
+
+    for op in operations:
+        if op.operation != OperationType.SUBSCRIPTION:
+            raise ValidationError(
+                f"Only subscription operations are allowed, got {op.operation.value}"
+            )
+
+
 class SubscriptionManager:
     """Manages GraphQL subscriptions and converts them to MCP resources."""
 
     def __init__(self) -> None:
         self.active_subscriptions: dict[str, asyncio.Task[None]] = {}
         self.resource_data: dict[str, SubscriptionData] = {}
+        self.resource_data_lock = asyncio.Lock()
         self.websocket: Any = None
         self.subscription_lock = asyncio.Lock()
 
@@ -137,6 +163,8 @@ class SubscriptionManager:
                 f"[SUBSCRIPTION:{subscription_name}] Subscription already active, skipping"
             )
             return
+
+        _validate_subscription_query(query)
 
         # Reset connection tracking
         self.reconnect_attempts[subscription_name] = 0
@@ -363,11 +391,12 @@ class SubscriptionManager:
                                     logger.info(
                                         f"[DATA:{subscription_name}] Received subscription data update"
                                     )
-                                    self.resource_data[subscription_name] = SubscriptionData(
-                                        data=payload["data"],
-                                        last_updated=datetime.now(),
-                                        subscription_type=subscription_name,
-                                    )
+                                    async with self.resource_data_lock:
+                                        self.resource_data[subscription_name] = SubscriptionData(
+                                            data=payload["data"],
+                                            last_updated=datetime.now(),
+                                            subscription_type=subscription_name,
+                                        )
                                     logger.debug(
                                         f"[RESOURCE:{subscription_name}] Resource data updated successfully"
                                     )
@@ -472,18 +501,19 @@ class SubscriptionManager:
             self.connection_states[subscription_name] = "reconnecting"
             await asyncio.sleep(retry_delay)
 
-    def get_resource_data(self, resource_name: str) -> dict[str, Any] | None:
+    async def get_resource_data(self, resource_name: str) -> dict[str, Any] | None:
         """Get current resource data with enhanced logging."""
         logger.debug(f"[RESOURCE:{resource_name}] Resource data requested")
 
-        if resource_name in self.resource_data:
-            data = self.resource_data[resource_name]
-            age_seconds = (datetime.now() - data.last_updated).total_seconds()
-            logger.debug(f"[RESOURCE:{resource_name}] Data found, age: {age_seconds:.1f}s")
-            return data.data
-        else:
-            logger.debug(f"[RESOURCE:{resource_name}] No data available")
-            return None
+        async with self.resource_data_lock:
+            if resource_name in self.resource_data:
+                data = self.resource_data[resource_name]
+                age_seconds = (datetime.now() - data.last_updated).total_seconds()
+                logger.debug(f"[RESOURCE:{resource_name}] Data found, age: {age_seconds:.1f}s")
+                return data.data
+            else:
+                logger.debug(f"[RESOURCE:{resource_name}] No data available")
+                return None
 
     def list_active_subscriptions(self) -> list[str]:
         """List all active subscriptions."""
@@ -491,38 +521,39 @@ class SubscriptionManager:
         logger.debug(f"[SUBSCRIPTION_MANAGER] Active subscriptions: {active}")
         return active
 
-    def get_subscription_status(self) -> dict[str, dict[str, Any]]:
+    async def get_subscription_status(self) -> dict[str, dict[str, Any]]:
         """Get detailed status of all subscriptions for diagnostics."""
         status = {}
 
-        for sub_name, config in self.subscription_configs.items():
-            sub_status = {
-                "config": {
-                    "resource": config["resource"],
-                    "description": config["description"],
-                    "auto_start": config.get("auto_start", False),
-                },
-                "runtime": {
-                    "active": sub_name in self.active_subscriptions,
-                    "connection_state": self.connection_states.get(sub_name, "not_started"),
-                    "reconnect_attempts": self.reconnect_attempts.get(sub_name, 0),
-                    "last_error": self.last_error.get(sub_name, None),
-                },
-            }
-
-            # Add data info if available
-            if sub_name in self.resource_data:
-                data_info = self.resource_data[sub_name]
-                age_seconds = (datetime.now() - data_info.last_updated).total_seconds()
-                sub_status["data"] = {
-                    "available": True,
-                    "last_updated": data_info.last_updated.isoformat(),
-                    "age_seconds": age_seconds,
+        async with self.resource_data_lock:
+            for sub_name, config in self.subscription_configs.items():
+                sub_status = {
+                    "config": {
+                        "resource": config["resource"],
+                        "description": config["description"],
+                        "auto_start": config.get("auto_start", False),
+                    },
+                    "runtime": {
+                        "active": sub_name in self.active_subscriptions,
+                        "connection_state": self.connection_states.get(sub_name, "not_started"),
+                        "reconnect_attempts": self.reconnect_attempts.get(sub_name, 0),
+                        "last_error": self.last_error.get(sub_name, None),
+                    },
                 }
-            else:
-                sub_status["data"] = {"available": False}
 
-            status[sub_name] = sub_status
+                # Add data info if available
+                if sub_name in self.resource_data:
+                    data_info = self.resource_data[sub_name]
+                    age_seconds = (datetime.now() - data_info.last_updated).total_seconds()
+                    sub_status["data"] = {
+                        "available": True,
+                        "last_updated": data_info.last_updated.isoformat(),
+                        "age_seconds": age_seconds,
+                    }
+                else:
+                    sub_status["data"] = {"available": False}
+
+                status[sub_name] = sub_status
 
         logger.debug(f"[SUBSCRIPTION_MANAGER] Generated status for {len(status)} subscriptions")
         return status

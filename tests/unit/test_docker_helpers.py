@@ -14,8 +14,23 @@ class TestIsContainerId:
     def test_12_char_hex(self):
         assert _is_container_id("abcdef123456") is True
 
-    def test_colon_prefixed(self):
-        assert _is_container_id("sha256:abc123") is True
+    def test_sha256_prefixed_full(self):
+        assert _is_container_id("sha256:" + "a" * 64) is True
+
+    def test_sha256_prefixed_short(self):
+        assert _is_container_id("sha256:" + "abcdef123456") is True
+
+    def test_arbitrary_colon_rejected(self):
+        assert _is_container_id("not:a:container") is False
+
+    def test_colon_with_short_hex_rejected(self):
+        assert _is_container_id("sha256:abc") is False
+
+    def test_colon_with_non_hex_rejected(self):
+        assert _is_container_id("sha256:notahexstring") is False
+
+    def test_uppercase_prefix_rejected(self):
+        assert _is_container_id("SHA256:" + "a" * 64) is False
 
     def test_regular_name_false(self):
         assert _is_container_id("my-container") is False

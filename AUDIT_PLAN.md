@@ -261,7 +261,7 @@
 | 3 — Reliability & Error Handling | ✅ | — | 5 |
 | 4 — Performance & Infrastructure | ✅ | — | 5 |
 | 5 — Polish & Tests | ✅ | — | 4 |
-| 6 — Critical Security Fixes | ⬜ | CRITICAL | 4 |
-| 7 — High-Severity Hardening | ⬜ | HIGH | 5 |
-| 8 — Medium-Severity Improvements | ⬜ | MEDIUM | 6 |
-| 9 — Security Tests & Logging | ⬜ | MEDIUM | 3 |
+| 6 — Critical Security Fixes | ✅ | CRITICAL | 4 |
+| 7 — High-Severity Hardening | ✅ | HIGH | 5 |
+| 8 — Medium-Severity Improvements | ✅ | MEDIUM | 6 |
+| 9 — Security Tests & Logging | ✅ | MEDIUM | 3 |

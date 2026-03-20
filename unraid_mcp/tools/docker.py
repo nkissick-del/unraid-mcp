@@ -16,6 +16,7 @@ from ..core.client import make_graphql_request
 from ..core.constants import (
     CONTAINER_DISPLAY_LIMIT,
     CONTAINER_ID_PATTERN,
+    CONTAINER_PREFIXED_ID_PATTERN,
     DOCKER_OPERATION_SETTLE_DELAY_S,
     DOCKER_STATE_BACKOFF_FACTOR,
     DOCKER_STATE_INITIAL_DELAY_S,
@@ -60,7 +61,7 @@ def _is_container_id(identifier: str) -> bool:
     The Unraid API uses colon-delimited prefixed IDs (e.g., 'sha256:abc123...').
     """
     if ":" in identifier:
-        return True
+        return bool(re.match(CONTAINER_PREFIXED_ID_PATTERN, identifier))
     return bool(re.fullmatch(CONTAINER_ID_PATTERN, identifier))
 
 

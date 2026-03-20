@@ -102,7 +102,7 @@ def register_subscription_resources(mcp: FastMCP) -> None:
     async def logs_stream_resource() -> str:
         """Real-time log stream data from subscription."""
         await ensure_subscriptions_started()
-        data = subscription_manager.get_resource_data("logFileSubscription")
+        data = await subscription_manager.get_resource_data("logFileSubscription")
         if data:
             return json.dumps(data, indent=2)
         if _subscriptions_start_failed:

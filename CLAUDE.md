@@ -118,3 +118,29 @@ The server loads environment variables from multiple locations in order:
 - Selective queries to avoid GraphQL type overflow issues
 - Optional caching controls for Docker container queries
 - Rotating log files to prevent disk space issues
+
+## Sprint Learnings & Gotchas
+
+### macOS `/tmp` symlink resolution (Phase 8c)
+On macOS, `/tmp` is a symlink to `/private/tmp`. When using `Path.resolve()` on an existing path under `/tmp`, the resolved path becomes `/private/tmp/...` which fails prefix checks against `/tmp`. **Fix:** check both the literal string (`str(path)`) and the resolved string (`str(path.resolve())`) against allowed prefixes. This only matters on macOS dev machines — Linux containers are unaffected — but tests must pass on both.
+
+### Module-level imports in `settings.py` (Phase 8c)
+`settings.py` executes at import time (no functions, just top-level statements). Adding an import like `from ..core.constants import X` midway through the file triggers ruff's `E402` (module-level import not at top of file). **Fix:** move the import to the top of the file alongside the other imports, not inline where it's used.
+
+### Sync-to-async method signature changes propagate (Phase 8d)
+Changing `get_resource_data()` and `get_subscription_status()` from sync `def` to `async def` requires updating every caller to add `await`. Callers to check: `subscriptions/resources.py`, `subscriptions/diagnostics.py`, and all tests. Missing an `await` produces no immediate error — the method returns a coroutine object instead of the data, which evaluates as truthy, causing subtle bugs.
+
+### Error Handling Pattern (Phase 8a)
+User-facing `ToolError` messages should contain only the minimum needed to understand the failure (e.g., HTTP status code). Raw API response bodies, stack traces, and internal paths stay in `logger.error()` only. This prevents information leakage while keeping debug info accessible in logs.
+
+### Test assertions must match exact error message text (Phase 8a)
+When changing a `ToolError` message string, grep tests for `pytest.raises(ToolError, match=...)` — the `match` parameter is a regex against the exception message. Forgetting to update the test assertion is a silent failure until pytest runs.
+
+### `settings.py` reload behavior in tests (Phase 8c)
+Since `settings.py` uses module-level code, tests that validate different env var combinations must `importlib.reload()` the module within each test. Use `warnings.catch_warnings(record=True)` to capture and assert on warnings emitted during reload. Each test should be self-contained — prior reloads in the same process can leave stale state.
+
+### Docker daemon not available in dev environment
+The dev machine (macOS) may not have Docker daemon running. Docker build verification (`docker build -t unraid-mcp-server .`) should be treated as a CI-only check when the daemon is unavailable locally. All other quality gates (black, ruff, mypy, pytest) run locally.
+
+### Security hardening checklist for Docker Compose
+When hardening a `docker-compose.yml`, the key additions are: `security_opt: [no-new-privileges:true]`, `cap_drop: [ALL]`, `read_only: true`, `tmpfs: [/tmp]`, and resource limits (`mem_limit`, `cpus`). The `read_only: true` flag requires a `tmpfs` mount for `/tmp` and a writable volume for log directories.
