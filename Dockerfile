@@ -19,6 +19,10 @@ WORKDIR /app
 COPY --from=ghcr.io/astral-sh/uv:0.5.24 /uv /uvx /bin/
 COPY --from=builder /app /app
 
+# Upgrade pip/wheel to fix CVE-2026-24049
+RUN pip install --no-cache-dir --upgrade pip wheel setuptools \
+    && pip cache purge 2>/dev/null || true
+
 RUN groupadd -r mcp && useradd -r -g mcp -d /app -s /sbin/nologin mcp \
     && mkdir -p /app/logs \
     && chown -R mcp:mcp /app

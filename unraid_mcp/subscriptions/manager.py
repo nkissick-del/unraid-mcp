@@ -62,7 +62,7 @@ class SubscriptionManager:
     def __init__(self) -> None:
         self.active_subscriptions: dict[str, asyncio.Task[None]] = {}
         self.resource_data: dict[str, SubscriptionData] = {}
-        self.websocket: websockets.WebSocketServerProtocol | None = None
+        self.websocket: Any = None
         self.subscription_lock = asyncio.Lock()
 
         # Configuration
