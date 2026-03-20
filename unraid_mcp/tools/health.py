@@ -20,6 +20,7 @@ from ..config.settings import (
     UNRAID_MCP_TRANSPORT,
 )
 from ..core.client import make_graphql_request
+from ..core.constants import HEALTHY_ARRAY_STATES
 
 _PROCESS_START_TIME = time.time()
 
@@ -133,9 +134,9 @@ def register_health_tools(mcp: FastMCP) -> None:
                 array_state = array_info.get("state", "unknown")
                 health_info["array_status"] = {
                     "state": array_state,
-                    "healthy": array_state in ["STARTED", "STOPPED"],
+                    "healthy": array_state in HEALTHY_ARRAY_STATES,
                 }
-                if array_state not in ["STARTED", "STOPPED"]:
+                if array_state not in HEALTHY_ARRAY_STATES:
                     health_status = _update_health_status(health_status, "warning")
                     issues.append(f"Array in unexpected state: {array_state}")
             else:

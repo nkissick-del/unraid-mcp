@@ -13,6 +13,14 @@ from fastmcp import FastMCP
 
 from ..config.logging import logger
 from ..core.client import make_graphql_request
+from ..core.constants import (
+    CONTAINER_DISPLAY_LIMIT,
+    CONTAINER_ID_PATTERN,
+    DOCKER_OPERATION_SETTLE_DELAY_S,
+    DOCKER_STATE_BACKOFF_FACTOR,
+    DOCKER_STATE_INITIAL_DELAY_S,
+    DOCKER_STATE_MAX_RETRIES,
+)
 from ..core.exceptions import ToolError
 from ..core.utils import ensure_list, validate_enum, validate_string_not_empty
 
@@ -53,7 +61,7 @@ def _is_container_id(identifier: str) -> bool:
     """
     if ":" in identifier:
         return True
-    return bool(re.fullmatch(r"[0-9a-fA-F]{12,64}", identifier))
+    return bool(re.fullmatch(CONTAINER_ID_PATTERN, identifier))
 
 
 def find_container_by_identifier(
@@ -114,6 +122,16 @@ def get_available_container_names(containers: list[dict[str, Any]]) -> list[str]
     return names
 
 
+_CONTAINER_LIST_FIELDS = """
+    id
+    names
+    image
+    state
+    status
+    autoStart
+"""
+
+
 def register_docker_tools(mcp: FastMCP) -> None:
     """Register all Docker tools with the FastMCP instance.
 
@@ -128,19 +146,14 @@ def register_docker_tools(mcp: FastMCP) -> None:
         Returns:
             List of Docker container information dictionaries
         """
-        query = """
-        query ListDockerContainers {
-          docker {
-            containers(skipCache: false) {
-              id
-              names
-              image
-              state
-              status
-              autoStart
-            }
-          }
-        }
+        query = f"""
+        query ListDockerContainers {{
+          docker {{
+            containers(skipCache: false) {{
+              {_CONTAINER_LIST_FIELDS}
+            }}
+          }}
+        }}
         """
         try:
             logger.info("Executing list_docker_containers tool")
@@ -204,7 +217,7 @@ def register_docker_tools(mcp: FastMCP) -> None:
                         available_names = get_available_container_names(containers)
                         error_msg = f"Container '{container_id}' not found for {action} operation."
                         if available_names:
-                            error_msg += f" Available containers: {', '.join(available_names[:10])}"
+                            error_msg += f" Available containers: {', '.join(available_names[:CONTAINER_DISPLAY_LIMIT])}"
                         raise ToolError(error_msg)
 
             # Update variables with the actual container ID
@@ -223,19 +236,14 @@ def register_docker_tools(mcp: FastMCP) -> None:
                 )
                 # Get current container state since the operation was already complete
                 try:
-                    list_query = """
-                    query GetContainerStateAfterIdempotent($skipCache: Boolean!) {
-                      docker {
-                        containers(skipCache: $skipCache) {
-                          id
-                          names
-                          image
-                          state
-                          status
-                          autoStart
-                        }
-                      }
-                    }
+                    list_query = f"""
+                    query GetContainerStateAfterIdempotent($skipCache: Boolean!) {{
+                      docker {{
+                        containers(skipCache: $skipCache) {{
+                          {_CONTAINER_LIST_FIELDS}
+                        }}
+                      }}
+                    }}
                     """
                     list_response = await make_graphql_request(list_query, {"skipCache": True})
 
@@ -278,28 +286,22 @@ def register_docker_tools(mcp: FastMCP) -> None:
             logger.info(f"Container {action} operation completed for {container_id}")
 
             # Step 2: Wait briefly for state to propagate, then fetch current container details
-            await asyncio.sleep(1.0)  # Give the container state time to update
+            await asyncio.sleep(DOCKER_OPERATION_SETTLE_DELAY_S)
 
             # Step 3: Try to get updated container details with retry logic
-            max_retries = 3
-            retry_delay = 1.0
+            retry_delay = DOCKER_STATE_INITIAL_DELAY_S
 
-            for attempt in range(max_retries):
+            for attempt in range(DOCKER_STATE_MAX_RETRIES):
                 try:
                     # Query all containers and find the one we just operated on
-                    list_query = """
-                    query GetUpdatedContainerState($skipCache: Boolean!) {
-                      docker {
-                        containers(skipCache: $skipCache) {
-                          id
-                          names
-                          image
-                          state
-                          status
-                          autoStart
-                        }
-                      }
-                    }
+                    list_query = f"""
+                    query GetUpdatedContainerState($skipCache: Boolean!) {{
+                      docker {{
+                        containers(skipCache: $skipCache) {{
+                          {_CONTAINER_LIST_FIELDS}
+                        }}
+                      }}
+                    }}
                     """
 
                     # Skip cache to get fresh data
@@ -320,20 +322,20 @@ def register_docker_tools(mcp: FastMCP) -> None:
                             }
 
                     # If not found in this attempt, wait and retry
-                    if attempt < max_retries - 1:
+                    if attempt < DOCKER_STATE_MAX_RETRIES - 1:
                         logger.warning(
-                            f"Container {container_id} not found after {action}, retrying in {retry_delay}s (attempt {attempt + 1}/{max_retries})"
+                            f"Container {container_id} not found after {action}, retrying in {retry_delay}s (attempt {attempt + 1}/{DOCKER_STATE_MAX_RETRIES})"
                         )
                         await asyncio.sleep(retry_delay)
-                        retry_delay *= 1.5  # Exponential backoff
+                        retry_delay *= DOCKER_STATE_BACKOFF_FACTOR
 
                 except (ToolError, KeyError) as query_error:
                     logger.warning(
                         f"Error querying updated container state (attempt {attempt + 1}): {query_error}"
                     )
-                    if attempt < max_retries - 1:
+                    if attempt < DOCKER_STATE_MAX_RETRIES - 1:
                         await asyncio.sleep(retry_delay)
-                        retry_delay *= 1.5
+                        retry_delay *= DOCKER_STATE_BACKOFF_FACTOR
                     else:
                         # On final attempt failure, still return operation success
                         logger.warning(
@@ -428,10 +430,10 @@ def register_docker_tools(mcp: FastMCP) -> None:
             error_msg = f"Container '{container_identifier}' not found."
             if available_names:
                 error_msg += (
-                    f" Available containers: {', '.join(available_names[:10])}"  # Limit to first 10
+                    f" Available containers: {', '.join(available_names[:CONTAINER_DISPLAY_LIMIT])}"
                 )
-                if len(available_names) > 10:
-                    error_msg += f" (and {len(available_names) - 10} more)"
+                if len(available_names) > CONTAINER_DISPLAY_LIMIT:
+                    error_msg += f" (and {len(available_names) - CONTAINER_DISPLAY_LIMIT} more)"
             else:
                 error_msg += " No containers are currently available."
 

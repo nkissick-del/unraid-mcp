@@ -12,8 +12,58 @@ from fastmcp import FastMCP
 
 from ..config.logging import logger
 from ..core.client import make_graphql_request
+from ..core.constants import (
+    DISK_STATUS_FAILED,
+    DISK_STATUS_NEW,
+    DISK_STATUS_NOT_PRESENT,
+    DISK_STATUS_OK,
+)
 from ..core.exceptions import ToolError
 from ..core.utils import ensure_dict, format_kb
+
+
+def analyze_disk_health(disks: list[dict[str, Any]], disk_type: str) -> dict[str, int]:
+    """Analyze health status of disk arrays.
+
+    Args:
+        disks: List of disk dictionaries with status/warning/critical fields
+        disk_type: Label for the disk type (e.g. "parity", "data", "cache")
+
+    Returns:
+        Dict with counts for healthy/failed/missing/new/warning/unknown
+    """
+    if not disks:
+        return {}
+
+    health_counts = {
+        "healthy": 0,
+        "failed": 0,
+        "missing": 0,
+        "new": 0,
+        "warning": 0,
+        "unknown": 0,
+    }
+
+    for disk in disks:
+        status = disk.get("status", "").upper()
+        warning = disk.get("warning")
+        critical = disk.get("critical")
+
+        if status == DISK_STATUS_OK:
+            if warning or critical:
+                health_counts["warning"] += 1
+            else:
+                health_counts["healthy"] += 1
+        elif status in DISK_STATUS_FAILED:
+            health_counts["failed"] += 1
+        elif status == DISK_STATUS_NOT_PRESENT:
+            health_counts["missing"] += 1
+        elif status == DISK_STATUS_NEW:
+            health_counts["new"] += 1
+        else:
+            health_counts["unknown"] += 1
+
+    return health_counts
 
 
 # Standalone functions for use by subscription resources
@@ -134,42 +184,6 @@ async def _get_array_status() -> dict[str, Any]:
         summary["num_cache_pools"] = len(
             raw_array_info.get("caches", [])
         )  # Note: caches are pools, not individual cache disks
-
-        # Enhanced: Add disk health summary
-        def analyze_disk_health(disks: list[dict[str, Any]], disk_type: str) -> dict[str, int]:
-            """Analyze health status of disk arrays"""
-            if not disks:
-                return {}
-
-            health_counts = {
-                "healthy": 0,
-                "failed": 0,
-                "missing": 0,
-                "new": 0,
-                "warning": 0,
-                "unknown": 0,
-            }
-
-            for disk in disks:
-                status = disk.get("status", "").upper()
-                warning = disk.get("warning")
-                critical = disk.get("critical")
-
-                if status == "DISK_OK":
-                    if warning or critical:
-                        health_counts["warning"] += 1
-                    else:
-                        health_counts["healthy"] += 1
-                elif status in ["DISK_DSBL", "DISK_INVALID"]:
-                    health_counts["failed"] += 1
-                elif status == "DISK_NP":
-                    health_counts["missing"] += 1
-                elif status == "DISK_NEW":
-                    health_counts["new"] += 1
-                else:
-                    health_counts["unknown"] += 1
-
-            return health_counts
 
         # Analyze health for each disk type
         health_summary = {}

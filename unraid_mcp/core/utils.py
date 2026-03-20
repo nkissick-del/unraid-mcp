@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from ..core.constants import ALLOWED_LOG_PREFIXES, ERROR_TRUNCATION_LENGTH
 from ..core.exceptions import ValidationError
 
 
@@ -85,10 +86,14 @@ def validate_log_file_path(path: str) -> str:
         raise ValidationError("log_file_path must not contain '..'")
     if not path.startswith("/"):
         raise ValidationError("log_file_path must be an absolute path")
+    if not any(path.startswith(prefix) for prefix in ALLOWED_LOG_PREFIXES):
+        raise ValidationError(
+            f"log_file_path must start with one of: {', '.join(ALLOWED_LOG_PREFIXES)}"
+        )
     return path
 
 
-def truncate_for_error(text: str, max_length: int = 500) -> str:
+def truncate_for_error(text: str, max_length: int = ERROR_TRUNCATION_LENGTH) -> str:
     """Truncate a string for safe inclusion in error messages and logs."""
     if len(text) <= max_length:
         return text

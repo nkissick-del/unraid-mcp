@@ -13,6 +13,7 @@ import httpx
 
 from ..config.logging import logger
 from ..config.settings import TIMEOUT_CONFIG, UNRAID_API_KEY, UNRAID_API_URL, UNRAID_VERIFY_SSL
+from ..core.constants import QUERY_TRUNCATION_LENGTH, SENSITIVE_VARIABLE_KEYS
 from ..core.exceptions import ToolError
 from ..core.utils import truncate_for_error
 
@@ -62,7 +63,7 @@ def sanitize_query(query: str) -> str:
     # Remove variable definitions like $var: Type
     query = re.sub(r"\$[a-zA-Z_][a-zA-Z0-9_]*\s*:\s*[^,)]+", "$VARIABLE", query)
     # Truncate to safe length
-    return query[:500]
+    return query[:QUERY_TRUNCATION_LENGTH]
 
 
 def is_idempotent_error(error_message: str, operation: str) -> bool:
@@ -132,12 +133,11 @@ async def make_graphql_request(
     if variables:
         # Mask variables to prevent logging secrets
         def _redact_recursive(obj: Any) -> Any:
-            sensitive_keys = {"password", "pass", "token", "secret", "key"}
             if isinstance(obj, dict):
                 return {
                     k: (
                         "[REDACTED]"
-                        if any(s in k.lower() for s in sensitive_keys)
+                        if any(s in k.lower() for s in SENSITIVE_VARIABLE_KEYS)
                         else _redact_recursive(v)
                     )
                     for k, v in obj.items()

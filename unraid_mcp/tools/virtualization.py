@@ -94,13 +94,12 @@ def register_vm_tools(mcp: FastMCP) -> None:
                 return []
         except Exception as e:
             logger.error(f"Error in list_vms: {e}", exc_info=True)
-            error_msg = str(e)
-            if "VMs are not available" in error_msg:
+            if "VMs are not available" in str(e):
                 raise ToolError(
                     "VMs are not available on this Unraid server. This could mean: 1) VM support is not enabled, 2) VM service is not running, or 3) no VMs are configured. Check Unraid VM settings."
                 ) from e
             else:
-                raise ToolError(f"Failed to list virtual machines: {error_msg}") from e
+                raise ToolError(f"Failed to list virtual machines: {e}") from e
 
     @mcp.tool()
     async def manage_vm(vm_uuid: str, action: str) -> dict[str, Any]:
@@ -193,12 +192,11 @@ def register_vm_tools(mcp: FastMCP) -> None:
 
         except Exception as e:
             logger.error(f"Error in get_vm_details: {e}", exc_info=True)
-            error_msg = str(e)
-            if "VMs are not available" in error_msg:
+            if "VMs are not available" in str(e):
                 raise ToolError(
                     "VMs are not available on this Unraid server. This could mean: 1) VM support is not enabled, 2) VM service is not running, or 3) no VMs are configured. Check Unraid VM settings."
                 ) from e
             else:
-                raise ToolError(f"Failed to retrieve VM details: {error_msg}") from e
+                raise ToolError(f"Failed to retrieve VM details: {e}") from e
 
     logger.info("VM tools registered successfully")

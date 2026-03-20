@@ -17,7 +17,7 @@ from websockets.legacy.protocol import Subprotocol
 from ..config.logging import logger
 from ..config.settings import UNRAID_API_KEY, UNRAID_API_URL, UNRAID_VERIFY_SSL
 from ..core.exceptions import ToolError
-from .manager import subscription_manager
+from .manager import _build_ws_url, subscription_manager
 from .resources import ensure_subscriptions_started
 
 
@@ -46,10 +46,7 @@ def register_diagnostic_tools(mcp: FastMCP) -> None:
             # Build WebSocket URL
             if not UNRAID_API_URL:
                 raise ToolError("UNRAID_API_URL is not configured")
-            ws_url = (
-                UNRAID_API_URL.replace("https://", "wss://").replace("http://", "ws://")
-                + "/graphql"
-            )
+            ws_url = _build_ws_url(UNRAID_API_URL)
 
             # Test connection
             async with websockets.connect(
@@ -162,15 +159,10 @@ def register_diagnostic_tools(mcp: FastMCP) -> None:
 
             # Calculate WebSocket URL
             if UNRAID_API_URL:
-                if UNRAID_API_URL.startswith("https://"):
-                    ws_url = "wss://" + UNRAID_API_URL[len("https://") :]
-                elif UNRAID_API_URL.startswith("http://"):
-                    ws_url = "ws://" + UNRAID_API_URL[len("http://") :]
-                else:
-                    ws_url = UNRAID_API_URL
-                if not ws_url.endswith("/graphql"):
-                    ws_url = ws_url.rstrip("/") + "/graphql"
-                diagnostic_info["environment"]["websocket_url"] = ws_url
+                try:
+                    diagnostic_info["environment"]["websocket_url"] = _build_ws_url(UNRAID_API_URL)
+                except ValueError as e:
+                    diagnostic_info["environment"]["websocket_url"] = f"Error: {e}"
 
             # Analyze issues
             for sub_name, sub_status in status.items():

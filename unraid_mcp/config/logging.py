@@ -26,6 +26,7 @@ try:
 except ImportError:
     FASTMCP_AVAILABLE = False
 
+from ..core.constants import LOG_FILE_MAX_BYTES
 from .settings import LOG_FILE_PATH, LOG_FORMAT, LOG_LEVEL_STR
 
 # Global Rich console for consistent formatting
@@ -40,7 +41,7 @@ class OverwriteFileHandler(logging.FileHandler):
     def __init__(
         self,
         filename: str | Path,
-        max_bytes: int = 10 * 1024 * 1024,
+        max_bytes: int = LOG_FILE_MAX_BYTES,
         mode: str = "a",
         encoding: str | None = None,
         delay: bool = False,
@@ -146,7 +147,9 @@ def setup_logger(name: str = "UnraidMCPServer") -> logging.Logger:
         logger.addHandler(console_handler)
 
     # File Handler with 10MB cap (overwrites instead of rotating)
-    file_handler = OverwriteFileHandler(LOG_FILE_PATH, max_bytes=10 * 1024 * 1024, encoding="utf-8")
+    file_handler = OverwriteFileHandler(
+        LOG_FILE_PATH, max_bytes=LOG_FILE_MAX_BYTES, encoding="utf-8"
+    )
     file_handler.setLevel(numeric_log_level)
     if LOG_FORMAT == "json":
         file_handler.setFormatter(JsonFormatter())
@@ -199,7 +202,7 @@ def configure_fastmcp_logger_with_rich() -> logging.Logger | None:
     # Shared file handler — one instance for both loggers to avoid duplicate
     # writes and uncoordinated file-size resets
     shared_file_handler = OverwriteFileHandler(
-        LOG_FILE_PATH, max_bytes=10 * 1024 * 1024, encoding="utf-8"
+        LOG_FILE_PATH, max_bytes=LOG_FILE_MAX_BYTES, encoding="utf-8"
     )
     shared_file_handler.setLevel(numeric_log_level)
     if LOG_FORMAT == "json":

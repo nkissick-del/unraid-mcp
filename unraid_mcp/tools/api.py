@@ -5,10 +5,13 @@ and executing read-only queries directly against the API.
 """
 
 import json
-import re
 from typing import Any
 
 from fastmcp import FastMCP
+from graphql import OperationType
+from graphql import parse as gql_parse
+from graphql.error import GraphQLSyntaxError
+from graphql.language.ast import OperationDefinitionNode
 
 from ..config.logging import logger
 from ..core.client import make_graphql_request
@@ -200,13 +203,19 @@ def register_api_tools(mcp: FastMCP) -> None:
     ) -> dict[str, Any]:
         """Execute a read-only GraphQL query against the Unraid API. Mutations are blocked for safety."""
 
-        # Block mutations
-        stripped = _strip_comments(graphql_query)
-        if re.search(r"\bmutation\b", stripped, re.IGNORECASE):
-            raise ToolError(
-                "Mutations are not allowed through this tool. "
-                "Use the dedicated management tools for write operations."
-            )
+        # Block mutations and subscriptions via AST parsing
+        try:
+            document = gql_parse(graphql_query)
+        except GraphQLSyntaxError as e:
+            raise ToolError(f"Invalid GraphQL query syntax: {e}") from e
+
+        for definition in document.definitions:
+            if isinstance(definition, OperationDefinitionNode):
+                if definition.operation != OperationType.QUERY:
+                    raise ToolError(
+                        f"{definition.operation.value}s are not allowed through this tool. "
+                        "Use the dedicated management tools for write operations."
+                    )
 
         # Validate variables for security
         validated_variables = _validate_variables(variables)

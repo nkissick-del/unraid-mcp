@@ -10,28 +10,50 @@ import json
 import os
 from datetime import datetime
 from typing import Any
+from urllib.parse import urlparse, urlunparse
 
 import websockets
 from websockets.legacy.protocol import Subprotocol
 
 from ..config.logging import logger
 from ..config.settings import UNRAID_API_KEY, UNRAID_API_URL
+from ..core.constants import (
+    WS_ACK_TIMEOUT_S,
+    WS_CLOSE_TIMEOUT_S,
+    WS_INITIAL_RETRY_DELAY_S,
+    WS_MAX_RETRY_DELAY_S,
+    WS_PING_INTERVAL_S,
+    WS_PING_TIMEOUT_S,
+    WS_RETRY_BACKOFF_FACTOR,
+)
 from ..core.types import SubscriptionData
 
 
 def _build_ws_auth_payload() -> dict[str, Any]:
     """Build WebSocket authentication payload for GraphQL-WS connection_init."""
     return {
-        "X-API-Key": UNRAID_API_KEY,
-        "x-api-key": UNRAID_API_KEY,
-        "authorization": f"Bearer {UNRAID_API_KEY}",
         "Authorization": f"Bearer {UNRAID_API_KEY}",
-        "headers": {
-            "X-API-Key": UNRAID_API_KEY,
-            "x-api-key": UNRAID_API_KEY,
-            "Authorization": f"Bearer {UNRAID_API_KEY}",
-        },
+        "x-api-key": UNRAID_API_KEY,
     }
+
+
+def _build_ws_url(api_url: str) -> str:
+    """Convert an HTTP(S) API URL to a WebSocket URL ending in /graphql."""
+    parsed = urlparse(api_url)
+    if not parsed.hostname:
+        raise ValueError(f"URL has no host: {api_url}")
+    if parsed.username or parsed.password:
+        raise ValueError("URL must not contain userinfo (credentials)")
+    if parsed.fragment:
+        raise ValueError("URL must not contain a fragment")
+    scheme_map = {"https": "wss", "http": "ws"}
+    ws_scheme = scheme_map.get(parsed.scheme, "")
+    if not ws_scheme:
+        raise ValueError(f"Unsupported URL scheme '{parsed.scheme}': expected http or https")
+    path = parsed.path.rstrip("/")
+    if not path.endswith("/graphql"):
+        path = path + "/graphql"
+    return urlunparse((ws_scheme, parsed.netloc, path, "", parsed.query, ""))
 
 
 class SubscriptionManager:
@@ -173,8 +195,8 @@ class SubscriptionManager:
         self, subscription_name: str, query: str, variables: dict[str, Any] | None
     ) -> None:
         """Main loop for maintaining a GraphQL subscription with comprehensive logging."""
-        retry_delay: int | float = 5
-        max_retry_delay = 300  # 5 minutes max
+        retry_delay: int | float = WS_INITIAL_RETRY_DELAY_S
+        max_retry_delay = WS_MAX_RETRY_DELAY_S
 
         while True:
             attempt = self.reconnect_attempts.get(subscription_name, 0) + 1
@@ -196,15 +218,7 @@ class SubscriptionManager:
                 if not UNRAID_API_URL:
                     raise ValueError("UNRAID_API_URL is not configured")
 
-                if UNRAID_API_URL.startswith("https://"):
-                    ws_url = "wss://" + UNRAID_API_URL[len("https://") :]
-                elif UNRAID_API_URL.startswith("http://"):
-                    ws_url = "ws://" + UNRAID_API_URL[len("http://") :]
-                else:
-                    ws_url = UNRAID_API_URL
-
-                if not ws_url.endswith("/graphql"):
-                    ws_url = ws_url.rstrip("/") + "/graphql"
+                ws_url = _build_ws_url(UNRAID_API_URL)
 
                 logger.debug(f"[WEBSOCKET:{subscription_name}] Connecting to: {ws_url}")
                 logger.debug(
@@ -212,7 +226,7 @@ class SubscriptionManager:
                 )
 
                 # Connection with timeout
-                connect_timeout = 10
+                connect_timeout = WS_ACK_TIMEOUT_S
                 logger.debug(
                     f"[WEBSOCKET:{subscription_name}] Connection timeout: {connect_timeout}s"
                 )
@@ -220,9 +234,9 @@ class SubscriptionManager:
                 async with websockets.connect(
                     ws_url,
                     subprotocols=[Subprotocol("graphql-transport-ws"), Subprotocol("graphql-ws")],
-                    ping_interval=20,
-                    ping_timeout=10,
-                    close_timeout=10,
+                    ping_interval=WS_PING_INTERVAL_S,
+                    ping_timeout=WS_PING_TIMEOUT_S,
+                    close_timeout=WS_CLOSE_TIMEOUT_S,
                 ) as websocket:
 
                     selected_proto = websocket.subprotocol or "none"
@@ -233,7 +247,7 @@ class SubscriptionManager:
 
                     # Reset retry count on successful connection
                     self.reconnect_attempts[subscription_name] = 0
-                    retry_delay = 5  # Reset delay
+                    retry_delay = WS_INITIAL_RETRY_DELAY_S
 
                     # Initialize GraphQL-WS protocol
                     logger.debug(
@@ -255,7 +269,7 @@ class SubscriptionManager:
 
                     # Wait for connection acknowledgment
                     logger.debug(f"[PROTOCOL:{subscription_name}] Waiting for connection_ack...")
-                    init_raw = await asyncio.wait_for(websocket.recv(), timeout=30)
+                    init_raw = await asyncio.wait_for(websocket.recv(), timeout=WS_ACK_TIMEOUT_S)
 
                     try:
                         init_data = json.loads(init_raw)
@@ -451,7 +465,7 @@ class SubscriptionManager:
                 self.connection_states[subscription_name] = "error"
 
             # Calculate backoff delay
-            retry_delay = min(retry_delay * 1.5, max_retry_delay)
+            retry_delay = min(retry_delay * WS_RETRY_BACKOFF_FACTOR, max_retry_delay)
             logger.info(
                 f"[WEBSOCKET:{subscription_name}] Reconnecting in {retry_delay:.1f} seconds..."
             )

@@ -7,11 +7,11 @@ with custom timeout configurations for disk-intensive operations.
 
 from typing import Any
 
-import httpx
 from fastmcp import FastMCP
 
 from ..config.logging import logger
-from ..core.client import make_graphql_request
+from ..core.client import DISK_TIMEOUT, make_graphql_request
+from ..core.constants import LOG_TAIL_MAX_LINES, NOTIFICATION_MAX_LIMIT
 from ..core.exceptions import ToolError
 from ..core.utils import (
     ensure_dict,
@@ -98,7 +98,7 @@ def register_storage_tools(mcp: FastMCP) -> None:
         notification_type_upper = notification_type.upper()
         validate_enum(notification_type_upper, ["UNREAD", "ARCHIVE"], "notification_type")
         validate_positive_int(offset, "offset")
-        validate_positive_int(limit, "limit", max_value=1000)
+        validate_positive_int(limit, "limit", max_value=NOTIFICATION_MAX_LIMIT)
         importance_upper = importance.upper() if importance else None
         if importance_upper:
             validate_enum(importance_upper, ["INFO", "WARNING", "ALERT"], "importance")
@@ -170,7 +170,7 @@ def register_storage_tools(mcp: FastMCP) -> None:
     async def get_logs(log_file_path: str, tail_lines: int = 100) -> dict[str, Any]:
         """Retrieves content from a specific log file, defaulting to the last 100 lines."""
         validate_log_file_path(log_file_path)
-        validate_positive_int(tail_lines, "tail_lines", max_value=10000)
+        validate_positive_int(tail_lines, "tail_lines", max_value=LOG_TAIL_MAX_LINES)
         # The Unraid GraphQL API Query.logFile takes 'lines' and 'startLine'.
         # To implement 'tail_lines', we would ideally need to know the total lines first,
         # then calculate startLine. However, Query.logFile itself returns totalLines.
@@ -224,8 +224,7 @@ def register_storage_tools(mcp: FastMCP) -> None:
                 "Executing list_physical_disks tool with minimal query and increased timeout"
             )
             # Increased read timeout for this potentially slow query
-            long_timeout = httpx.Timeout(10.0, read=90.0, connect=5.0)
-            response_data = await make_graphql_request(query, custom_timeout=long_timeout)
+            response_data = await make_graphql_request(query, custom_timeout=DISK_TIMEOUT)
             disks = response_data.get("disks", [])
             return ensure_list(disks)
         except Exception as e:
