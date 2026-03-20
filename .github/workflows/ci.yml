@@ -71,7 +71,8 @@ jobs:
       - name: Security scan with pip-audit
         run: |
           uv export --frozen --no-dev --no-emit-project > /tmp/requirements.txt
-          uvx pip-audit --require-hashes -r /tmp/requirements.txt
+          # Ignore CVE-2025-69872 (diskcache): no fix available, transitive dep of fastmcp
+          uvx pip-audit --require-hashes -r /tmp/requirements.txt --ignore-vuln CVE-2025-69872
 
   unit-tests:
     runs-on: ubuntu-latest
