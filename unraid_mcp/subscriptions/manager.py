@@ -19,6 +19,21 @@ from ..config.settings import UNRAID_API_KEY, UNRAID_API_URL
 from ..core.types import SubscriptionData
 
 
+def _build_ws_auth_payload() -> dict[str, Any]:
+    """Build WebSocket authentication payload for GraphQL-WS connection_init."""
+    return {
+        "X-API-Key": UNRAID_API_KEY,
+        "x-api-key": UNRAID_API_KEY,
+        "authorization": f"Bearer {UNRAID_API_KEY}",
+        "Authorization": f"Bearer {UNRAID_API_KEY}",
+        "headers": {
+            "X-API-Key": UNRAID_API_KEY,
+            "x-api-key": UNRAID_API_KEY,
+            "Authorization": f"Bearer {UNRAID_API_KEY}",
+        },
+    }
+
+
 class SubscriptionManager:
     """Manages GraphQL subscriptions and converts them to MCP resources."""
 
@@ -141,6 +156,19 @@ class SubscriptionManager:
             else:
                 logger.warning(f"[SUBSCRIPTION:{subscription_name}] No active subscription to stop")
 
+    async def stop_all_subscriptions(self) -> None:
+        """Cancel all active subscription tasks for graceful shutdown."""
+        async with self.subscription_lock:
+            for name, task in list(self.active_subscriptions.items()):
+                if not task.done():
+                    task.cancel()
+                    try:
+                        await task
+                    except asyncio.CancelledError:
+                        pass
+                    logger.info(f"[SHUTDOWN] Cancelled subscription: {name}")
+            self.active_subscriptions.clear()
+
     async def _subscription_loop(
         self, subscription_name: str, query: str, variables: dict[str, Any] | None
     ) -> None:
@@ -216,18 +244,7 @@ class SubscriptionManager:
 
                     if UNRAID_API_KEY:
                         logger.debug(f"[AUTH:{subscription_name}] Adding authentication payload")
-                        auth_payload = {
-                            "X-API-Key": UNRAID_API_KEY,
-                            "x-api-key": UNRAID_API_KEY,
-                            "authorization": f"Bearer {UNRAID_API_KEY}",
-                            "Authorization": f"Bearer {UNRAID_API_KEY}",
-                            "headers": {
-                                "X-API-Key": UNRAID_API_KEY,
-                                "x-api-key": UNRAID_API_KEY,
-                                "Authorization": f"Bearer {UNRAID_API_KEY}",
-                            },
-                        }
-                        init_payload["payload"] = auth_payload
+                        init_payload["payload"] = _build_ws_auth_payload()
                     else:
                         logger.warning(
                             f"[AUTH:{subscription_name}] No API key available for authentication"
@@ -395,7 +412,7 @@ class SubscriptionManager:
                                 f"[PROTOCOL:{subscription_name}] Failed to decode message: {msg_preview}..."
                             )
                             logger.error(f"[PROTOCOL:{subscription_name}] JSON decode error: {e}")
-                        except Exception as e:
+                        except (KeyError, TypeError, ValueError) as e:
                             logger.error(
                                 f"[DATA:{subscription_name}] Error processing message: {e}"
                             )

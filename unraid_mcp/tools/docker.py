@@ -148,6 +148,7 @@ def register_docker_tools(mcp: FastMCP) -> None:
             if response_data.get("docker"):
                 containers = response_data["docker"].get("containers", [])
                 return ensure_list(containers)
+            logger.warning("GraphQL response missing 'docker' field — returning empty list")
             return []
         except Exception as e:
             logger.error(f"Error in list_docker_containers: {e}", exc_info=True)
@@ -326,7 +327,7 @@ def register_docker_tools(mcp: FastMCP) -> None:
                         await asyncio.sleep(retry_delay)
                         retry_delay *= 1.5  # Exponential backoff
 
-                except Exception as query_error:
+                except (ToolError, KeyError) as query_error:
                     logger.warning(
                         f"Error querying updated container state (attempt {attempt + 1}): {query_error}"
                     )

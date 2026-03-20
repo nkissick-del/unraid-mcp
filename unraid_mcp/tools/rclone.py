@@ -44,6 +44,7 @@ def register_rclone_tools(mcp: FastMCP) -> None:
             rclone_data = response_data.get("rclone")
             # Handle case where rclone field is missing or None
             if not rclone_data:
+                logger.warning("GraphQL response missing 'rclone' field — returning empty list")
                 return []
 
             remotes = rclone_data.get("remotes")

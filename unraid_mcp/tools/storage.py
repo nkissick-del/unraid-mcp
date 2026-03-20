@@ -84,6 +84,7 @@ def register_storage_tools(mcp: FastMCP) -> None:
             if response_data.get("notifications"):
                 overview = response_data["notifications"].get("overview", {})
                 return ensure_dict(overview)
+            logger.warning("GraphQL response missing 'notifications' field — returning empty dict")
             return {}
         except Exception as e:
             logger.error(f"Error in get_notifications_overview: {e}", exc_info=True)

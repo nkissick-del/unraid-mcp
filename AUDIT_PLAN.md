@@ -16,12 +16,12 @@
 - [x] Truncate error responses (`client.py`) — `e.response.text` capped at 500 chars
 - [x] Add dependency upper bounds (`pyproject.toml`) — all deps capped at `<NEXT_MAJOR`
 
-## Phase 3: Reliability & Error Handling
-- [ ] Fix subscription startup race condition (`resources.py`) — global `_subscriptions_started` not async-safe
-- [ ] Add graceful shutdown handlers (`main.py`) — no SIGTERM/SIGINT cleanup
-- [ ] Deduplicate WebSocket auth (`manager.py:183-194`) — API key sent 5 ways
-- [ ] Replace silent failures with explicit errors — tools return `{}`/`[]` on bad data instead of raising
-- [ ] Use specific exception catches instead of bare `except Exception`
+## Phase 3: Reliability & Error Handling ✅ (completed 2026-03-20)
+- [x] Fix subscription startup race condition (`resources.py`) — asyncio.Lock double-check guard
+- [x] Add graceful shutdown via FastMCP lifespan (`server.py`) — stop subscriptions + close HTTP client
+- [x] Deduplicate WebSocket auth (`manager.py`) — extracted `_build_ws_auth_payload()` helper
+- [x] Replace silent failures with explicit warnings — `logger.warning` in rclone, storage, docker tools
+- [x] Use specific exception catches instead of bare `except Exception` — narrowed in manager.py and docker.py
 
 ## Phase 4: Performance & Infrastructure
 - [ ] Dockerfile — multi-stage build, curl healthcheck, `PYTHONUNBUFFERED=1`, persistent logs

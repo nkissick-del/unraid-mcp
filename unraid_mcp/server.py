@@ -5,6 +5,8 @@ separate modules for configuration, core functionality, subscriptions, and tools
 """
 
 import sys
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from fastmcp import FastMCP
 
@@ -17,7 +19,9 @@ from .config.settings import (
     UNRAID_MCP_PORT,
     UNRAID_MCP_TRANSPORT,
 )
+from .core.client import close_http_client
 from .subscriptions.diagnostics import register_diagnostic_tools
+from .subscriptions.manager import subscription_manager
 from .subscriptions.resources import register_subscription_resources
 from .tools.api import register_api_tools
 from .tools.docker import register_docker_tools
@@ -27,11 +31,24 @@ from .tools.storage import register_storage_tools
 from .tools.system import register_system_tools
 from .tools.virtualization import register_vm_tools
 
+
+@asynccontextmanager
+async def app_lifespan(app: FastMCP) -> AsyncIterator[None]:
+    """Manage server startup and graceful shutdown."""
+    yield
+    # Shutdown cleanup
+    logger.info("Shutting down — cleaning up resources...")
+    await subscription_manager.stop_all_subscriptions()
+    await close_http_client()
+    logger.info("Shutdown complete.")
+
+
 # Initialize FastMCP instance
 mcp = FastMCP(
     name="Unraid MCP Server",
     instructions="Provides tools to interact with an Unraid server's GraphQL API.",
     version=__version__,
+    lifespan=app_lifespan,
 )
 
 
