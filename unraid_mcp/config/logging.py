@@ -4,8 +4,10 @@ This module sets up structured logging with Rich console and overwrite file hand
 that cap at 10MB and start over (no rotation) for consistent use across all modules.
 """
 
+import json
 import logging
 import os
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -24,7 +26,7 @@ try:
 except ImportError:
     FASTMCP_AVAILABLE = False
 
-from .settings import LOG_FILE_PATH, LOG_LEVEL_STR
+from .settings import LOG_FILE_PATH, LOG_FORMAT, LOG_LEVEL_STR
 
 # Global Rich console for consistent formatting
 console = Console(stderr=True, force_terminal=True)
@@ -32,6 +34,8 @@ console = Console(stderr=True, force_terminal=True)
 
 class OverwriteFileHandler(logging.FileHandler):
     """Custom file handler that overwrites the log file when it reaches max size."""
+
+    _CHECK_INTERVAL = 100
 
     def __init__(
         self,
@@ -43,7 +47,6 @@ class OverwriteFileHandler(logging.FileHandler):
     ) -> None:
         """Initialize the handler.
 
-
         Args:
             filename: Path to the log file
             max_bytes: Maximum file size in bytes before overwriting (default: 10MB)
@@ -52,42 +55,56 @@ class OverwriteFileHandler(logging.FileHandler):
             delay: Whether to delay file opening
         """
         self.max_bytes = max_bytes
+        self._emit_count = 0
         super().__init__(filename, mode, encoding, delay)
 
+    def _maybe_reset_file(self) -> None:
+        """Check file size and reset if it exceeds the limit."""
+        try:
+            file_size = os.path.getsize(self.baseFilename)
+            if file_size >= self.max_bytes:
+                self.close()
+                os.remove(self.baseFilename)
+                self.stream = self._open()
+
+                reset_record = logging.LogRecord(
+                    name="UnraidMCPServer.Logging",
+                    level=logging.INFO,
+                    pathname="",
+                    lineno=0,
+                    msg=f"=== LOG FILE RESET ({self.max_bytes // (1024 * 1024)}MB limit reached) ===",
+                    args=(),
+                    exc_info=None,
+                )
+                super().emit(reset_record)
+        except OSError:
+            pass
+
     def emit(self, record: logging.LogRecord) -> None:
-        """Emit a record, checking file size and overwriting if needed."""
-        # Check file size before writing
-        if self.stream and hasattr(self.stream, "name"):
-            try:
-                if os.path.exists(self.baseFilename):
-                    file_size = os.path.getsize(self.baseFilename)
-                    if file_size >= self.max_bytes:
-                        # Close current stream and remove old file
-                        self.close()
-                        if os.path.exists(self.baseFilename):
-                            os.remove(self.baseFilename)
-
-                        # Reopen with truncate mode
-                        self.stream = self._open()
-
-                        # Log a marker that the file was reset
-                        reset_record = logging.LogRecord(
-                            name="UnraidMCPServer.Logging",
-                            level=logging.INFO,
-                            pathname="",
-                            lineno=0,
-                            msg="=== LOG FILE RESET (10MB limit reached) ===",
-                            args=(),
-                            exc_info=None,
-                        )
-                        super().emit(reset_record)
-
-            except OSError:
-                # If there's an issue checking file size, just continue normally
-                pass
-
-        # Emit the original record
+        """Emit a record, checking file size every _CHECK_INTERVAL messages."""
+        self._emit_count += 1
+        if self._emit_count >= self._CHECK_INTERVAL:
+            self._emit_count = 0
+            self._maybe_reset_file()
         super().emit(record)
+
+
+class JsonFormatter(logging.Formatter):
+    """JSON log formatter for structured logging in production."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        log_entry: dict[str, object] = {
+            "timestamp": self.formatTime(record),
+            "level": record.levelname,
+            "logger": record.name,
+            "module": record.module,
+            "function": record.funcName,
+            "line": record.lineno,
+            "message": record.getMessage(),
+        }
+        if record.exc_info and record.exc_info[0]:
+            log_entry["exception"] = self.formatException(record.exc_info)
+        return json.dumps(log_entry)
 
 
 def setup_logger(name: str = "UnraidMCPServer") -> logging.Logger:
@@ -110,25 +127,34 @@ def setup_logger(name: str = "UnraidMCPServer") -> logging.Logger:
     # Clear any existing handlers
     logger.handlers.clear()
 
-    # Rich Console Handler for beautiful output
-    console_handler = RichHandler(
-        console=console,
-        show_time=True,
-        show_level=True,
-        show_path=False,
-        rich_tracebacks=True,
-        tracebacks_show_locals=True,
-    )
-    console_handler.setLevel(numeric_log_level)
-    logger.addHandler(console_handler)
+    if LOG_FORMAT == "json":
+        json_handler = logging.StreamHandler(sys.stderr)
+        json_handler.setLevel(numeric_log_level)
+        json_handler.setFormatter(JsonFormatter())
+        logger.addHandler(json_handler)
+    else:
+        # Rich Console Handler for beautiful output
+        console_handler = RichHandler(
+            console=console,
+            show_time=True,
+            show_level=True,
+            show_path=False,
+            rich_tracebacks=True,
+            tracebacks_show_locals=True,
+        )
+        console_handler.setLevel(numeric_log_level)
+        logger.addHandler(console_handler)
 
     # File Handler with 10MB cap (overwrites instead of rotating)
     file_handler = OverwriteFileHandler(LOG_FILE_PATH, max_bytes=10 * 1024 * 1024, encoding="utf-8")
     file_handler.setLevel(numeric_log_level)
-    file_formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(module)s - %(funcName)s - %(lineno)d - %(message)s"
-    )
-    file_handler.setFormatter(file_formatter)
+    if LOG_FORMAT == "json":
+        file_handler.setFormatter(JsonFormatter())
+    else:
+        file_formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(module)s - %(funcName)s - %(lineno)d - %(message)s"
+        )
+        file_handler.setFormatter(file_formatter)
     logger.addHandler(file_handler)
 
     return logger
@@ -149,27 +175,42 @@ def configure_fastmcp_logger_with_rich() -> logging.Logger | None:
     fastmcp_logger.handlers.clear()
     fastmcp_logger.propagate = False
 
-    # Rich Console Handler
-    console_handler = RichHandler(
-        console=console,
-        show_time=True,
-        show_level=True,
-        show_path=False,
-        rich_tracebacks=True,
-        tracebacks_show_locals=True,
-        markup=True,
-    )
-    console_handler.setLevel(numeric_log_level)
-    fastmcp_logger.addHandler(console_handler)
+    if LOG_FORMAT == "json":
+        json_formatter = JsonFormatter()
 
-    # File Handler with 10MB cap (overwrites instead of rotating)
-    file_handler = OverwriteFileHandler(LOG_FILE_PATH, max_bytes=10 * 1024 * 1024, encoding="utf-8")
-    file_handler.setLevel(numeric_log_level)
-    file_formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(module)s - %(funcName)s - %(lineno)d - %(message)s"
+        fmcp_json_handler = logging.StreamHandler(sys.stderr)
+        fmcp_json_handler.setLevel(numeric_log_level)
+        fmcp_json_handler.setFormatter(json_formatter)
+        fastmcp_logger.addHandler(fmcp_json_handler)
+    else:
+        # Rich Console Handler
+        fmcp_rich_handler = RichHandler(
+            console=console,
+            show_time=True,
+            show_level=True,
+            show_path=False,
+            rich_tracebacks=True,
+            tracebacks_show_locals=True,
+            markup=True,
+        )
+        fmcp_rich_handler.setLevel(numeric_log_level)
+        fastmcp_logger.addHandler(fmcp_rich_handler)
+
+    # Shared file handler — one instance for both loggers to avoid duplicate
+    # writes and uncoordinated file-size resets
+    shared_file_handler = OverwriteFileHandler(
+        LOG_FILE_PATH, max_bytes=10 * 1024 * 1024, encoding="utf-8"
     )
-    file_handler.setFormatter(file_formatter)
-    fastmcp_logger.addHandler(file_handler)
+    shared_file_handler.setLevel(numeric_log_level)
+    if LOG_FORMAT == "json":
+        shared_file_handler.setFormatter(JsonFormatter())
+    else:
+        shared_file_handler.setFormatter(
+            logging.Formatter(
+                "%(asctime)s - %(name)s - %(levelname)s - %(module)s - %(funcName)s - %(lineno)d - %(message)s"
+            )
+        )
+    fastmcp_logger.addHandler(shared_file_handler)
 
     fastmcp_logger.setLevel(numeric_log_level)
 
@@ -178,26 +219,27 @@ def configure_fastmcp_logger_with_rich() -> logging.Logger | None:
     root_logger.handlers.clear()
     root_logger.propagate = False
 
-    # Rich Console Handler for root logger
-    root_console_handler = RichHandler(
-        console=console,
-        show_time=True,
-        show_level=True,
-        show_path=False,
-        rich_tracebacks=True,
-        tracebacks_show_locals=True,
-        markup=True,
-    )
-    root_console_handler.setLevel(numeric_log_level)
-    root_logger.addHandler(root_console_handler)
+    if LOG_FORMAT == "json":
+        root_json_handler = logging.StreamHandler(sys.stderr)
+        root_json_handler.setLevel(numeric_log_level)
+        root_json_handler.setFormatter(JsonFormatter())
+        root_logger.addHandler(root_json_handler)
+    else:
+        # Rich Console Handler for root logger
+        root_rich_handler = RichHandler(
+            console=console,
+            show_time=True,
+            show_level=True,
+            show_path=False,
+            rich_tracebacks=True,
+            tracebacks_show_locals=True,
+            markup=True,
+        )
+        root_rich_handler.setLevel(numeric_log_level)
+        root_logger.addHandler(root_rich_handler)
 
-    # File Handler for root logger with 10MB cap (overwrites instead of rotating)
-    root_file_handler = OverwriteFileHandler(
-        LOG_FILE_PATH, max_bytes=10 * 1024 * 1024, encoding="utf-8"
-    )
-    root_file_handler.setLevel(numeric_log_level)
-    root_file_handler.setFormatter(file_formatter)
-    root_logger.addHandler(root_file_handler)
+    # Reuse the same file handler for root logger
+    root_logger.addHandler(shared_file_handler)
     root_logger.setLevel(numeric_log_level)
 
     return fastmcp_logger

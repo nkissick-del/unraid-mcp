@@ -23,12 +23,12 @@
 - [x] Replace silent failures with explicit warnings — `logger.warning` in rclone, storage, docker tools
 - [x] Use specific exception catches instead of bare `except Exception` — narrowed in manager.py and docker.py
 
-## Phase 4: Performance & Infrastructure
-- [ ] Dockerfile — multi-stage build, curl healthcheck, `PYTHONUNBUFFERED=1`, persistent logs
-- [ ] Fix logging filesystem I/O (`logging.py`) — `os.path.exists` + `os.path.getsize` on every emit
-- [ ] Structured/JSON logging option for production
-- [ ] Fix CI `pip-audit` (`--no-deps` skips transitive deps)
-- [ ] Fix `dev.sh` portability — BSD-only `stat -f%z`
+## Phase 4: Performance & Infrastructure ✅ (completed 2026-03-20)
+- [x] Dockerfile — multi-stage build, curl healthcheck, `PYTHONUNBUFFERED=1`, persistent logs
+- [x] Fix logging filesystem I/O (`logging.py`) — counter-based throttling, eliminated redundant stat calls
+- [x] Structured/JSON logging option for production — `UNRAID_MCP_LOG_FORMAT=json`
+- [x] Fix CI `pip-audit` — temp file instead of process substitution, removed `--no-deps`
+- [x] Fix `dev.sh` portability — `stat -f%z` → `wc -c` (POSIX portable)
 
 ## Phase 5: Polish & Tests
 - [ ] Unit tests for GraphQL client, core tools, subscriptions

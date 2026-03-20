@@ -50,8 +50,9 @@ else:  # Path to CA bundle
 # Logging Configuration
 LOG_LEVEL_STR = os.getenv("UNRAID_MCP_LOG_LEVEL", "INFO").upper()
 LOG_FILE_NAME = os.getenv("UNRAID_MCP_LOG_FILE", "unraid-mcp.log")
-LOGS_DIR = Path("/tmp")
+LOGS_DIR = Path(os.getenv("UNRAID_MCP_LOG_DIR", "/tmp"))
 LOG_FILE_PATH = LOGS_DIR / LOG_FILE_NAME
+LOG_FORMAT = os.getenv("UNRAID_MCP_LOG_FORMAT", "text").lower()
 
 # Ensure logs directory exists
 LOGS_DIR.mkdir(parents=True, exist_ok=True)

@@ -297,15 +297,15 @@ start_modular_server() {
     # Clear the log file and add a startup marker to capture fresh logs
     # Rotate logs if too large (e.g., >10MB) or just simple rotation
     if [[ -f "$LOG_FILE" ]]; then
-        local fsize=$(stat -f%z "$LOG_FILE" 2>/dev/null || echo 0)
+        local fsize=$(wc -c < "$LOG_FILE" 2>/dev/null || echo 0)
         if [[ $fsize -gt 10485760 ]]; then # 10MB
             mv "$LOG_FILE" "$LOG_FILE.old"
         fi
     fi
-    
+
     # Append startup marker
     echo "=== Server Starting at $(date) ===" >> "$LOG_FILE"
-    
+
     # Start server in background using module syntax
     log_info "→ Executing: uv run -m unraid_mcp.main" 1
     # Start server in new process group to isolate it from parent signals
@@ -392,15 +392,15 @@ start_original_server() {
     # Clear the log file and add a startup marker to capture fresh logs
     # Rotate logs if too large (e.g., >10MB) or just simple rotation
     if [[ -f "$LOG_FILE" ]]; then
-        local fsize=$(stat -f%z "$LOG_FILE" 2>/dev/null || echo 0)
+        local fsize=$(wc -c < "$LOG_FILE" 2>/dev/null || echo 0)
         if [[ $fsize -gt 10485760 ]]; then # 10MB
             mv "$LOG_FILE" "$LOG_FILE.old"
         fi
     fi
-    
+
     # Append startup marker
     echo "=== Server Starting at $(date) ===" >> "$LOG_FILE"
-    
+
     # Start server in background
     log_info "→ Executing: uv run unraid_mcp_server.py" 1
     # Start server in new process group to isolate it from parent signals
