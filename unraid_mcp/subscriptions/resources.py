@@ -216,3 +216,99 @@ def register_live_subscription_resources(mcp: FastMCP) -> None:
         )
 
     logger.info("Live subscription resources registered successfully")
+
+
+# Extra subscription resources (gated under subscriptions-extra module)
+_EXTRA_SUBSCRIPTION_RESOURCES: list[tuple[str, str, str]] = [
+    (
+        "notificationAdded",
+        "unraid://notifications/stream",
+        "Real-time notification stream (new notifications as they arrive)",
+    ),
+    (
+        "notificationsWarningsAndAlerts",
+        "unraid://notifications/alerts",
+        "Real-time warning and alert notification counts",
+    ),
+    (
+        "parityHistorySubscription",
+        "unraid://parity/status",
+        "Real-time parity check status and history",
+    ),
+    (
+        "systemMetricsTemperature",
+        "unraid://system/temperature",
+        "Real-time system temperature metrics",
+    ),
+    (
+        "notificationsOverview",
+        "unraid://notifications/overview",
+        "Real-time notifications overview with counts by severity",
+    ),
+    (
+        "systemMetricsCpuTelemetry",
+        "unraid://system/cpu-telemetry",
+        "Detailed per-core CPU telemetry with load averages",
+    ),
+    (
+        "upsUpdates",
+        "unraid://ups/status",
+        "Real-time UPS status and battery updates",
+    ),
+    (
+        "pluginInstallUpdates",
+        "unraid://plugins/install-progress",
+        "Plugin installation progress updates (event-driven)",
+    ),
+    (
+        "displaySubscription",
+        "unraid://display/updates",
+        "Real-time display/theme configuration updates",
+    ),
+    (
+        "ownerSubscription",
+        "unraid://owner/updates",
+        "Real-time owner/account information updates",
+    ),
+    (
+        "serversSubscription",
+        "unraid://servers/updates",
+        "Real-time server discovery and status updates",
+    ),
+]
+
+
+def _register_subscription_resource(mcp: FastMCP, sub_name: str, uri: str, desc: str) -> None:
+    """Register a single subscription as an MCP resource.
+
+    Each call creates a new closure capturing sub_name for the resource handler.
+    """
+
+    @mcp.resource(uri)
+    async def _resource_handler() -> str:
+        await ensure_subscriptions_started()
+        data = await subscription_manager.get_resource_data(sub_name)
+        if data:
+            return json.dumps(data, indent=2)
+        if _subscriptions_start_failed:
+            return json.dumps(
+                {
+                    "status": "Subscription startup failed",
+                    "message": f"Subscriptions failed to start after {_MAX_STARTUP_RETRIES} attempts.",
+                }
+            )
+        return json.dumps(
+            {
+                "status": "No subscription data yet",
+                "message": f"{desc} — subscription is starting. Data will appear shortly.",
+            }
+        )
+
+    _resource_handler.__doc__ = desc
+
+
+def register_extra_subscription_resources(mcp: FastMCP) -> None:
+    """Register all extra subscription resources gated under subscriptions-extra module."""
+    for sub_name, uri, desc in _EXTRA_SUBSCRIPTION_RESOURCES:
+        _register_subscription_resource(mcp, sub_name, uri, desc)
+    logger.info("Extra subscription resources registered successfully")

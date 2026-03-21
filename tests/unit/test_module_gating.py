@@ -43,6 +43,7 @@ class TestEnabledModulesAll:
             assert "notifications" in settings_mod.ENABLED_MODULES
             assert "array" in settings_mod.ENABLED_MODULES
             assert "subscriptions" in settings_mod.ENABLED_MODULES
+            assert "subscriptions-extra" in settings_mod.ENABLED_MODULES
             assert "system" in settings_mod.ENABLED_MODULES
             assert "system-extra" in settings_mod.ENABLED_MODULES
             assert "metrics" in settings_mod.ENABLED_MODULES
@@ -161,3 +162,21 @@ class TestPhase2ModulesDisabledByDefault:
 
             importlib.reload(settings_mod)
             assert "ups-admin" not in settings_mod.ENABLED_MODULES
+
+    def test_subscriptions_extra_not_in_default(self):
+        with patch.dict("os.environ", {"UNRAID_MCP_ENABLED_MODULES": "default"}):
+            import unraid_mcp.config.settings as settings_mod
+
+            importlib.reload(settings_mod)
+            assert "subscriptions-extra" not in settings_mod.ENABLED_MODULES
+
+    def test_default_plus_subscriptions_extra(self):
+        with patch.dict(
+            "os.environ", {"UNRAID_MCP_ENABLED_MODULES": "default,subscriptions-extra"}
+        ):
+            import unraid_mcp.config.settings as settings_mod
+
+            importlib.reload(settings_mod)
+            assert "subscriptions-extra" in settings_mod.ENABLED_MODULES
+            assert "system" in settings_mod.ENABLED_MODULES
+            assert "docker" in settings_mod.ENABLED_MODULES

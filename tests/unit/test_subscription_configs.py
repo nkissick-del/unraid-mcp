@@ -1,5 +1,7 @@
 """Tests for subscription configuration entries."""
 
+import pytest
+
 from unraid_mcp.subscriptions.manager import SubscriptionManager
 
 
@@ -51,5 +53,55 @@ class TestSubscriptionConfigs:
             ), f"{name} query missing 'subscription' keyword"
 
     def test_total_subscription_count(self):
-        """Should have 5 subscription configs total (1 original + 4 new)."""
-        assert len(self.configs) == 5
+        """Should have 16 subscription configs total (5 original + 11 new)."""
+        assert len(self.configs) == 16
+
+
+class TestExtraSubscriptionConfigs:
+    """Tests for the 11 new subscription configs added in Phase 3."""
+
+    def setup_method(self):
+        self.manager = SubscriptionManager()
+        self.configs = self.manager.subscription_configs
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "notificationAdded",
+            "notificationsWarningsAndAlerts",
+            "parityHistorySubscription",
+            "systemMetricsTemperature",
+            "notificationsOverview",
+            "systemMetricsCpuTelemetry",
+            "upsUpdates",
+            "pluginInstallUpdates",
+            "displaySubscription",
+            "ownerSubscription",
+            "serversSubscription",
+        ],
+    )
+    def test_extra_subscription_exists(self, name):
+        assert name in self.configs, f"Missing subscription config: {name}"
+
+    def test_plugin_install_updates_not_auto_start(self):
+        """pluginInstallUpdates is event-driven and should NOT auto-start."""
+        assert self.configs["pluginInstallUpdates"]["auto_start"] is False
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "notificationAdded",
+            "notificationsWarningsAndAlerts",
+            "parityHistorySubscription",
+            "systemMetricsTemperature",
+            "notificationsOverview",
+            "systemMetricsCpuTelemetry",
+            "upsUpdates",
+            "displaySubscription",
+            "ownerSubscription",
+            "serversSubscription",
+        ],
+    )
+    def test_extra_subscription_auto_start(self, name):
+        """All extra subscriptions except pluginInstallUpdates should auto-start."""
+        assert self.configs[name]["auto_start"] is True, f"{name} should auto_start"

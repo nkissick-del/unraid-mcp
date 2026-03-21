@@ -24,6 +24,7 @@ from .core.client import close_http_client
 from .subscriptions.diagnostics import register_diagnostic_tools
 from .subscriptions.manager import subscription_manager
 from .subscriptions.resources import (
+    register_extra_subscription_resources,
     register_live_subscription_resources,
     register_subscription_resources,
 )
@@ -111,6 +112,8 @@ def register_all_modules() -> None:
             register_ups_admin_tools(mcp)
         if "subscriptions" in ENABLED_MODULES:
             register_live_subscription_resources(mcp)
+        if "subscriptions-extra" in ENABLED_MODULES:
+            register_extra_subscription_resources(mcp)
 
         logger.info(f"Modules registered: {sorted(ENABLED_MODULES)}")
 

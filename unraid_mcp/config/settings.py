@@ -120,6 +120,7 @@ _ALL_MODULES = _DEFAULT_MODULES | frozenset(
         "docker-batch",
         "notifications-extra",
         "ups-admin",
+        "subscriptions-extra",
     }
 )
 

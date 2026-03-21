@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-21
 **Source:** [`unraid/api`](https://github.com/unraid/api) `generated-schema.graphql` (main branch)
-**MCP Server State:** 59 tools, 5 resources, 5 subscriptions across 19 modules
+**MCP Server State:** 59 tools, 16 resources, 16 subscriptions across 20 modules
 
 ---
 
@@ -12,8 +12,8 @@
 |----------|---------|-------|---|
 | Queries | 33 | 57 | 57.9% |
 | Mutations | 35 | ~70 | 50.0% |
-| Subscriptions | 5 | 16 | 31.3% |
-| **Overall** | **73** | **~143** | **51.0%** |
+| Subscriptions | 16 | 16 | 100% |
+| **Overall** | **84** | **~143** | **58.7%** |
 
 > Note: `query_unraid_api()` acts as a read-only escape hatch for any uncovered query, so effective query coverage is higher for advanced users who can write GraphQL.
 
@@ -99,15 +99,26 @@
 | `recalculateOverview` | `recalculate_notification_overview()` | notifications-extra |
 | `configureUps` | `configure_ups()` | ups-admin |
 
-### Subscriptions Covered (5/16)
+### Subscriptions Covered (16/16)
 
-| API Subscription | MCP Resource URI | Auto-start |
-|-----------------|------------------|------------|
-| `arraySubscription` | `unraid://array/status` | yes |
-| `dockerContainerStats` | `unraid://docker/stats` | yes |
-| `logFile` | `unraid://logs/stream` | manual |
-| `systemMetricsCpu` | `unraid://system/cpu` | yes |
-| `systemMetricsMemory` | `unraid://system/memory` | yes |
+| API Subscription | MCP Resource URI | Auto-start | Module |
+|-----------------|------------------|------------|--------|
+| `arraySubscription` | `unraid://array/status` | yes | subscriptions |
+| `dockerContainerStats` | `unraid://docker/stats` | yes | subscriptions |
+| `logFile` | `unraid://logs/stream` | manual | base |
+| `systemMetricsCpu` | `unraid://system/cpu` | yes | subscriptions |
+| `systemMetricsMemory` | `unraid://system/memory` | yes | subscriptions |
+| `notificationAdded` | `unraid://notifications/stream` | yes | subscriptions-extra |
+| `notificationsWarningsAndAlerts` | `unraid://notifications/alerts` | yes | subscriptions-extra |
+| `parityHistorySubscription` | `unraid://parity/status` | yes | subscriptions-extra |
+| `systemMetricsTemperature` | `unraid://system/temperature` | yes | subscriptions-extra |
+| `notificationsOverview` | `unraid://notifications/overview` | yes | subscriptions-extra |
+| `systemMetricsCpuTelemetry` | `unraid://system/cpu-telemetry` | yes | subscriptions-extra |
+| `upsUpdates` | `unraid://ups/status` | yes | subscriptions-extra |
+| `pluginInstallUpdates` | `unraid://plugins/install-progress` | no (event-driven) | subscriptions-extra |
+| `displaySubscription` | `unraid://display/updates` | yes | subscriptions-extra |
+| `ownerSubscription` | `unraid://owner/updates` | yes | subscriptions-extra |
+| `serversSubscription` | `unraid://servers/updates` | yes | subscriptions-extra |
 
 ---
 
@@ -141,27 +152,11 @@
 | Flash (1) | `initiateFlashBackup` | Med |
 | Onboarding (10) | `completeOnboarding`, `resetOnboarding`, `openOnboarding`, `closeOnboarding`, `bypassOnboarding`, `resumeOnboarding`, `setOnboardingOverride`, `clearOnboardingOverride`, `createInternalBootPool`, `refreshInternalBootContext` | Low |
 
-### Uncovered Subscriptions (11/16)
-
-| Subscription | Value |
-|-------------|-------|
-| `notificationAdded` | Real-time alerts (HIGH) |
-| `notificationsWarningsAndAlerts` | Critical alerts stream (HIGH) |
-| `parityHistorySubscription` | Parity progress tracking (HIGH) |
-| `systemMetricsTemperature` | Hardware temp monitoring (HIGH) |
-| `notificationsOverview` | Live notification counts (MED) |
-| `systemMetricsCpuTelemetry` | Per-core CPU details (MED) |
-| `upsUpdates` | UPS status during power events (MED) |
-| `displaySubscription` | Display changes (LOW) |
-| `ownerSubscription` | Owner changes (LOW) |
-| `serversSubscription` | Server status (LOW) |
-| `pluginInstallUpdates` | Plugin install progress (LOW) |
-
 ---
 
 ## Module Taxonomy (Proposed)
 
-### Existing Modules (19)
+### Existing Modules (20)
 
 | Module | Tools | Default | Risk |
 |--------|-------|---------|------|
@@ -181,8 +176,9 @@
 | `docker-batch` | 3 | no | High |
 | `notifications-extra` | 7 | no | Low |
 | `ups-admin` | 1 | no | Med |
+| `subscriptions-extra` | 11 resources | no | Resource-heavy |
 
-### Remaining Modules (11)
+### Remaining Modules (10)
 
 | Module | New Tools | Default | Risk | Description |
 |--------|-----------|---------|------|-------------|
@@ -196,7 +192,6 @@
 | `connect` | 3 queries + 4 mutations | no | High | Remote access, cloud, sign-in flows |
 | `customization` | 4 queries + 2 mutations | no | Low | Theme, locale, display |
 | `onboarding` | 1 query + 10 mutations | no | Low | First-run setup |
-| `subscriptions-extra` | 11 resources | no | Resource-heavy | All remaining live streams |
 
 ---
 
@@ -289,8 +284,7 @@ All subscriptions are gated under `subscriptions-extra` (disabled by default, re
 
 | Phase | Tools | Query % | Mutation % | Subscription % | Overall % |
 |-------|-------|---------|------------|----------------|-----------|
-| Current (Phase 2 complete) | 59 | 57.9% | 50.0% | 31.3% | 51.0% |
-| After Phase 3 | 59 | 57.9% | 50.0% | ~100% | ~60% |
-| After Phase 4 | ~120 | ~95% | ~95% | ~100% | ~95% |
+| Current (Phase 3 complete) | 59 | 57.9% | 50.0% | 100% | 58.7% |
+| After Phase 4 | ~120 | ~95% | ~95% | 100% | ~95% |
 
 > Phases 1-3 deliver ~75% of the practical value. Phase 4 covers operations that are either niche (onboarding, SSO), UI-centric (docker folders, customization), or security-sensitive (auth, connect, remote access) where MCP tools are arguably not the ideal interface.
