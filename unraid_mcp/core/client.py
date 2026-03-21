@@ -14,6 +14,7 @@ import httpx
 from ..config.logging import logger
 from ..config.settings import TIMEOUT_CONFIG, UNRAID_API_KEY, UNRAID_API_URL, UNRAID_VERIFY_SSL
 from ..core.constants import (
+    HTTP_DOCKER_BATCH_UPDATE_READ_TIMEOUT_S,
     HTTP_DOCKER_UPDATE_READ_TIMEOUT_S,
     HTTP_MAX_CONNECTIONS,
     HTTP_MAX_KEEPALIVE_CONNECTIONS,
@@ -27,6 +28,9 @@ from ..core.utils import truncate_for_error
 DEFAULT_TIMEOUT = httpx.Timeout(10.0, read=30.0, connect=5.0)
 DISK_TIMEOUT = httpx.Timeout(10.0, read=TIMEOUT_CONFIG["disk_operations"], connect=5.0)
 DOCKER_UPDATE_TIMEOUT = httpx.Timeout(10.0, read=HTTP_DOCKER_UPDATE_READ_TIMEOUT_S, connect=5.0)
+DOCKER_BATCH_UPDATE_TIMEOUT = httpx.Timeout(
+    10.0, read=HTTP_DOCKER_BATCH_UPDATE_READ_TIMEOUT_S, connect=5.0
+)
 
 # Module-level HTTP client singleton for connection pooling
 _http_client: httpx.AsyncClient | None = None
@@ -227,5 +231,7 @@ def get_timeout_for_operation(operation_type: str = "default") -> httpx.Timeout:
         return DISK_TIMEOUT
     elif operation_type == "docker_update":
         return DOCKER_UPDATE_TIMEOUT
+    elif operation_type == "docker_batch_update":
+        return DOCKER_BATCH_UPDATE_TIMEOUT
     else:
         return DEFAULT_TIMEOUT

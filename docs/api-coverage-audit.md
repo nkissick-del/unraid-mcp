@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-21
 **Source:** [`unraid/api`](https://github.com/unraid/api) `generated-schema.graphql` (main branch)
-**MCP Server State:** 34 tools, 5 resources, 5 subscriptions across 12 modules
+**MCP Server State:** 59 tools, 5 resources, 5 subscriptions across 19 modules
 
 ---
 
@@ -10,10 +10,10 @@
 
 | Category | Covered | Total | % |
 |----------|---------|-------|---|
-| Queries | 21 | 57 | 36.8% |
-| Mutations | 26 | ~70 | 37.1% |
+| Queries | 33 | 57 | 57.9% |
+| Mutations | 35 | ~70 | 50.0% |
 | Subscriptions | 5 | 16 | 31.3% |
-| **Overall** | **52** | **~143** | **36.4%** |
+| **Overall** | **73** | **~143** | **51.0%** |
 
 > Note: `query_unraid_api()` acts as a read-only escape hatch for any uncovered query, so effective query coverage is higher for advanced users who can write GraphQL.
 
@@ -21,7 +21,7 @@
 
 ## Covered Operations
 
-### Queries Covered (21/57)
+### Queries Covered (33/57)
 
 | API Query | MCP Tool | Module |
 |-----------|----------|--------|
@@ -46,8 +46,20 @@
 | `rclone` (remotes) | `list_rclone_remotes()` | rclone |
 | `rclone` (configForm) | `get_rclone_config_form()` | rclone |
 | `__schema` (introspection) | `introspect_schema()` | api |
+| `config` | `get_config_status()` | system-extra |
+| `flash` | `get_flash_info()` | system-extra |
+| `services` | `list_services()` | system-extra |
+| `online` | `get_online_status()` | system-extra |
+| `server`/`servers` | `list_servers()` | system-extra |
+| `metrics` | `get_system_metrics()` | metrics |
+| `systemTime` | `get_system_time()` | metrics |
+| `timeZoneOptions` | `list_timezone_options()` | metrics |
+| `upsDevices` | `list_ups_devices()` | ups |
+| `upsDeviceById` | `get_ups_device()` | ups |
+| `upsConfiguration` | `get_ups_configuration()` | ups |
+| `parityHistory` | `get_parity_history()` | parity |
 
-### Mutations Covered (26/~70)
+### Mutations Covered (35/~70)
 
 | API Mutation | MCP Tool | Module |
 |-------------|----------|--------|
@@ -71,6 +83,21 @@
 | `deleteArchivedNotifications` | `delete_archived_notifications()` | notifications |
 | `rclone.createRCloneRemote` | `create_rclone_remote()` | rclone |
 | `rclone.deleteRCloneRemote` | `delete_rclone_remote()` | rclone |
+| `parityCheck.start` | `manage_parity_check("START")` | parity |
+| `parityCheck.pause` | `manage_parity_check("PAUSE")` | parity |
+| `parityCheck.resume` | `manage_parity_check("RESUME")` | parity |
+| `parityCheck.cancel` | `manage_parity_check("CANCEL")` | parity |
+| `docker.updateContainers` | `update_docker_containers()` | docker-batch |
+| `docker.updateAllContainers` | `update_all_docker_containers()` | docker-batch |
+| `docker.updateAutostartConfiguration` | `update_docker_autostart()` | docker-batch |
+| `createNotification` | `create_notification()` | notifications-extra |
+| `archiveNotifications` | `archive_notifications()` | notifications-extra |
+| `notifyIfUnique` | `notify_if_unique()` | notifications-extra |
+| `unreadNotification` | `unread_notification()` | notifications-extra |
+| `unarchiveNotifications` | `unarchive_notifications()` | notifications-extra |
+| `unarchiveAll` | `unarchive_all_notifications()` | notifications-extra |
+| `recalculateOverview` | `recalculate_notification_overview()` | notifications-extra |
+| `configureUps` | `configure_ups()` | ups-admin |
 
 ### Subscriptions Covered (5/16)
 
@@ -86,33 +113,29 @@
 
 ## Uncovered Operations
 
-### Uncovered Queries (36/57)
+### Uncovered Queries (24/57)
 
 | Category | Queries |
 |----------|---------|
 | API Key Mgmt (8) | `apiKeys`, `apiKey`, `apiKeyPossibleRoles`, `apiKeyPossiblePermissions`, `getPermissionsForRoles`, `previewEffectivePermissions`, `getAvailableAuthActions`, `getApiKeyCreationFormSchema` |
 | SSO/OIDC (6) | `isSSOEnabled`, `publicOidcProviders`, `oidcProviders`, `oidcProvider`, `oidcConfiguration`, `validateOidcSession` |
 | Plugins (4) | `plugins`, `installedUnraidPlugins`, `pluginInstallOperation`, `pluginInstallOperations` |
-| UPS (3) | `upsDevices`, `upsDeviceById`, `upsConfiguration` |
-| System (7) | `config`, `display`, `flash`, `me`, `online`, `owner`, `services` |
-| Server/Connect (5) | `server`, `servers`, `connect`, `remoteAccess`, `cloud` |
-| Metrics (3) | `metrics`, `systemTime`, `timeZoneOptions` |
-| Other (5) | `parityHistory`, `customization`, `isFreshInstall`, `publicTheme`, `assignableDisks` |
+| System (3) | `display`, `me`, `owner` |
+| Server/Connect (3) | `connect`, `remoteAccess`, `cloud` |
+| Other (4) | `customization`, `isFreshInstall`, `publicTheme`, `assignableDisks` |
 
-### Uncovered Mutations (44/~70)
+> Note: Listed uncovered queries total 28, exceeding 57 - 33 = 24. The original total of 57 was approximate; actual schema may contain fewer distinct root queries.
+
+### Uncovered Mutations (~35/~70)
 
 | Category | Mutations | Risk |
 |----------|-----------|------|
-| Parity Check (4) | `start`, `pause`, `resume`, `cancel` | Critical |
 | Array Disk Ops (5) | `addDiskToArray`, `removeDiskFromArray`, `mountArrayDisk`, `unmountArrayDisk`, `clearArrayDiskStatistics` | Critical/Med |
-| Docker Batch (3) | `updateContainers`, `updateAllContainers`, `updateAutostartConfiguration` | High/Med |
 | Docker Organizer (8) | `createDockerFolder`, `setDockerFolderChildren`, `deleteDockerEntries`, `moveDockerEntriesToFolder`, `moveDockerItemsToPosition`, `renameDockerFolder`, `createDockerFolderWithItems`, `updateDockerViewPreferences` | Low |
 | Docker Templates (3) | `syncDockerTemplatePaths`, `resetDockerTemplateMappings`, `refreshDockerDigests` | Low |
-| Notifications (7) | `createNotification`, `archiveNotifications` (batch), `notifyIfUnique`, `unreadNotification`, `unarchiveNotifications`, `unarchiveAll`, `recalculateOverview` | Low |
 | API Keys (5) | `create`, `addRole`, `removeRole`, `delete`, `update` | Med |
 | Plugins (3) | `addPlugin`, `removePlugin`, `installPlugin`, `installLanguage` | High |
 | Server Config (5) | `updateServerIdentity`, `updateSshSettings`, `updateSettings`, `updateTemperatureConfig`, `updateSystemTime` | Med/High |
-| UPS (1) | `configureUps` | Med |
 | Connect/Remote (4) | `updateApiSettings`, `connectSignIn`, `connectSignOut`, `setupRemoteAccess`, `enableDynamicRemoteAccess` | High |
 | Customization (2) | `setTheme`, `setLocale` | Low |
 | Flash (1) | `initiateFlashBackup` | Med |
@@ -138,7 +161,7 @@
 
 ## Module Taxonomy (Proposed)
 
-### Existing Modules (12)
+### Existing Modules (19)
 
 | Module | Tools | Default | Risk |
 |--------|-------|---------|------|
@@ -154,20 +177,20 @@
 | `array` | 1 | no | Critical |
 | `notifications` | 4 | no | Destructive |
 | `subscriptions` | 4 resources | no | Resource-heavy |
+| `parity` | 1 (dispatches 4 mutations) | no | Critical |
+| `docker-batch` | 3 | no | High |
+| `notifications-extra` | 7 | no | Low |
+| `ups-admin` | 1 | no | Med |
 
-### New Modules (15)
+### Remaining Modules (11)
 
 | Module | New Tools | Default | Risk | Description |
 |--------|-----------|---------|------|-------------|
 | `system-extra` | 5 queries | yes | Read-only | `config`, `flash`, `services`, `online`, `server`/`servers` |
 | `metrics` | 3 queries | yes | Read-only | `metrics`, `systemTime`, `timeZoneOptions` |
-| `ups` | 3-4 queries + 1 mutation | yes* | Low/Med | Complete UPS monitoring stack (*mutation gated separately) |
 | `plugins` | 4 queries + 2 mutations | no | High | Plugin inventory + install/remove |
-| `parity` | 1 query + 4 mutations | no | Critical | `parityHistory` + check lifecycle |
 | `array-admin` | 5 mutations | no | Critical | Disk-level array operations |
-| `docker-batch` | 3 mutations | no | Destructive | Bulk update operations |
 | `docker-organize` | 8 mutations | no | Low | Folder/entry organization |
-| `notifications-extra` | 5 mutations | no | Low | Create, unarchive, recalculate |
 | `server-admin` | 5 mutations | no | High | Identity, SSH, settings, time, flash backup |
 | `auth` | 8 queries + 5 mutations | no | High | API key management + SSO/OIDC |
 | `connect` | 3 queries + 4 mutations | no | High | Remote access, cloud, sign-in flows |
@@ -266,10 +289,8 @@ All subscriptions are gated under `subscriptions-extra` (disabled by default, re
 
 | Phase | Tools | Query % | Mutation % | Subscription % | Overall % |
 |-------|-------|---------|------------|----------------|-----------|
-| Current | 34 | 36.8% | 37.1% | 31.3% | 36.4% |
-| After Phase 1 | 46 | ~55% | 37.1% | 31.3% | ~45% |
-| After Phase 2 | 59 | ~55% | ~56% | 31.3% | ~55% |
-| After Phase 3 | 59 | ~55% | ~56% | ~100% | ~60% |
+| Current (Phase 2 complete) | 59 | 57.9% | 50.0% | 31.3% | 51.0% |
+| After Phase 3 | 59 | 57.9% | 50.0% | ~100% | ~60% |
 | After Phase 4 | ~120 | ~95% | ~95% | ~100% | ~95% |
 
 > Phases 1-3 deliver ~75% of the practical value. Phase 4 covers operations that are either niche (onboarding, SSO), UI-centric (docker folders, customization), or security-sensitive (auth, connect, remote access) where MCP tools are arguably not the ideal interface.

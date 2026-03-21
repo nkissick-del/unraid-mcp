@@ -47,6 +47,10 @@ class TestEnabledModulesAll:
             assert "system-extra" in settings_mod.ENABLED_MODULES
             assert "metrics" in settings_mod.ENABLED_MODULES
             assert "ups" in settings_mod.ENABLED_MODULES
+            assert "parity" in settings_mod.ENABLED_MODULES
+            assert "docker-batch" in settings_mod.ENABLED_MODULES
+            assert "notifications-extra" in settings_mod.ENABLED_MODULES
+            assert "ups-admin" in settings_mod.ENABLED_MODULES
 
     def test_all_case_insensitive(self):
         with patch.dict("os.environ", {"UNRAID_MCP_ENABLED_MODULES": "ALL"}):
@@ -118,3 +122,42 @@ class TestEnabledModulesCustom:
             assert "subscriptions" in settings_mod.ENABLED_MODULES
             assert "system" in settings_mod.ENABLED_MODULES
             assert "diagnostics" in settings_mod.ENABLED_MODULES
+
+    def test_default_plus_parity(self):
+        with patch.dict("os.environ", {"UNRAID_MCP_ENABLED_MODULES": "default,parity"}):
+            import unraid_mcp.config.settings as settings_mod
+
+            importlib.reload(settings_mod)
+            assert "parity" in settings_mod.ENABLED_MODULES
+            assert "system" in settings_mod.ENABLED_MODULES
+            assert "docker" in settings_mod.ENABLED_MODULES
+
+
+class TestPhase2ModulesDisabledByDefault:
+    def test_parity_not_in_default(self):
+        with patch.dict("os.environ", {"UNRAID_MCP_ENABLED_MODULES": "default"}):
+            import unraid_mcp.config.settings as settings_mod
+
+            importlib.reload(settings_mod)
+            assert "parity" not in settings_mod.ENABLED_MODULES
+
+    def test_docker_batch_not_in_default(self):
+        with patch.dict("os.environ", {"UNRAID_MCP_ENABLED_MODULES": "default"}):
+            import unraid_mcp.config.settings as settings_mod
+
+            importlib.reload(settings_mod)
+            assert "docker-batch" not in settings_mod.ENABLED_MODULES
+
+    def test_notifications_extra_not_in_default(self):
+        with patch.dict("os.environ", {"UNRAID_MCP_ENABLED_MODULES": "default"}):
+            import unraid_mcp.config.settings as settings_mod
+
+            importlib.reload(settings_mod)
+            assert "notifications-extra" not in settings_mod.ENABLED_MODULES
+
+    def test_ups_admin_not_in_default(self):
+        with patch.dict("os.environ", {"UNRAID_MCP_ENABLED_MODULES": "default"}):
+            import unraid_mcp.config.settings as settings_mod
+
+            importlib.reload(settings_mod)
+            assert "ups-admin" not in settings_mod.ENABLED_MODULES
