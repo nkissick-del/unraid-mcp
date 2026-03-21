@@ -17,14 +17,22 @@ from ..core.constants import (
     CONTAINER_DISPLAY_LIMIT,
     CONTAINER_ID_PATTERN,
     CONTAINER_PREFIXED_ID_PATTERN,
+    DOCKER_LOG_TAIL_DEFAULT,
+    DOCKER_LOG_TAIL_MAX,
     DOCKER_OPERATION_SETTLE_DELAY_S,
     DOCKER_STATE_BACKOFF_FACTOR,
     DOCKER_STATE_INITIAL_DELAY_S,
     DOCKER_STATE_MAX_RETRIES,
 )
 from ..core.exceptions import ToolError
-from ..core.utils import ensure_list, poll_with_backoff, validate_enum, validate_string_not_empty
-from .queries.docker import CONTAINER_LIST_FIELDS, DOCKER_ACTION_MUTATIONS
+from ..core.utils import (
+    ensure_list,
+    poll_with_backoff,
+    validate_enum,
+    validate_positive_int,
+    validate_string_not_empty,
+)
+from .queries.docker import CONTAINER_LIST_FIELDS, DOCKER_ACTION_MUTATIONS, DOCKER_LOGS_QUERY
 
 
 def _is_container_id(identifier: str) -> bool:
@@ -133,11 +141,11 @@ def register_docker_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     async def manage_docker_container(container_id: str, action: str) -> dict[str, Any]:
-        """Starts or stops a specific Docker container. Action must be 'start' or 'stop'.
+        """Manages a Docker container lifecycle. Action must be 'start', 'stop', 'pause', or 'unpause'.
 
         Args:
-            container_id: Container ID to manage
-            action: Action to perform - 'start' or 'stop'
+            container_id: Container ID or name to manage
+            action: Action to perform - 'start', 'stop', 'pause', or 'unpause'
 
         Returns:
             Dict containing operation result and container information
@@ -381,5 +389,69 @@ def register_docker_tools(mcp: FastMCP) -> None:
         except Exception as e:
             logger.error(f"Error in get_docker_container_details: {e}", exc_info=True)
             raise ToolError(f"Failed to retrieve Docker container details: {str(e)}") from e
+
+    @mcp.tool()
+    async def get_docker_container_logs(
+        container_identifier: str,
+        tail: int = DOCKER_LOG_TAIL_DEFAULT,
+        since: str | None = None,
+    ) -> dict[str, Any]:
+        """Retrieves recent logs for a Docker container.
+
+        Args:
+            container_identifier: Container ID or name
+            tail: Number of recent log lines to return (default 100, max 10000)
+            since: Optional ISO timestamp to fetch logs since
+
+        Returns:
+            Dict containing log lines and metadata
+        """
+        validate_string_not_empty(container_identifier, "container_identifier")
+        validate_positive_int(tail, "tail", max_value=DOCKER_LOG_TAIL_MAX)
+
+        try:
+            logger.info(f"Executing get_docker_container_logs for: {container_identifier}")
+
+            # Resolve name -> ID if needed
+            actual_id = container_identifier
+            if not _is_container_id(container_identifier):
+                list_query = """
+                query ResolveContainerID {
+                  docker {
+                    containers(skipCache: true) {
+                      id
+                      names
+                    }
+                  }
+                }
+                """
+                list_response = await make_graphql_request(list_query)
+                if list_response.get("docker"):
+                    containers = list_response["docker"].get("containers", [])
+                    resolved = find_container_by_identifier(container_identifier, containers)
+                    if resolved:
+                        actual_id = str(resolved.get("id", ""))
+                    else:
+                        available_names = get_available_container_names(containers)
+                        error_msg = f"Container '{container_identifier}' not found."
+                        if available_names:
+                            error_msg += f" Available containers: {', '.join(available_names[:CONTAINER_DISPLAY_LIMIT])}"
+                        raise ToolError(error_msg)
+
+            variables: dict[str, Any] = {"id": actual_id, "tail": tail}
+            if since:
+                variables["since"] = since
+
+            response_data = await make_graphql_request(DOCKER_LOGS_QUERY, variables)
+
+            if response_data.get("docker") and response_data["docker"].get("logs"):
+                result: dict[str, Any] = response_data["docker"]["logs"]
+                return result
+
+            return {"containerId": actual_id, "lines": [], "cursor": None}
+
+        except Exception as e:
+            logger.error(f"Error in get_docker_container_logs: {e}", exc_info=True)
+            raise ToolError(f"Failed to retrieve Docker container logs: {str(e)}") from e
 
     logger.info("Docker tools registered successfully")

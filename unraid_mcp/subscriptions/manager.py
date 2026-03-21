@@ -115,7 +115,71 @@ class SubscriptionManager:
                 "resource": "unraid://logs/stream",
                 "description": "Real-time log file streaming",
                 "auto_start": False,  # Started manually with path parameter
-            }
+            },
+            "dockerContainerStats": {
+                "query": """
+                subscription DockerContainerStats {
+                    dockerContainerStats {
+                        id
+                        cpuPercent
+                        memUsage
+                        memPercent
+                        netIO
+                        blockIO
+                    }
+                }
+                """,
+                "resource": "unraid://docker/stats",
+                "description": "Real-time Docker container resource statistics",
+                "auto_start": True,
+            },
+            "systemMetricsCpu": {
+                "query": """
+                subscription SystemMetricsCpu {
+                    systemMetricsCpu {
+                        percentTotal
+                    }
+                }
+                """,
+                "resource": "unraid://system/cpu",
+                "description": "Real-time CPU utilization metrics",
+                "auto_start": True,
+            },
+            "systemMetricsMemory": {
+                "query": """
+                subscription SystemMetricsMemory {
+                    systemMetricsMemory {
+                        total
+                        used
+                        free
+                        available
+                        percentTotal
+                    }
+                }
+                """,
+                "resource": "unraid://system/memory",
+                "description": "Real-time memory utilization metrics",
+                "auto_start": True,
+            },
+            "arraySubscription": {
+                "query": """
+                subscription ArraySubscription {
+                    arraySubscription {
+                        id
+                        state
+                        capacity {
+                            disks {
+                                free
+                                size
+                            }
+                        }
+                    }
+                }
+                """,
+                "resource": "unraid://array/status",
+                "description": "Real-time array status updates",
+                "auto_start": True,
+            },
         }
 
         logger.info(

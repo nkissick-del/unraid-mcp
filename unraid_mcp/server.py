@@ -13,6 +13,7 @@ from fastmcp import FastMCP
 from . import __version__
 from .config.logging import logger
 from .config.settings import (
+    ENABLED_MODULES,
     UNRAID_API_KEY,
     UNRAID_API_URL,
     UNRAID_MCP_HOST,
@@ -22,13 +23,22 @@ from .config.settings import (
 from .core.client import close_http_client
 from .subscriptions.diagnostics import register_diagnostic_tools
 from .subscriptions.manager import subscription_manager
-from .subscriptions.resources import register_subscription_resources
+from .subscriptions.resources import (
+    register_live_subscription_resources,
+    register_subscription_resources,
+)
 from .tools.api import register_api_tools
+from .tools.array import register_array_tools
 from .tools.docker import register_docker_tools
+from .tools.docker_admin import register_docker_admin_tools
 from .tools.health import register_health_tools
+from .tools.metrics_tools import register_metrics_tools
+from .tools.notification_actions import register_notification_tools
 from .tools.rclone import register_rclone_tools
 from .tools.storage import register_storage_tools
 from .tools.system import register_system_tools
+from .tools.system_extra import register_system_extra_tools
+from .tools.ups_tools import register_ups_tools
 from .tools.virtualization import register_vm_tools
 
 
@@ -53,42 +63,47 @@ mcp = FastMCP(
 
 
 def register_all_modules() -> None:
-    """Register all tools and resources with the MCP instance."""
+    """Register tools and resources based on ENABLED_MODULES configuration."""
     try:
-        # Register subscription resources first
+        # Always register base subscription resources (lightweight log stream endpoint)
         register_subscription_resources(mcp)
-        logger.info("📊 Subscription resources registered")
 
-        # Register diagnostic tools
-        register_diagnostic_tools(mcp)
-        logger.info("🔧 Diagnostic tools registered")
+        # Conditionally register tool modules
+        if "diagnostics" in ENABLED_MODULES:
+            register_diagnostic_tools(mcp)
+        if "system" in ENABLED_MODULES:
+            register_system_tools(mcp)
+        if "docker" in ENABLED_MODULES:
+            register_docker_tools(mcp)
+        if "docker-admin" in ENABLED_MODULES:
+            register_docker_admin_tools(mcp)
+        if "vms" in ENABLED_MODULES:
+            register_vm_tools(mcp)
+        if "storage" in ENABLED_MODULES:
+            register_storage_tools(mcp)
+        if "notifications" in ENABLED_MODULES:
+            register_notification_tools(mcp)
+        if "array" in ENABLED_MODULES:
+            register_array_tools(mcp)
+        if "health" in ENABLED_MODULES:
+            register_health_tools(mcp)
+        if "rclone" in ENABLED_MODULES:
+            register_rclone_tools(mcp)
+        if "api" in ENABLED_MODULES:
+            register_api_tools(mcp)
+        if "system-extra" in ENABLED_MODULES:
+            register_system_extra_tools(mcp)
+        if "metrics" in ENABLED_MODULES:
+            register_metrics_tools(mcp)
+        if "ups" in ENABLED_MODULES:
+            register_ups_tools(mcp)
+        if "subscriptions" in ENABLED_MODULES:
+            register_live_subscription_resources(mcp)
 
-        # Register all tool categories
-        register_system_tools(mcp)
-        logger.info("🖥️  System tools registered")
-
-        register_docker_tools(mcp)
-        logger.info("🐳 Docker tools registered")
-
-        register_vm_tools(mcp)
-        logger.info("💻 Virtualization tools registered")
-
-        register_storage_tools(mcp)
-        logger.info("💾 Storage tools registered")
-
-        register_health_tools(mcp)
-        logger.info("🏥 Health tools registered")
-
-        register_rclone_tools(mcp)
-        logger.info("☁️  RClone tools registered")
-
-        register_api_tools(mcp)
-        logger.info("🔌 API tools registered")
-
-        logger.info("🎯 All modules registered successfully - Server ready!")
+        logger.info(f"Modules registered: {sorted(ENABLED_MODULES)}")
 
     except Exception as e:
-        logger.error(f"❌ Failed to register modules: {e}", exc_info=True)
+        logger.error(f"Failed to register modules: {e}", exc_info=True)
         raise
 
 

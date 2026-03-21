@@ -94,6 +94,41 @@ TIMEOUT_CONFIG = {
     "disk_operations": 90,  # Longer timeout for SMART data queries
 }
 
+# Module Gating Configuration
+_DEFAULT_MODULES = frozenset(
+    {
+        "system",
+        "docker",
+        "vms",
+        "storage",
+        "health",
+        "rclone",
+        "api",
+        "diagnostics",
+        "system-extra",
+        "metrics",
+        "ups",
+    }
+)
+_ALL_MODULES = _DEFAULT_MODULES | frozenset(
+    {
+        "docker-admin",
+        "notifications",
+        "array",
+        "subscriptions",
+    }
+)
+
+_raw_modules = os.getenv("UNRAID_MCP_ENABLED_MODULES", "default")
+if _raw_modules.strip().lower() == "all":
+    ENABLED_MODULES: frozenset[str] = _ALL_MODULES
+else:
+    _parts = {m.strip().lower() for m in _raw_modules.split(",")}
+    if "default" in _parts:
+        _parts.discard("default")
+        _parts |= _DEFAULT_MODULES
+    ENABLED_MODULES = frozenset(_parts) & _ALL_MODULES
+
 
 def validate_required_config() -> tuple[bool, list[str]]:
     """Validate that required configuration is present.

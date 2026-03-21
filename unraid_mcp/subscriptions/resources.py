@@ -120,3 +120,99 @@ def register_subscription_resources(mcp: FastMCP) -> None:
         )
 
     logger.info("Subscription resources registered successfully")
+
+
+def register_live_subscription_resources(mcp: FastMCP) -> None:
+    """Register live subscription resources gated under the 'subscriptions' module.
+
+    These resources expose real-time streaming data (Docker stats, CPU, memory, array).
+
+    Args:
+        mcp: FastMCP instance to register resources with
+    """
+
+    @mcp.resource("unraid://docker/stats")
+    async def docker_stats_resource() -> str:
+        """Real-time Docker container resource statistics."""
+        await ensure_subscriptions_started()
+        data = await subscription_manager.get_resource_data("dockerContainerStats")
+        if data:
+            return json.dumps(data, indent=2)
+        if _subscriptions_start_failed:
+            return json.dumps(
+                {
+                    "status": "Subscription startup failed",
+                    "message": f"Subscriptions failed to start after {_MAX_STARTUP_RETRIES} attempts.",
+                }
+            )
+        return json.dumps(
+            {
+                "status": "No subscription data yet",
+                "message": "Docker stats subscription is starting. Data will appear shortly.",
+            }
+        )
+
+    @mcp.resource("unraid://system/cpu")
+    async def cpu_metrics_resource() -> str:
+        """Real-time CPU utilization metrics."""
+        await ensure_subscriptions_started()
+        data = await subscription_manager.get_resource_data("systemMetricsCpu")
+        if data:
+            return json.dumps(data, indent=2)
+        if _subscriptions_start_failed:
+            return json.dumps(
+                {
+                    "status": "Subscription startup failed",
+                    "message": f"Subscriptions failed to start after {_MAX_STARTUP_RETRIES} attempts.",
+                }
+            )
+        return json.dumps(
+            {
+                "status": "No subscription data yet",
+                "message": "CPU metrics subscription is starting. Data will appear shortly.",
+            }
+        )
+
+    @mcp.resource("unraid://system/memory")
+    async def memory_metrics_resource() -> str:
+        """Real-time memory utilization metrics."""
+        await ensure_subscriptions_started()
+        data = await subscription_manager.get_resource_data("systemMetricsMemory")
+        if data:
+            return json.dumps(data, indent=2)
+        if _subscriptions_start_failed:
+            return json.dumps(
+                {
+                    "status": "Subscription startup failed",
+                    "message": f"Subscriptions failed to start after {_MAX_STARTUP_RETRIES} attempts.",
+                }
+            )
+        return json.dumps(
+            {
+                "status": "No subscription data yet",
+                "message": "Memory metrics subscription is starting. Data will appear shortly.",
+            }
+        )
+
+    @mcp.resource("unraid://array/status")
+    async def array_status_resource() -> str:
+        """Real-time array status updates."""
+        await ensure_subscriptions_started()
+        data = await subscription_manager.get_resource_data("arraySubscription")
+        if data:
+            return json.dumps(data, indent=2)
+        if _subscriptions_start_failed:
+            return json.dumps(
+                {
+                    "status": "Subscription startup failed",
+                    "message": f"Subscriptions failed to start after {_MAX_STARTUP_RETRIES} attempts.",
+                }
+            )
+        return json.dumps(
+            {
+                "status": "No subscription data yet",
+                "message": "Array status subscription is starting. Data will appear shortly.",
+            }
+        )
+
+    logger.info("Live subscription resources registered successfully")

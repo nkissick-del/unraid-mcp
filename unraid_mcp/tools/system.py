@@ -19,7 +19,8 @@ from ..core.constants import (
     DISK_STATUS_OK,
 )
 from ..core.exceptions import ToolError
-from ..core.utils import ensure_dict, format_kb
+from ..core.utils import ensure_dict, ensure_list, format_kb
+from .queries.system_extra import PARITY_HISTORY_QUERY
 
 
 def analyze_disk_health(disks: list[dict[str, Any]], disk_type: str) -> dict[str, int]:
@@ -416,5 +417,25 @@ def register_system_tools(mcp: FastMCP) -> None:
         except Exception as e:
             logger.error(f"Error in get_unraid_variables: {e}", exc_info=True)
             raise ToolError(f"Failed to retrieve Unraid variables: {str(e)}") from e
+
+    @mcp.tool()
+    async def get_parity_history() -> dict[str, Any]:
+        """Retrieves the parity check history, including dates, durations, speeds, error counts, and status of each check."""
+        try:
+            logger.info("Executing get_parity_history")
+            response_data = await make_graphql_request(PARITY_HISTORY_QUERY)
+            checks = ensure_list(response_data.get("parityHistory", []))
+
+            summary: dict[str, Any] = {"total_checks": len(checks)}
+            if checks:
+                last_check = checks[0]
+                summary["last_check_date"] = last_check.get("date")
+                summary["last_check_status"] = last_check.get("status")
+                summary["last_check_errors"] = last_check.get("errors")
+
+            return {"summary": summary, "history": checks}
+        except Exception as e:
+            logger.error(f"Error in get_parity_history: {e}", exc_info=True)
+            raise ToolError(f"Failed to retrieve parity history: {str(e)}") from e
 
     logger.info("System tools registered successfully")
