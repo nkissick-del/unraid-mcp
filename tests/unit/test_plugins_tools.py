@@ -1,0 +1,161 @@
+"""Tests for plugin management tools."""
+
+import pytest
+
+from unraid_mcp.core.exceptions import ToolError
+from unraid_mcp.tools.queries.plugins import (
+    ADD_PLUGIN_MUTATION,
+    GET_PLUGIN_INSTALL_OPERATION_QUERY,
+    INSTALL_PLUGIN_MUTATION,
+    LIST_INSTALLED_UNRAID_PLUGINS_QUERY,
+    LIST_PLUGIN_INSTALL_OPERATIONS_QUERY,
+    LIST_PLUGINS_QUERY,
+    REMOVE_PLUGIN_MUTATION,
+)
+
+
+class TestPluginQueries:
+    def test_list_plugins_query(self):
+        assert "query" in LIST_PLUGINS_QUERY
+        assert "plugins" in LIST_PLUGINS_QUERY
+
+    def test_list_plugins_has_expected_fields(self):
+        assert "name" in LIST_PLUGINS_QUERY
+        assert "version" in LIST_PLUGINS_QUERY
+        assert "status" in LIST_PLUGINS_QUERY
+
+    def test_list_installed_plugins_query(self):
+        assert "query" in LIST_INSTALLED_UNRAID_PLUGINS_QUERY
+        assert "installedUnraidPlugins" in LIST_INSTALLED_UNRAID_PLUGINS_QUERY
+
+    def test_get_plugin_install_operation_query(self):
+        assert "query" in GET_PLUGIN_INSTALL_OPERATION_QUERY
+        assert "$operationId" in GET_PLUGIN_INSTALL_OPERATION_QUERY
+        assert "pluginInstallOperation" in GET_PLUGIN_INSTALL_OPERATION_QUERY
+
+    def test_list_plugin_install_operations_query(self):
+        assert "query" in LIST_PLUGIN_INSTALL_OPERATIONS_QUERY
+        assert "pluginInstallOperations" in LIST_PLUGIN_INSTALL_OPERATIONS_QUERY
+
+
+class TestPluginMutations:
+    def test_add_plugin_mutation(self):
+        assert "mutation" in ADD_PLUGIN_MUTATION
+        assert "$url" in ADD_PLUGIN_MUTATION
+        assert "addPlugin" in ADD_PLUGIN_MUTATION
+
+    def test_remove_plugin_mutation(self):
+        assert "mutation" in REMOVE_PLUGIN_MUTATION
+        assert "$name" in REMOVE_PLUGIN_MUTATION
+        assert "removePlugin" in REMOVE_PLUGIN_MUTATION
+
+    def test_install_plugin_mutation(self):
+        assert "mutation" in INSTALL_PLUGIN_MUTATION
+        assert "$url" in INSTALL_PLUGIN_MUTATION
+        assert "installPlugin" in INSTALL_PLUGIN_MUTATION
+
+
+class TestAddPluginConfirmGate:
+    @pytest.mark.asyncio
+    async def test_confirm_false_raises(self):
+        from fastmcp import FastMCP
+
+        from unraid_mcp.tools.plugins import register_plugins_tools
+
+        test_mcp = FastMCP("test")
+        register_plugins_tools(test_mcp)
+
+        tool_fn = None
+        for tool in test_mcp._tool_manager._tools.values():
+            if tool.name == "add_plugin":
+                tool_fn = tool.fn
+                break
+
+        assert tool_fn is not None, "add_plugin tool not registered"
+        with pytest.raises(ToolError, match="confirm must be True"):
+            await tool_fn(url="https://example.com/plugin.plg", confirm=False)
+
+
+class TestRemovePluginConfirmGate:
+    @pytest.mark.asyncio
+    async def test_confirm_false_raises(self):
+        from fastmcp import FastMCP
+
+        from unraid_mcp.tools.plugins import register_plugins_tools
+
+        test_mcp = FastMCP("test")
+        register_plugins_tools(test_mcp)
+
+        tool_fn = None
+        for tool in test_mcp._tool_manager._tools.values():
+            if tool.name == "remove_plugin":
+                tool_fn = tool.fn
+                break
+
+        assert tool_fn is not None, "remove_plugin tool not registered"
+        with pytest.raises(ToolError, match="confirm must be True"):
+            await tool_fn(name="test-plugin", confirm=False)
+
+
+class TestInstallPluginConfirmGate:
+    @pytest.mark.asyncio
+    async def test_confirm_false_raises(self):
+        from fastmcp import FastMCP
+
+        from unraid_mcp.tools.plugins import register_plugins_tools
+
+        test_mcp = FastMCP("test")
+        register_plugins_tools(test_mcp)
+
+        tool_fn = None
+        for tool in test_mcp._tool_manager._tools.values():
+            if tool.name == "install_plugin":
+                tool_fn = tool.fn
+                break
+
+        assert tool_fn is not None, "install_plugin tool not registered"
+        with pytest.raises(ToolError, match="confirm must be True"):
+            await tool_fn(url="https://example.com/plugin.plg", confirm=False)
+
+
+class TestPluginInputValidation:
+    @pytest.mark.asyncio
+    async def test_get_operation_empty_id_raises(self):
+        from fastmcp import FastMCP
+
+        from unraid_mcp.tools.plugins import register_plugins_tools
+
+        test_mcp = FastMCP("test")
+        register_plugins_tools(test_mcp)
+
+        tool_fn = None
+        for tool in test_mcp._tool_manager._tools.values():
+            if tool.name == "get_plugin_install_operation":
+                tool_fn = tool.fn
+                break
+
+        assert tool_fn is not None
+        with pytest.raises(ToolError, match="non-empty string"):
+            await tool_fn(operation_id="")
+
+
+class TestPluginToolRegistration:
+    def test_all_tools_registered(self):
+        from fastmcp import FastMCP
+
+        from unraid_mcp.tools.plugins import register_plugins_tools
+
+        test_mcp = FastMCP("test")
+        register_plugins_tools(test_mcp)
+
+        tool_names = set(test_mcp._tool_manager._tools.keys())
+        expected = {
+            "list_plugins",
+            "list_installed_unraid_plugins",
+            "get_plugin_install_operation",
+            "list_plugin_install_operations",
+            "add_plugin",
+            "remove_plugin",
+            "install_plugin",
+        }
+        assert expected.issubset(tool_names)

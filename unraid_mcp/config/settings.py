@@ -121,6 +121,14 @@ _ALL_MODULES = _DEFAULT_MODULES | frozenset(
         "notifications-extra",
         "ups-admin",
         "subscriptions-extra",
+        "customization",
+        "onboarding",
+        "docker-organize",
+        "plugins",
+        "server-admin",
+        "connect",
+        "auth",
+        "array-admin",
     }
 )
 
