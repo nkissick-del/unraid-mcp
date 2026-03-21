@@ -4,21 +4,8 @@ This module sets up structured logging with Rich console and overwrite file hand
 that cap at 10MB and start over (no rotation) for consistent use across all modules.
 """
 
-import json
 import logging
-import os
-import re
 import sys
-from datetime import datetime
-from pathlib import Path
-
-import pytz
-from rich.align import Align
-from rich.console import Console
-from rich.logging import RichHandler
-from rich.panel import Panel
-from rich.rule import Rule
-from rich.text import Text
 
 try:
     from fastmcp.utilities.logging import get_logger as get_fastmcp_logger
@@ -28,127 +15,42 @@ except ImportError:
     FASTMCP_AVAILABLE = False
 
 from ..core.constants import LOG_FILE_MAX_BYTES
+from .logging_handlers import JsonFormatter, OverwriteFileHandler, RedactingFilter
+from .logging_helpers import (
+    console,
+    get_est_timestamp,
+    log_error,
+    log_header,
+    log_info,
+    log_separator,
+    log_status,
+    log_success,
+    log_warning,
+    log_with_level_and_indent,
+)
 from .settings import LOG_FILE_PATH, LOG_FORMAT, LOG_LEVEL_STR
 
-# Global Rich console for consistent formatting
-console = Console(stderr=True, force_terminal=True)
-
-
-class OverwriteFileHandler(logging.FileHandler):
-    """Custom file handler that overwrites the log file when it reaches max size."""
-
-    _CHECK_INTERVAL = 100
-
-    def __init__(
-        self,
-        filename: str | Path,
-        max_bytes: int = LOG_FILE_MAX_BYTES,
-        mode: str = "a",
-        encoding: str | None = None,
-        delay: bool = False,
-    ) -> None:
-        """Initialize the handler.
-
-        Args:
-            filename: Path to the log file
-            max_bytes: Maximum file size in bytes before overwriting (default: 10MB)
-            mode: File open mode
-            encoding: File encoding
-            delay: Whether to delay file opening
-        """
-        self.max_bytes = max_bytes
-        self._emit_count = 0
-        super().__init__(filename, mode, encoding, delay)
-
-    def _maybe_reset_file(self) -> None:
-        """Check file size and reset if it exceeds the limit."""
-        try:
-            file_size = os.path.getsize(self.baseFilename)
-            if file_size >= self.max_bytes:
-                self.close()
-                os.remove(self.baseFilename)
-                self.stream = self._open()
-
-                reset_record = logging.LogRecord(
-                    name="UnraidMCPServer.Logging",
-                    level=logging.INFO,
-                    pathname="",
-                    lineno=0,
-                    msg=f"=== LOG FILE RESET ({self.max_bytes // (1024 * 1024)}MB limit reached) ===",
-                    args=(),
-                    exc_info=None,
-                )
-                super().emit(reset_record)
-        except OSError:
-            pass
-
-    def emit(self, record: logging.LogRecord) -> None:
-        """Emit a record, checking file size every _CHECK_INTERVAL messages."""
-        self._emit_count += 1
-        if self._emit_count >= self._CHECK_INTERVAL:
-            self._emit_count = 0
-            self._maybe_reset_file()
-        super().emit(record)
-
-
-class JsonFormatter(logging.Formatter):
-    """JSON log formatter for structured logging in production."""
-
-    def format(self, record: logging.LogRecord) -> str:
-        log_entry: dict[str, object] = {
-            "timestamp": self.formatTime(record),
-            "level": record.levelname,
-            "logger": record.name,
-            "module": record.module,
-            "function": record.funcName,
-            "line": record.lineno,
-            "message": record.getMessage(),
-        }
-        if record.exc_info and record.exc_info[0]:
-            log_entry["exception"] = self.formatException(record.exc_info)
-        return json.dumps(log_entry)
-
-
-class RedactingFilter(logging.Filter):
-    """Logging filter that redacts sensitive patterns from log messages."""
-
-    _STATIC_PATTERNS = [
-        re.compile(r"Bearer\s+\S+"),
-        re.compile(r"[Aa]pi[_-]?[Kk]ey\s*[:=]\s*\S+"),
-        re.compile(r"[Xx]-[Aa]pi-[Kk]ey\s*[:=]\s*\S+"),
-    ]
-
-    def __init__(self, name: str = "") -> None:
-        super().__init__(name)
-        self._dynamic_patterns: list[re.Pattern[str]] = []
-        self._build_dynamic_patterns()
-
-    def _build_dynamic_patterns(self) -> None:
-        """Build patterns from actual configured secrets."""
-        from .settings import UNRAID_API_KEY
-
-        if UNRAID_API_KEY and len(UNRAID_API_KEY) >= 8:
-            self._dynamic_patterns.append(re.compile(re.escape(UNRAID_API_KEY)))
-
-    def filter(self, record: logging.LogRecord) -> bool:
-        record.msg = self._redact(record.msg)
-        if record.args:
-            if isinstance(record.args, dict):
-                record.args = {
-                    k: self._redact(v) if isinstance(v, str) else v for k, v in record.args.items()
-                }
-            elif isinstance(record.args, tuple):
-                record.args = tuple(
-                    self._redact(a) if isinstance(a, str) else a for a in record.args
-                )
-        return True
-
-    def _redact(self, msg: object) -> object:
-        if not isinstance(msg, str):
-            return msg
-        for pattern in self._STATIC_PATTERNS + self._dynamic_patterns:
-            msg = pattern.sub("[REDACTED]", msg)
-        return msg
+# Re-export everything for backward compatibility
+__all__ = [
+    "console",
+    "get_est_timestamp",
+    "JsonFormatter",
+    "log_configuration_status",
+    "log_error",
+    "log_header",
+    "log_info",
+    "log_separator",
+    "log_status",
+    "log_success",
+    "log_warning",
+    "log_with_level_and_indent",
+    "logger",
+    "OverwriteFileHandler",
+    "RedactingFilter",
+    "setup_logger",
+    "setup_uvicorn_logging",
+    "configure_fastmcp_logger_with_rich",
+]
 
 
 def setup_logger(name: str = "UnraidMCPServer") -> logging.Logger:
@@ -181,6 +83,8 @@ def setup_logger(name: str = "UnraidMCPServer") -> logging.Logger:
         logger.addHandler(json_handler)
     else:
         # Rich Console Handler for beautiful output
+        from rich.logging import RichHandler
+
         console_handler = RichHandler(
             console=console,
             show_time=True,
@@ -237,6 +141,8 @@ def configure_fastmcp_logger_with_rich() -> logging.Logger | None:
         fmcp_json_handler.addFilter(redacting_filter)
         fastmcp_logger.addHandler(fmcp_json_handler)
     else:
+        from rich.logging import RichHandler
+
         # Rich Console Handler
         fmcp_rich_handler = RichHandler(
             console=console,
@@ -282,6 +188,8 @@ def configure_fastmcp_logger_with_rich() -> logging.Logger | None:
         root_json_handler.addFilter(redacting_filter)
         root_logger.addHandler(root_json_handler)
     else:
+        from rich.logging import RichHandler
+
         # Rich Console Handler for root logger
         root_rich_handler = RichHandler(
             console=console,
@@ -350,97 +258,6 @@ def log_configuration_status(logger: logging.Logger) -> None:
 
     if not config["config_valid"]:
         logger.error(f"Missing required configuration: {config['missing_config']}")
-
-
-# Development logging helpers for Rich formatting
-def get_est_timestamp() -> str:
-    """Get current timestamp in EST timezone with YY/MM/DD format."""
-    est = pytz.timezone("US/Eastern")
-    now = datetime.now(est)
-    return now.strftime("%y/%m/%d %H:%M:%S")
-
-
-def log_header(title: str) -> None:
-    """Print a beautiful header panel with Nordic blue styling."""
-    panel = Panel(
-        Align.center(Text(title, style="bold white")),
-        style="#5E81AC",  # Nordic blue
-        padding=(0, 2),
-        border_style="#81A1C1",  # Light Nordic blue
-    )
-    console.print(panel)
-
-
-def log_with_level_and_indent(message: str, level: str = "info", indent: int = 0) -> None:
-    """Log a message with specific level and indentation."""
-    timestamp = get_est_timestamp()
-    indent_str = "  " * indent
-
-    # Enhanced Nordic color scheme with more blues
-    level_config = {
-        "error": {"color": "#BF616A", "icon": "❌", "style": "bold"},  # Nordic red
-        "warning": {"color": "#EBCB8B", "icon": "⚠️", "style": ""},  # Nordic yellow
-        "success": {"color": "#A3BE8C", "icon": "✅", "style": "bold"},  # Nordic green
-        "info": {"color": "#5E81AC", "icon": "ℹ️", "style": "bold"},  # Nordic blue (bold)
-        "status": {"color": "#81A1C1", "icon": "🔍", "style": ""},  # Light Nordic blue
-        "debug": {"color": "#4C566A", "icon": "🐛", "style": ""},  # Nordic dark gray
-    }
-
-    config = level_config.get(
-        level, {"color": "#81A1C1", "icon": "•", "style": ""}
-    )  # Default to light Nordic blue
-
-    # Create beautifully formatted text
-    text = Text()
-
-    # Timestamp with Nordic blue styling
-    text.append(f"[{timestamp}]", style="#81A1C1")  # Light Nordic blue for timestamps
-    text.append(" ")
-
-    # Indentation with Nordic blue styling
-    if indent > 0:
-        text.append(indent_str, style="#81A1C1")
-
-    # Level icon (only for certain levels)
-    if level in ["error", "warning", "success"]:
-        # Extract emoji from message if it starts with one, to avoid duplication
-        if message and len(message) > 0 and ord(message[0]) >= 0x1F600:  # Emoji range
-            # Message already has emoji, don't add icon
-            pass
-        else:
-            text.append(f"{config['icon']} ", style=config["color"])
-
-    # Message content
-    message_style = f"{config['color']} {config['style']}".strip()
-    text.append(message, style=message_style)
-
-    console.print(text)
-
-
-def log_separator() -> None:
-    """Print a beautiful separator line with Nordic blue styling."""
-    console.print(Rule(style="#81A1C1"))
-
-
-# Convenience functions for different log levels
-def log_error(message: str, indent: int = 0) -> None:
-    log_with_level_and_indent(message, "error", indent)
-
-
-def log_warning(message: str, indent: int = 0) -> None:
-    log_with_level_and_indent(message, "warning", indent)
-
-
-def log_success(message: str, indent: int = 0) -> None:
-    log_with_level_and_indent(message, "success", indent)
-
-
-def log_info(message: str, indent: int = 0) -> None:
-    log_with_level_and_indent(message, "info", indent)
-
-
-def log_status(message: str, indent: int = 0) -> None:
-    log_with_level_and_indent(message, "status", indent)
 
 
 # Global logger instance - modules can import this directly

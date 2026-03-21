@@ -10,7 +10,7 @@ from typing import Any
 from fastmcp import FastMCP
 
 from ..config.logging import logger
-from ..core.client import DISK_TIMEOUT, make_graphql_request
+from ..core.client import get_timeout_for_operation, make_graphql_request
 from ..core.constants import LOG_TAIL_MAX_LINES, NOTIFICATION_MAX_LIMIT
 from ..core.exceptions import ToolError
 from ..core.utils import (
@@ -224,7 +224,7 @@ def register_storage_tools(mcp: FastMCP) -> None:
                 "Executing list_physical_disks tool with minimal query and increased timeout"
             )
             # Increased read timeout for this potentially slow query
-            response_data = await make_graphql_request(query, custom_timeout=DISK_TIMEOUT)
+            response_data = await make_graphql_request(query, custom_timeout=get_timeout_for_operation("disk_operations"))
             disks = response_data.get("disks", [])
             return ensure_list(disks)
         except Exception as e:

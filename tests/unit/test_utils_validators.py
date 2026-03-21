@@ -1,9 +1,9 @@
-"""Tests for validator and utility functions in core/utils.py."""
+"""Tests for validator and utility functions in core/validation.py."""
 
 import pytest
 
 from unraid_mcp.core.exceptions import ValidationError
-from unraid_mcp.core.utils import (
+from unraid_mcp.core.validation import (
     truncate_for_error,
     validate_enum,
     validate_log_file_path,

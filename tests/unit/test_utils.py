@@ -1,6 +1,8 @@
 import unittest
 
-from unraid_mcp.core.utils import ensure_dict, ensure_list, format_bytes, format_kb
+import pytest
+
+from unraid_mcp.core.utils import ensure_dict, ensure_list, format_bytes, format_kb, poll_with_backoff
 
 # unraid_mcp.tools.api is now importable thanks to conftest.py or pip install -e .
 from unraid_mcp.tools.api import _strip_comments
@@ -67,6 +69,96 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(format_bytes(1024**5), "1.00 PB")
         self.assertEqual(format_bytes(1024**6), "1.00 EB")
         self.assertEqual(format_bytes(500), "500.00 B")
+
+
+class TestPollWithBackoff:
+    @pytest.mark.asyncio
+    async def test_returns_first_non_none(self):
+        call_count = 0
+
+        async def query():
+            nonlocal call_count
+            call_count += 1
+            if call_count >= 2:
+                return {"found": True}
+            return None
+
+        result = await poll_with_backoff(
+            query_fn=query,
+            max_retries=5,
+            initial_delay=0.01,
+            backoff_factor=1.0,
+            operation_name="test",
+        )
+        assert result == {"found": True}
+        assert call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_returns_none_after_max_retries(self):
+        call_count = 0
+
+        async def query():
+            nonlocal call_count
+            call_count += 1
+            return None
+
+        result = await poll_with_backoff(
+            query_fn=query,
+            max_retries=3,
+            initial_delay=0.01,
+            backoff_factor=1.0,
+            operation_name="test",
+        )
+        assert result is None
+        assert call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_returns_immediately_on_first_success(self):
+        async def query():
+            return "immediate"
+
+        result = await poll_with_backoff(
+            query_fn=query,
+            max_retries=5,
+            initial_delay=0.01,
+            backoff_factor=1.0,
+        )
+        assert result == "immediate"
+
+    @pytest.mark.asyncio
+    async def test_handles_exceptions_gracefully(self):
+        call_count = 0
+
+        async def query():
+            nonlocal call_count
+            call_count += 1
+            if call_count < 3:
+                raise RuntimeError("transient error")
+            return "recovered"
+
+        result = await poll_with_backoff(
+            query_fn=query,
+            max_retries=5,
+            initial_delay=0.01,
+            backoff_factor=1.0,
+            operation_name="test",
+        )
+        assert result == "recovered"
+        assert call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_returns_none_when_all_attempts_raise(self):
+        async def query():
+            raise RuntimeError("persistent error")
+
+        result = await poll_with_backoff(
+            query_fn=query,
+            max_retries=3,
+            initial_delay=0.01,
+            backoff_factor=1.0,
+            operation_name="test",
+        )
+        assert result is None
 
 
 if __name__ == "__main__":

@@ -23,35 +23,8 @@ from ..core.constants import (
     DOCKER_STATE_MAX_RETRIES,
 )
 from ..core.exceptions import ToolError
-from ..core.utils import ensure_list, validate_enum, validate_string_not_empty
-
-# Pre-built mutation queries keyed by action — eliminates f-string interpolation of user input
-_DOCKER_ACTION_MUTATIONS: dict[str, str] = {
-    "start": """
-        mutation ManageDockerContainer($id: PrefixedID!) {
-          docker {
-            start(id: $id) {
-              id
-              names
-              state
-              status
-            }
-          }
-        }
-    """,
-    "stop": """
-        mutation ManageDockerContainer($id: PrefixedID!) {
-          docker {
-            stop(id: $id) {
-              id
-              names
-              state
-              status
-            }
-          }
-        }
-    """,
-}
+from ..core.utils import ensure_list, poll_with_backoff, validate_enum, validate_string_not_empty
+from .queries.docker import CONTAINER_LIST_FIELDS, DOCKER_ACTION_MUTATIONS
 
 
 def _is_container_id(identifier: str) -> bool:
@@ -123,16 +96,6 @@ def get_available_container_names(containers: list[dict[str, Any]]) -> list[str]
     return names
 
 
-_CONTAINER_LIST_FIELDS = """
-    id
-    names
-    image
-    state
-    status
-    autoStart
-"""
-
-
 def register_docker_tools(mcp: FastMCP) -> None:
     """Register all Docker tools with the FastMCP instance.
 
@@ -151,7 +114,7 @@ def register_docker_tools(mcp: FastMCP) -> None:
         query ListDockerContainers {{
           docker {{
             containers(skipCache: false) {{
-              {_CONTAINER_LIST_FIELDS}
+              {CONTAINER_LIST_FIELDS}
             }}
           }}
         }}
@@ -180,8 +143,8 @@ def register_docker_tools(mcp: FastMCP) -> None:
             Dict containing operation result and container information
         """
         validate_string_not_empty(container_id, "container_id")
-        mutation_name = validate_enum(action.lower(), list(_DOCKER_ACTION_MUTATIONS), "action")
-        operation_query = _DOCKER_ACTION_MUTATIONS[mutation_name]
+        mutation_name = validate_enum(action.lower(), list(DOCKER_ACTION_MUTATIONS), "action")
+        operation_query = DOCKER_ACTION_MUTATIONS[mutation_name]
 
         variables = {"id": container_id}
 
@@ -241,7 +204,7 @@ def register_docker_tools(mcp: FastMCP) -> None:
                     query GetContainerStateAfterIdempotent($skipCache: Boolean!) {{
                       docker {{
                         containers(skipCache: $skipCache) {{
-                          {_CONTAINER_LIST_FIELDS}
+                          {CONTAINER_LIST_FIELDS}
                         }}
                       }}
                     }}
@@ -290,67 +253,42 @@ def register_docker_tools(mcp: FastMCP) -> None:
             await asyncio.sleep(DOCKER_OPERATION_SETTLE_DELAY_S)
 
             # Step 3: Try to get updated container details with retry logic
-            retry_delay = DOCKER_STATE_INITIAL_DELAY_S
-
-            for attempt in range(DOCKER_STATE_MAX_RETRIES):
-                try:
-                    # Query all containers and find the one we just operated on
-                    list_query = f"""
-                    query GetUpdatedContainerState($skipCache: Boolean!) {{
-                      docker {{
-                        containers(skipCache: $skipCache) {{
-                          {_CONTAINER_LIST_FIELDS}
-                        }}
-                      }}
+            async def _query_container_state() -> dict[str, Any] | None:
+                list_query = f"""
+                query GetUpdatedContainerState($skipCache: Boolean!) {{
+                  docker {{
+                    containers(skipCache: $skipCache) {{
+                      {CONTAINER_LIST_FIELDS}
                     }}
-                    """
+                  }}
+                }}
+                """
+                list_response = await make_graphql_request(list_query, {"skipCache": True})
+                if list_response.get("docker"):
+                    containers = list_response["docker"].get("containers", [])
+                    container = find_container_by_identifier(container_id, containers)
+                    if container:
+                        logger.info(f"Found updated container state for {container_id}")
+                        return container
+                return None
 
-                    # Skip cache to get fresh data
-                    list_response = await make_graphql_request(list_query, {"skipCache": True})
+            polled_container = await poll_with_backoff(
+                query_fn=_query_container_state,
+                max_retries=DOCKER_STATE_MAX_RETRIES,
+                initial_delay=DOCKER_STATE_INITIAL_DELAY_S,
+                backoff_factor=DOCKER_STATE_BACKOFF_FACTOR,
+                operation_name=f"container {action} state poll",
+            )
 
-                    if list_response.get("docker"):
-                        containers = list_response["docker"].get("containers", [])
+            if polled_container is not None:
+                return {
+                    "operation_result": operation_result,
+                    "container_details": polled_container,
+                    "success": True,
+                    "message": f"Container {action} operation completed successfully",
+                }
 
-                        # Find the container using our helper function
-                        container = find_container_by_identifier(container_id, containers)
-                        if container:
-                            logger.info(f"Found updated container state for {container_id}")
-                            return {
-                                "operation_result": operation_result,
-                                "container_details": container,
-                                "success": True,
-                                "message": f"Container {action} operation completed successfully",
-                            }
-
-                    # If not found in this attempt, wait and retry
-                    if attempt < DOCKER_STATE_MAX_RETRIES - 1:
-                        logger.warning(
-                            f"Container {container_id} not found after {action}, retrying in {retry_delay}s (attempt {attempt + 1}/{DOCKER_STATE_MAX_RETRIES})"
-                        )
-                        await asyncio.sleep(retry_delay)
-                        retry_delay *= DOCKER_STATE_BACKOFF_FACTOR
-
-                except (ToolError, KeyError) as query_error:
-                    logger.warning(
-                        f"Error querying updated container state (attempt {attempt + 1}): {query_error}"
-                    )
-                    if attempt < DOCKER_STATE_MAX_RETRIES - 1:
-                        await asyncio.sleep(retry_delay)
-                        retry_delay *= DOCKER_STATE_BACKOFF_FACTOR
-                    else:
-                        # On final attempt failure, still return operation success
-                        logger.warning(
-                            f"Could not retrieve updated container details after {action}, but operation succeeded"
-                        )
-                        return {
-                            "operation_result": operation_result,
-                            "container_details": None,
-                            "success": True,
-                            "message": f"Container {action} operation completed, but updated state could not be retrieved",
-                            "warning": "Container state query failed after operation - this may be due to timing or the container not being found in the updated state",
-                        }
-
-            # If we get here, all retries failed to find the container
+            # All retries exhausted — operation succeeded but state not found
             logger.warning(
                 f"Container {container_id} not found in any retry attempt after {action}"
             )

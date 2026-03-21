@@ -219,6 +219,194 @@ class SubscriptionManager:
                     logger.info(f"[SHUTDOWN] Cancelled subscription: {name}")
             self.active_subscriptions.clear()
 
+    async def _send_subscription_start(
+        self,
+        websocket: Any,
+        subscription_name: str,
+        query: str,
+        variables: dict[str, Any] | None,
+        selected_proto: str,
+    ) -> None:
+        """Build and send the GraphQL subscription start message.
+
+        Args:
+            websocket: Active WebSocket connection
+            subscription_name: Name of the subscription
+            query: GraphQL subscription query
+            variables: Query variables
+            selected_proto: Selected WebSocket subprotocol
+        """
+        logger.debug(
+            f"[SUBSCRIPTION:{subscription_name}] Starting GraphQL subscription..."
+        )
+        start_type = (
+            "subscribe" if selected_proto == "graphql-transport-ws" else "start"
+        )
+        subscription_message = {
+            "id": subscription_name,
+            "type": start_type,
+            "payload": {"query": query, "variables": variables},
+        }
+
+        logger.debug(
+            f"[SUBSCRIPTION:{subscription_name}] Subscription message type: {start_type}"
+        )
+        logger.debug(f"[SUBSCRIPTION:{subscription_name}] Query: {query[:100]}...")
+        logger.debug(f"[SUBSCRIPTION:{subscription_name}] Variables: {variables}")
+
+        await websocket.send(json.dumps(subscription_message))
+        logger.info(
+            f"[SUBSCRIPTION:{subscription_name}] Subscription started successfully"
+        )
+        self.connection_states[subscription_name] = "subscribed"
+
+    async def _process_ws_message(
+        self, subscription_name: str, message: Any, selected_proto: str
+    ) -> bool:
+        """Handle a single WebSocket message from the subscription stream.
+
+        Args:
+            subscription_name: Name of the subscription
+            message: Raw WebSocket message
+            selected_proto: Selected WebSocket subprotocol
+
+        Returns:
+            False if the subscription should stop (server sent 'complete'), True otherwise
+        """
+        try:
+            data = json.loads(message)
+            message_type = data.get("type", "unknown")
+
+            logger.debug(
+                f"[DATA:{subscription_name}] Message: {message_type}"
+            )
+
+            # Handle different message types
+            expected_data_type = (
+                "next" if selected_proto == "graphql-transport-ws" else "data"
+            )
+
+            if (
+                data.get("type") == expected_data_type
+                and data.get("id") == subscription_name
+            ):
+                payload = data.get("payload", {})
+
+                if payload.get("data"):
+                    logger.info(
+                        f"[DATA:{subscription_name}] Received subscription data update"
+                    )
+                    async with self.resource_data_lock:
+                        self.resource_data[subscription_name] = SubscriptionData(
+                            data=payload["data"],
+                            last_updated=datetime.now(),
+                            subscription_type=subscription_name,
+                        )
+                    logger.debug(
+                        f"[RESOURCE:{subscription_name}] Resource data updated successfully"
+                    )
+                elif payload.get("errors"):
+                    logger.error(
+                        f"[DATA:{subscription_name}] GraphQL errors in response: {payload['errors']}"
+                    )
+                    self.last_error[subscription_name] = (
+                        f"GraphQL errors: {payload['errors']}"
+                    )
+                else:
+                    logger.warning(
+                        f"[DATA:{subscription_name}] Empty or invalid data payload: {payload}"
+                    )
+
+            elif data.get("type") == "error":
+                error_payload = data.get("payload", {})
+                logger.error(
+                    f"[SUBSCRIPTION:{subscription_name}] Subscription error: {error_payload}"
+                )
+                self.last_error[subscription_name] = (
+                    f"Subscription error: {error_payload}"
+                )
+                self.connection_states[subscription_name] = "error"
+
+            elif data.get("type") == "complete":
+                logger.info(
+                    f"[SUBSCRIPTION:{subscription_name}] Subscription completed by server"
+                )
+                self.connection_states[subscription_name] = "completed"
+                return False
+
+            elif data.get("type") in ["ka", "pong"]:
+                logger.debug(
+                    f"[PROTOCOL:{subscription_name}] Keepalive message: {message_type}"
+                )
+
+            else:
+                logger.debug(
+                    f"[PROTOCOL:{subscription_name}] Unhandled message type: {message_type}"
+                )
+
+        except json.JSONDecodeError as e:
+            msg_preview = (
+                message[:200]
+                if isinstance(message, str)
+                else message[:200].decode("utf-8", errors="replace")
+            )
+            logger.error(
+                f"[PROTOCOL:{subscription_name}] Failed to decode message: {msg_preview}..."
+            )
+            logger.error(f"[PROTOCOL:{subscription_name}] JSON decode error: {e}")
+        except (KeyError, TypeError, ValueError) as e:
+            logger.error(
+                f"[DATA:{subscription_name}] Error processing message: {e}"
+            )
+            msg_preview = (
+                message[:200]
+                if isinstance(message, str)
+                else message[:200].decode("utf-8", errors="replace")
+            )
+            logger.debug(
+                f"[DATA:{subscription_name}] Raw message: {msg_preview}..."
+            )
+
+        return True
+
+    def _handle_ws_error(self, subscription_name: str, error: Exception) -> bool:
+        """Classify and log a WebSocket error, updating connection state.
+
+        Args:
+            subscription_name: Name of the subscription
+            error: The exception that occurred
+
+        Returns:
+            True if the subscription should retry, False if it should stop
+        """
+        if isinstance(error, asyncio.TimeoutError):
+            error_msg = "Connection or authentication timeout"
+            logger.error(f"[WEBSOCKET:{subscription_name}] {error_msg}")
+            self.last_error[subscription_name] = error_msg
+            self.connection_states[subscription_name] = "timeout"
+            return True
+
+        if isinstance(error, websockets.exceptions.ConnectionClosed):
+            error_msg = f"WebSocket connection closed: {error}"
+            logger.warning(f"[WEBSOCKET:{subscription_name}] {error_msg}")
+            self.last_error[subscription_name] = error_msg
+            self.connection_states[subscription_name] = "disconnected"
+            return True
+
+        if isinstance(error, websockets.exceptions.InvalidURI):
+            error_msg = f"Invalid WebSocket URI: {error}"
+            logger.error(f"[WEBSOCKET:{subscription_name}] {error_msg}")
+            self.last_error[subscription_name] = error_msg
+            self.connection_states[subscription_name] = "invalid_uri"
+            return False  # Don't retry on invalid URI
+
+        # Generic/unexpected error
+        error_msg = f"Unexpected error: {error}"
+        logger.error(f"[WEBSOCKET:{subscription_name}] {error_msg}")
+        self.last_error[subscription_name] = error_msg
+        self.connection_states[subscription_name] = "error"
+        return True
+
     async def _subscription_loop(
         self, subscription_name: str, query: str, variables: dict[str, Any] | None
     ) -> None:
@@ -339,159 +527,29 @@ class SubscriptionManager:
                         # Continue anyway - some servers send other messages first
 
                     # Start the subscription
-                    logger.debug(
-                        f"[SUBSCRIPTION:{subscription_name}] Starting GraphQL subscription..."
+                    await self._send_subscription_start(
+                        websocket, subscription_name, query, variables, selected_proto
                     )
-                    start_type = (
-                        "subscribe" if selected_proto == "graphql-transport-ws" else "start"
-                    )
-                    subscription_message = {
-                        "id": subscription_name,
-                        "type": start_type,
-                        "payload": {"query": query, "variables": variables},
-                    }
-
-                    logger.debug(
-                        f"[SUBSCRIPTION:{subscription_name}] Subscription message type: {start_type}"
-                    )
-                    logger.debug(f"[SUBSCRIPTION:{subscription_name}] Query: {query[:100]}...")
-                    logger.debug(f"[SUBSCRIPTION:{subscription_name}] Variables: {variables}")
-
-                    await websocket.send(json.dumps(subscription_message))
-                    logger.info(
-                        f"[SUBSCRIPTION:{subscription_name}] Subscription started successfully"
-                    )
-                    self.connection_states[subscription_name] = "subscribed"
 
                     # Listen for subscription data
-                    message_count = 0
-
                     async for message in websocket:
+                        should_continue = await self._process_ws_message(
+                            subscription_name, message, selected_proto
+                        )
+                        # Handle ping/pong — _process_ws_message can't send on websocket
                         try:
                             data = json.loads(message)
-                            message_count += 1
-                            message_type = data.get("type", "unknown")
-
-                            logger.debug(
-                                f"[DATA:{subscription_name}] Message #{message_count}: {message_type}"
-                            )
-
-                            # Handle different message types
-                            expected_data_type = (
-                                "next" if selected_proto == "graphql-transport-ws" else "data"
-                            )
-
-                            if (
-                                data.get("type") == expected_data_type
-                                and data.get("id") == subscription_name
-                            ):
-                                payload = data.get("payload", {})
-
-                                if payload.get("data"):
-                                    logger.info(
-                                        f"[DATA:{subscription_name}] Received subscription data update"
-                                    )
-                                    async with self.resource_data_lock:
-                                        self.resource_data[subscription_name] = SubscriptionData(
-                                            data=payload["data"],
-                                            last_updated=datetime.now(),
-                                            subscription_type=subscription_name,
-                                        )
-                                    logger.debug(
-                                        f"[RESOURCE:{subscription_name}] Resource data updated successfully"
-                                    )
-                                elif payload.get("errors"):
-                                    logger.error(
-                                        f"[DATA:{subscription_name}] GraphQL errors in response: {payload['errors']}"
-                                    )
-                                    self.last_error[subscription_name] = (
-                                        f"GraphQL errors: {payload['errors']}"
-                                    )
-                                else:
-                                    logger.warning(
-                                        f"[DATA:{subscription_name}] Empty or invalid data payload: {payload}"
-                                    )
-
-                            elif data.get("type") == "ping":
-                                logger.debug(
-                                    f"[PROTOCOL:{subscription_name}] Received ping, sending pong"
-                                )
+                            if data.get("type") == "ping":
                                 await websocket.send(json.dumps({"type": "pong"}))
-
-                            elif data.get("type") == "error":
-                                error_payload = data.get("payload", {})
-                                logger.error(
-                                    f"[SUBSCRIPTION:{subscription_name}] Subscription error: {error_payload}"
-                                )
-                                self.last_error[subscription_name] = (
-                                    f"Subscription error: {error_payload}"
-                                )
-                                self.connection_states[subscription_name] = "error"
-
-                            elif data.get("type") == "complete":
-                                logger.info(
-                                    f"[SUBSCRIPTION:{subscription_name}] Subscription completed by server"
-                                )
-                                self.connection_states[subscription_name] = "completed"
-                                break
-
-                            elif data.get("type") in ["ka", "ping", "pong"]:
-                                logger.debug(
-                                    f"[PROTOCOL:{subscription_name}] Keepalive message: {message_type}"
-                                )
-
-                            else:
-                                logger.debug(
-                                    f"[PROTOCOL:{subscription_name}] Unhandled message type: {message_type}"
-                                )
-
-                        except json.JSONDecodeError as e:
-                            msg_preview = (
-                                message[:200]
-                                if isinstance(message, str)
-                                else message[:200].decode("utf-8", errors="replace")
-                            )
-                            logger.error(
-                                f"[PROTOCOL:{subscription_name}] Failed to decode message: {msg_preview}..."
-                            )
-                            logger.error(f"[PROTOCOL:{subscription_name}] JSON decode error: {e}")
-                        except (KeyError, TypeError, ValueError) as e:
-                            logger.error(
-                                f"[DATA:{subscription_name}] Error processing message: {e}"
-                            )
-                            msg_preview = (
-                                message[:200]
-                                if isinstance(message, str)
-                                else message[:200].decode("utf-8", errors="replace")
-                            )
-                            logger.debug(
-                                f"[DATA:{subscription_name}] Raw message: {msg_preview}..."
-                            )
-
-            except asyncio.TimeoutError:
-                error_msg = "Connection or authentication timeout"
-                logger.error(f"[WEBSOCKET:{subscription_name}] {error_msg}")
-                self.last_error[subscription_name] = error_msg
-                self.connection_states[subscription_name] = "timeout"
-
-            except websockets.exceptions.ConnectionClosed as e:
-                error_msg = f"WebSocket connection closed: {e}"
-                logger.warning(f"[WEBSOCKET:{subscription_name}] {error_msg}")
-                self.last_error[subscription_name] = error_msg
-                self.connection_states[subscription_name] = "disconnected"
-
-            except websockets.exceptions.InvalidURI as e:
-                error_msg = f"Invalid WebSocket URI: {e}"
-                logger.error(f"[WEBSOCKET:{subscription_name}] {error_msg}")
-                self.last_error[subscription_name] = error_msg
-                self.connection_states[subscription_name] = "invalid_uri"
-                break  # Don't retry on invalid URI
+                        except (json.JSONDecodeError, TypeError):
+                            pass  # Parse errors already logged in _process_ws_message
+                        if not should_continue:
+                            break
 
             except Exception as e:
-                error_msg = f"Unexpected error: {e}"
-                logger.error(f"[WEBSOCKET:{subscription_name}] {error_msg}")
-                self.last_error[subscription_name] = error_msg
-                self.connection_states[subscription_name] = "error"
+                should_retry = self._handle_ws_error(subscription_name, e)
+                if not should_retry:
+                    break
 
             # Calculate backoff delay
             retry_delay = min(retry_delay * WS_RETRY_BACKOFF_FACTOR, max_retry_delay)
