@@ -11,6 +11,7 @@ from fastmcp import FastMCP
 from ..config.logging import logger
 from ..core.client import make_graphql_request
 from ..core.constants import NOTIFICATION_IMPORTANCE_VALUES
+from ..core.decorators import tool_error_handler
 from ..core.exceptions import ToolError
 from ..core.utils import validate_enum, validate_string_not_empty
 from .queries.notifications_extra import (
@@ -32,6 +33,7 @@ def register_notifications_extra_tools(mcp: FastMCP) -> None:
     """
 
     @mcp.tool()
+    @tool_error_handler("create notification")
     async def create_notification(
         subject: str,
         description: str,
@@ -53,36 +55,28 @@ def register_notifications_extra_tools(mcp: FastMCP) -> None:
             importance.upper(), NOTIFICATION_IMPORTANCE_VALUES, "importance"
         )
 
-        try:
-            logger.info(f"Executing create_notification: subject={subject}")
-
-            variables: dict[str, Any] = {
-                "input": {
-                    "subject": subject,
-                    "description": description,
-                    "importance": validated_importance,
-                }
+        variables: dict[str, Any] = {
+            "input": {
+                "subject": subject,
+                "description": description,
+                "importance": validated_importance,
             }
+        }
 
-            response = await make_graphql_request(CREATE_NOTIFICATION_MUTATION, variables)
+        response = await make_graphql_request(CREATE_NOTIFICATION_MUTATION, variables)
 
-            result = response.get("createNotification")
-            if not result:
-                raise ToolError("Failed to create notification")
+        result = response.get("createNotification")
+        if not result:
+            raise ToolError("Failed to create notification")
 
-            return {
-                "success": True,
-                "notification": result,
-                "message": "Notification created successfully",
-            }
-
-        except ToolError:
-            raise
-        except Exception as e:
-            logger.error(f"Error in create_notification: {e}", exc_info=True)
-            raise ToolError(f"Failed to create notification: {str(e)}") from e
+        return {
+            "success": True,
+            "notification": result,
+            "message": "Notification created successfully",
+        }
 
     @mcp.tool()
+    @tool_error_handler("archive notifications")
     async def archive_notifications(
         notification_ids: list[str],
     ) -> dict[str, Any]:
@@ -99,31 +93,21 @@ def register_notifications_extra_tools(mcp: FastMCP) -> None:
         for nid in notification_ids:
             validate_string_not_empty(nid, "notification_id")
 
-        try:
-            logger.info(
-                f"Executing archive_notifications for {len(notification_ids)} notifications"
-            )
+        variables: dict[str, Any] = {"ids": notification_ids}
+        response = await make_graphql_request(ARCHIVE_NOTIFICATIONS_BATCH_MUTATION, variables)
 
-            variables: dict[str, Any] = {"ids": notification_ids}
-            response = await make_graphql_request(ARCHIVE_NOTIFICATIONS_BATCH_MUTATION, variables)
+        result = response.get("archiveNotifications")
+        if not result:
+            raise ToolError("Failed to archive notifications")
 
-            result = response.get("archiveNotifications")
-            if not result:
-                raise ToolError("Failed to archive notifications")
-
-            return {
-                "success": True,
-                "overview": result,
-                "message": f"Archived {len(notification_ids)} notification(s)",
-            }
-
-        except ToolError:
-            raise
-        except Exception as e:
-            logger.error(f"Error in archive_notifications: {e}", exc_info=True)
-            raise ToolError(f"Failed to archive notifications: {str(e)}") from e
+        return {
+            "success": True,
+            "overview": result,
+            "message": f"Archived {len(notification_ids)} notification(s)",
+        }
 
     @mcp.tool()
+    @tool_error_handler("create unique notification")
     async def notify_if_unique(
         subject: str,
         description: str,
@@ -145,36 +129,28 @@ def register_notifications_extra_tools(mcp: FastMCP) -> None:
             importance.upper(), NOTIFICATION_IMPORTANCE_VALUES, "importance"
         )
 
-        try:
-            logger.info(f"Executing notify_if_unique: subject={subject}")
-
-            variables: dict[str, Any] = {
-                "input": {
-                    "subject": subject,
-                    "description": description,
-                    "importance": validated_importance,
-                }
+        variables: dict[str, Any] = {
+            "input": {
+                "subject": subject,
+                "description": description,
+                "importance": validated_importance,
             }
+        }
 
-            response = await make_graphql_request(NOTIFY_IF_UNIQUE_MUTATION, variables)
+        response = await make_graphql_request(NOTIFY_IF_UNIQUE_MUTATION, variables)
 
-            result = response.get("notifyIfUnique")
-            if not result:
-                raise ToolError("Failed to create unique notification")
+        result = response.get("notifyIfUnique")
+        if not result:
+            raise ToolError("Failed to create unique notification")
 
-            return {
-                "success": True,
-                "notification": result,
-                "message": "Unique notification created or matched existing",
-            }
-
-        except ToolError:
-            raise
-        except Exception as e:
-            logger.error(f"Error in notify_if_unique: {e}", exc_info=True)
-            raise ToolError(f"Failed to create unique notification: {str(e)}") from e
+        return {
+            "success": True,
+            "notification": result,
+            "message": "Unique notification created or matched existing",
+        }
 
     @mcp.tool()
+    @tool_error_handler("unread notification")
     async def unread_notification(
         notification_id: str,
     ) -> dict[str, Any]:
@@ -188,29 +164,21 @@ def register_notifications_extra_tools(mcp: FastMCP) -> None:
         """
         validate_string_not_empty(notification_id, "notification_id")
 
-        try:
-            logger.info(f"Executing unread_notification: id={notification_id}")
+        variables: dict[str, Any] = {"id": notification_id}
+        response = await make_graphql_request(UNREAD_NOTIFICATION_MUTATION, variables)
 
-            variables: dict[str, Any] = {"id": notification_id}
-            response = await make_graphql_request(UNREAD_NOTIFICATION_MUTATION, variables)
+        result = response.get("unreadNotification")
+        if not result:
+            raise ToolError(f"Failed to mark notification '{notification_id}' as unread")
 
-            result = response.get("unreadNotification")
-            if not result:
-                raise ToolError(f"Failed to mark notification '{notification_id}' as unread")
-
-            return {
-                "success": True,
-                "notification": result,
-                "message": "Notification marked as unread",
-            }
-
-        except ToolError:
-            raise
-        except Exception as e:
-            logger.error(f"Error in unread_notification: {e}", exc_info=True)
-            raise ToolError(f"Failed to unread notification: {str(e)}") from e
+        return {
+            "success": True,
+            "notification": result,
+            "message": "Notification marked as unread",
+        }
 
     @mcp.tool()
+    @tool_error_handler("unarchive notifications")
     async def unarchive_notifications(
         notification_ids: list[str],
     ) -> dict[str, Any]:
@@ -227,59 +195,41 @@ def register_notifications_extra_tools(mcp: FastMCP) -> None:
         for nid in notification_ids:
             validate_string_not_empty(nid, "notification_id")
 
-        try:
-            logger.info(
-                f"Executing unarchive_notifications for {len(notification_ids)} notifications"
-            )
+        variables: dict[str, Any] = {"ids": notification_ids}
+        response = await make_graphql_request(UNARCHIVE_NOTIFICATIONS_MUTATION, variables)
 
-            variables: dict[str, Any] = {"ids": notification_ids}
-            response = await make_graphql_request(UNARCHIVE_NOTIFICATIONS_MUTATION, variables)
+        result = response.get("unarchiveNotifications")
+        if not result:
+            raise ToolError("Failed to unarchive notifications")
 
-            result = response.get("unarchiveNotifications")
-            if not result:
-                raise ToolError("Failed to unarchive notifications")
-
-            return {
-                "success": True,
-                "overview": result,
-                "message": f"Unarchived {len(notification_ids)} notification(s)",
-            }
-
-        except ToolError:
-            raise
-        except Exception as e:
-            logger.error(f"Error in unarchive_notifications: {e}", exc_info=True)
-            raise ToolError(f"Failed to unarchive notifications: {str(e)}") from e
+        return {
+            "success": True,
+            "overview": result,
+            "message": f"Unarchived {len(notification_ids)} notification(s)",
+        }
 
     @mcp.tool()
+    @tool_error_handler("unarchive all notifications")
     async def unarchive_all_notifications() -> dict[str, Any]:
         """Unarchives all archived notifications.
 
         Returns:
             Dict containing updated notification overview counts
         """
-        try:
-            logger.info("Executing unarchive_all_notifications")
+        response = await make_graphql_request(UNARCHIVE_ALL_NOTIFICATIONS_MUTATION)
 
-            response = await make_graphql_request(UNARCHIVE_ALL_NOTIFICATIONS_MUTATION)
+        result = response.get("unarchiveAll")
+        if not result:
+            raise ToolError("Failed to unarchive all notifications")
 
-            result = response.get("unarchiveAll")
-            if not result:
-                raise ToolError("Failed to unarchive all notifications")
-
-            return {
-                "success": True,
-                "overview": result,
-                "message": "All notifications unarchived",
-            }
-
-        except ToolError:
-            raise
-        except Exception as e:
-            logger.error(f"Error in unarchive_all_notifications: {e}", exc_info=True)
-            raise ToolError(f"Failed to unarchive all notifications: {str(e)}") from e
+        return {
+            "success": True,
+            "overview": result,
+            "message": "All notifications unarchived",
+        }
 
     @mcp.tool()
+    @tool_error_handler("recalculate notification overview")
     async def recalculate_notification_overview() -> dict[str, Any]:
         """Force-recalculates notification overview counts.
 
@@ -288,25 +238,16 @@ def register_notifications_extra_tools(mcp: FastMCP) -> None:
         Returns:
             Dict containing the recalculated notification overview
         """
-        try:
-            logger.info("Executing recalculate_notification_overview")
+        response = await make_graphql_request(RECALCULATE_NOTIFICATION_OVERVIEW_MUTATION)
 
-            response = await make_graphql_request(RECALCULATE_NOTIFICATION_OVERVIEW_MUTATION)
+        result = response.get("recalculateOverview")
+        if not result:
+            raise ToolError("Failed to recalculate notification overview")
 
-            result = response.get("recalculateOverview")
-            if not result:
-                raise ToolError("Failed to recalculate notification overview")
-
-            return {
-                "success": True,
-                "overview": result,
-                "message": "Notification overview recalculated",
-            }
-
-        except ToolError:
-            raise
-        except Exception as e:
-            logger.error(f"Error in recalculate_notification_overview: {e}", exc_info=True)
-            raise ToolError(f"Failed to recalculate notification overview: {str(e)}") from e
+        return {
+            "success": True,
+            "overview": result,
+            "message": "Notification overview recalculated",
+        }
 
     logger.info("Notifications-extra tools registered successfully")

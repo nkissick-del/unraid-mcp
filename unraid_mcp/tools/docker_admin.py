@@ -18,8 +18,9 @@ from ..core.constants import (
     DOCKER_STATE_INITIAL_DELAY_S,
     DOCKER_STATE_MAX_RETRIES,
 )
+from ..core.decorators import tool_error_handler
 from ..core.exceptions import ToolError
-from ..core.utils import poll_with_backoff, validate_string_not_empty
+from ..core.utils import poll_with_backoff, require_confirm, validate_string_not_empty
 from .docker import (
     _is_container_id,
     find_container_by_identifier,
@@ -32,6 +33,38 @@ from .queries.docker import (
 )
 
 
+async def _resolve_container_id(container_identifier: str) -> str:
+    """Resolve a container name/identifier to its ID. Raises ToolError if not found."""
+    if _is_container_id(container_identifier):
+        return container_identifier
+    list_query = """
+    query ResolveContainerID {
+      docker {
+        containers(skipCache: true) {
+          id
+          names
+        }
+      }
+    }
+    """
+    list_response = await make_graphql_request(list_query)
+    if not list_response.get("docker"):
+        raise ToolError("Failed to retrieve container list for ID resolution")
+    containers = list_response["docker"].get("containers", [])
+    resolved = find_container_by_identifier(container_identifier, containers)
+    if resolved:
+        container_id = resolved.get("id")
+        if container_id:
+            return str(container_id)
+    available_names = get_available_container_names(containers)
+    error_msg = f"Container '{container_identifier}' not found."
+    if available_names:
+        error_msg += (
+            f" Available containers: {', '.join(available_names[:CONTAINER_DISPLAY_LIMIT])}"
+        )
+    raise ToolError(error_msg)
+
+
 def register_docker_admin_tools(mcp: FastMCP) -> None:
     """Register Docker admin tools with the FastMCP instance.
 
@@ -40,6 +73,7 @@ def register_docker_admin_tools(mcp: FastMCP) -> None:
     """
 
     @mcp.tool()
+    @tool_error_handler("remove Docker container")
     async def remove_docker_container(
         container_identifier: str,
         with_image: bool = False,
@@ -57,67 +91,29 @@ def register_docker_admin_tools(mcp: FastMCP) -> None:
         Returns:
             Dict with removal result
         """
-        if not confirm:
-            raise ToolError(
-                "confirm must be True to remove a container. "
-                "This is a destructive operation that cannot be undone."
-            )
+        require_confirm(confirm, "remove a container")
         validate_string_not_empty(container_identifier, "container_identifier")
 
-        try:
-            logger.info(f"Executing remove_docker_container for: {container_identifier}")
+        actual_id = await _resolve_container_id(container_identifier)
 
-            # Resolve name -> ID if needed
-            actual_id = container_identifier
-            if not _is_container_id(container_identifier):
-                list_query = """
-                query ResolveContainerID {
-                  docker {
-                    containers(skipCache: true) {
-                      id
-                      names
-                    }
-                  }
-                }
-                """
-                list_response = await make_graphql_request(list_query)
-                if not list_response.get("docker"):
-                    raise ToolError("Failed to retrieve container list for ID resolution")
-                containers = list_response["docker"].get("containers", [])
-                resolved = find_container_by_identifier(container_identifier, containers)
-                if resolved:
-                    actual_id = str(resolved.get("id", ""))
-                else:
-                    available_names = get_available_container_names(containers)
-                    error_msg = f"Container '{container_identifier}' not found."
-                    if available_names:
-                        error_msg += f" Available containers: {', '.join(available_names[:CONTAINER_DISPLAY_LIMIT])}"
-                    raise ToolError(error_msg)
+        variables: dict[str, Any] = {"id": actual_id, "withImage": with_image}
+        response = await make_graphql_request(DOCKER_REMOVE_CONTAINER_MUTATION, variables)
 
-            variables: dict[str, Any] = {"id": actual_id, "withImage": with_image}
-            response = await make_graphql_request(DOCKER_REMOVE_CONTAINER_MUTATION, variables)
+        removed = response.get("docker", {}).get("removeContainer", False)
 
-            removed = response.get("docker", {}).get("removeContainer", False)
-
-            return {
-                "success": bool(removed),
-                "container_id": actual_id,
-                "with_image": with_image,
-                "message": (
-                    "Container removed successfully"
-                    + (" (image also removed)" if with_image else "")
-                    if removed
-                    else "Container removal returned unexpected result"
-                ),
-            }
-
-        except ToolError:
-            raise
-        except Exception as e:
-            logger.error(f"Error in remove_docker_container: {e}", exc_info=True)
-            raise ToolError(f"Failed to remove Docker container: {str(e)}") from e
+        return {
+            "success": bool(removed),
+            "container_id": actual_id,
+            "with_image": with_image,
+            "message": (
+                "Container removed successfully" + (" (image also removed)" if with_image else "")
+                if removed
+                else "Container removal returned unexpected result"
+            ),
+        }
 
     @mcp.tool()
+    @tool_error_handler("update Docker container")
     async def update_docker_container(
         container_identifier: str,
     ) -> dict[str, Any]:
@@ -133,87 +129,53 @@ def register_docker_admin_tools(mcp: FastMCP) -> None:
         """
         validate_string_not_empty(container_identifier, "container_identifier")
 
-        try:
-            logger.info(f"Executing update_docker_container for: {container_identifier}")
+        actual_id = await _resolve_container_id(container_identifier)
 
-            # Resolve name -> ID if needed
-            actual_id = container_identifier
-            if not _is_container_id(container_identifier):
-                list_query = """
-                query ResolveContainerID {
-                  docker {
-                    containers(skipCache: true) {
-                      id
-                      names
-                    }
-                  }
-                }
-                """
-                list_response = await make_graphql_request(list_query)
-                if not list_response.get("docker"):
-                    raise ToolError("Failed to retrieve container list for ID resolution")
-                containers = list_response["docker"].get("containers", [])
-                resolved = find_container_by_identifier(container_identifier, containers)
-                if resolved:
-                    actual_id = str(resolved.get("id", ""))
-                else:
-                    available_names = get_available_container_names(containers)
-                    error_msg = f"Container '{container_identifier}' not found."
-                    if available_names:
-                        error_msg += f" Available containers: {', '.join(available_names[:CONTAINER_DISPLAY_LIMIT])}"
-                    raise ToolError(error_msg)
+        variables: dict[str, Any] = {"id": actual_id}
+        custom_timeout = get_timeout_for_operation("docker_update")
 
-            variables: dict[str, Any] = {"id": actual_id}
-            custom_timeout = get_timeout_for_operation("docker_update")
+        response = await make_graphql_request(
+            DOCKER_UPDATE_CONTAINER_MUTATION,
+            variables,
+            custom_timeout=custom_timeout,
+        )
 
-            response = await make_graphql_request(
-                DOCKER_UPDATE_CONTAINER_MUTATION,
-                variables,
-                custom_timeout=custom_timeout,
-            )
+        update_result = response.get("docker", {}).get("updateContainer")
+        if not update_result:
+            raise ToolError("Failed to update Docker container")
 
-            update_result = response.get("docker", {}).get("updateContainer")
-            if not update_result:
-                raise ToolError("Failed to update Docker container")
+        # Wait for state to settle, then poll for updated details
+        await asyncio.sleep(DOCKER_OPERATION_SETTLE_DELAY_S)
 
-            # Wait for state to settle, then poll for updated details
-            await asyncio.sleep(DOCKER_OPERATION_SETTLE_DELAY_S)
-
-            async def _query_container_state() -> dict[str, Any] | None:
-                list_query = f"""
-                query GetUpdatedContainerState($skipCache: Boolean!) {{
-                  docker {{
-                    containers(skipCache: $skipCache) {{
-                      {CONTAINER_LIST_FIELDS}
-                    }}
-                  }}
+        async def _query_container_state() -> dict[str, Any] | None:
+            list_query = f"""
+            query GetUpdatedContainerState($skipCache: Boolean!) {{
+              docker {{
+                containers(skipCache: $skipCache) {{
+                  {CONTAINER_LIST_FIELDS}
                 }}
-                """
-                list_resp = await make_graphql_request(list_query, {"skipCache": True})
-                if list_resp.get("docker"):
-                    containers = list_resp["docker"].get("containers", [])
-                    return find_container_by_identifier(container_identifier, containers)
-                return None
+              }}
+            }}
+            """
+            list_resp = await make_graphql_request(list_query, {"skipCache": True})
+            if list_resp.get("docker"):
+                containers = list_resp["docker"].get("containers", [])
+                return find_container_by_identifier(container_identifier, containers)
+            return None
 
-            polled = await poll_with_backoff(
-                query_fn=_query_container_state,
-                max_retries=DOCKER_STATE_MAX_RETRIES,
-                initial_delay=DOCKER_STATE_INITIAL_DELAY_S,
-                backoff_factor=DOCKER_STATE_BACKOFF_FACTOR,
-                operation_name="container update state poll",
-            )
+        polled = await poll_with_backoff(
+            query_fn=_query_container_state,
+            max_retries=DOCKER_STATE_MAX_RETRIES,
+            initial_delay=DOCKER_STATE_INITIAL_DELAY_S,
+            backoff_factor=DOCKER_STATE_BACKOFF_FACTOR,
+            operation_name="container update state poll",
+        )
 
-            return {
-                "update_result": update_result,
-                "container_details": polled,
-                "success": True,
-                "message": "Container updated successfully",
-            }
-
-        except ToolError:
-            raise
-        except Exception as e:
-            logger.error(f"Error in update_docker_container: {e}", exc_info=True)
-            raise ToolError(f"Failed to update Docker container: {str(e)}") from e
+        return {
+            "update_result": update_result,
+            "container_details": polled,
+            "success": True,
+            "message": "Container updated successfully",
+        }
 
     logger.info("Docker admin tools registered successfully")

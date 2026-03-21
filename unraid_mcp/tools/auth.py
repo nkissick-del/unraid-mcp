@@ -10,8 +10,9 @@ from fastmcp import FastMCP
 
 from ..config.logging import logger
 from ..core.client import make_graphql_request
+from ..core.decorators import tool_error_handler
 from ..core.exceptions import ToolError
-from ..core.utils import ensure_dict, ensure_list
+from ..core.utils import ensure_dict, ensure_list, require_confirm, validate_input_dict
 from .queries.auth import (
     ADD_ROLE_TO_API_KEY_MUTATION,
     CREATE_API_KEY_MUTATION,
@@ -33,18 +34,15 @@ def register_auth_tools(mcp: FastMCP) -> None:
     """Register auth tools with the FastMCP instance."""
 
     @mcp.tool()
+    @tool_error_handler("list API keys")
     async def list_api_keys() -> dict[str, Any]:
         """Lists all API keys with their names, roles, and usage info."""
-        try:
-            logger.info("Executing list_api_keys")
-            response = await make_graphql_request(LIST_API_KEYS_QUERY)
-            keys = ensure_list(response.get("apiKeys", []))
-            return {"count": len(keys), "apiKeys": keys}
-        except Exception as e:
-            logger.error(f"Error in list_api_keys: {e}", exc_info=True)
-            raise ToolError(f"Failed to list API keys: {str(e)}") from e
+        response = await make_graphql_request(LIST_API_KEYS_QUERY)
+        keys = ensure_list(response.get("apiKeys", []))
+        return {"count": len(keys), "apiKeys": keys}
 
     @mcp.tool()
+    @tool_error_handler("get API key")
     async def get_api_key(key_id: str) -> dict[str, Any]:
         """Gets details of a specific API key including permissions.
 
@@ -54,45 +52,28 @@ def register_auth_tools(mcp: FastMCP) -> None:
         if not key_id or not isinstance(key_id, str):
             raise ToolError("key_id must be a non-empty string")
 
-        try:
-            logger.info(f"Executing get_api_key: {key_id}")
-            variables: dict[str, Any] = {"keyId": key_id}
-            response = await make_graphql_request(GET_API_KEY_QUERY, variables)
-            return ensure_dict(response.get("apiKey", {}))
-        except ToolError:
-            raise
-        except Exception as e:
-            logger.error(f"Error in get_api_key: {e}", exc_info=True)
-            raise ToolError(f"Failed to get API key: {str(e)}") from e
+        variables: dict[str, Any] = {"keyId": key_id}
+        response = await make_graphql_request(GET_API_KEY_QUERY, variables)
+        return ensure_dict(response.get("apiKey", {}))
 
     @mcp.tool()
+    @tool_error_handler("get possible roles")
     async def get_api_key_possible_roles() -> dict[str, Any]:
         """Lists all possible roles that can be assigned to API keys."""
-        try:
-            logger.info("Executing get_api_key_possible_roles")
-            response = await make_graphql_request(GET_API_KEY_POSSIBLE_ROLES_QUERY)
-            roles = ensure_list(response.get("apiKeyPossibleRoles", []))
-            return {"count": len(roles), "roles": roles}
-        except Exception as e:
-            logger.error(f"Error in get_api_key_possible_roles: {e}", exc_info=True)
-            raise ToolError(f"Failed to get possible roles: {str(e)}") from e
+        response = await make_graphql_request(GET_API_KEY_POSSIBLE_ROLES_QUERY)
+        roles = ensure_list(response.get("apiKeyPossibleRoles", []))
+        return {"count": len(roles), "roles": roles}
 
     @mcp.tool()
+    @tool_error_handler("get possible permissions")
     async def get_api_key_possible_permissions() -> dict[str, Any]:
         """Lists all possible permissions that can be granted to API keys."""
-        try:
-            logger.info("Executing get_api_key_possible_permissions")
-            response = await make_graphql_request(GET_API_KEY_POSSIBLE_PERMISSIONS_QUERY)
-            permissions = ensure_list(response.get("apiKeyPossiblePermissions", []))
-            return {"count": len(permissions), "permissions": permissions}
-        except Exception as e:
-            logger.error(
-                f"Error in get_api_key_possible_permissions: {e}",
-                exc_info=True,
-            )
-            raise ToolError(f"Failed to get possible permissions: {str(e)}") from e
+        response = await make_graphql_request(GET_API_KEY_POSSIBLE_PERMISSIONS_QUERY)
+        permissions = ensure_list(response.get("apiKeyPossiblePermissions", []))
+        return {"count": len(permissions), "permissions": permissions}
 
     @mcp.tool()
+    @tool_error_handler("get permissions for roles")
     async def get_permissions_for_roles(
         roles: list[str],
     ) -> dict[str, Any]:
@@ -104,19 +85,13 @@ def register_auth_tools(mcp: FastMCP) -> None:
         if not roles or not isinstance(roles, list):
             raise ToolError("roles must be a non-empty list of strings")
 
-        try:
-            logger.info(f"Executing get_permissions_for_roles: {roles}")
-            variables: dict[str, Any] = {"roles": roles}
-            response = await make_graphql_request(GET_PERMISSIONS_FOR_ROLES_QUERY, variables)
-            permissions = ensure_list(response.get("permissionsForRoles", []))
-            return {"count": len(permissions), "permissions": permissions}
-        except ToolError:
-            raise
-        except Exception as e:
-            logger.error(f"Error in get_permissions_for_roles: {e}", exc_info=True)
-            raise ToolError(f"Failed to get permissions for roles: {str(e)}") from e
+        variables: dict[str, Any] = {"roles": roles}
+        response = await make_graphql_request(GET_PERMISSIONS_FOR_ROLES_QUERY, variables)
+        permissions = ensure_list(response.get("permissionsForRoles", []))
+        return {"count": len(permissions), "permissions": permissions}
 
     @mcp.tool()
+    @tool_error_handler("preview effective permissions")
     async def preview_effective_permissions(
         input_config: dict[str, Any],
     ) -> dict[str, Any]:
@@ -125,48 +100,30 @@ def register_auth_tools(mcp: FastMCP) -> None:
         Args:
             input_config: Dict describing the roles/permissions to preview
         """
-        if not input_config or not isinstance(input_config, dict):
-            raise ToolError("input_config must be a non-empty dictionary")
+        validate_input_dict(input_config)
 
-        try:
-            logger.info("Executing preview_effective_permissions")
-            variables: dict[str, Any] = {"input": input_config}
-            response = await make_graphql_request(PREVIEW_EFFECTIVE_PERMISSIONS_QUERY, variables)
-            permissions = ensure_list(response.get("previewEffectivePermissions", []))
-            return {"count": len(permissions), "permissions": permissions}
-        except ToolError:
-            raise
-        except Exception as e:
-            logger.error(f"Error in preview_effective_permissions: {e}", exc_info=True)
-            raise ToolError(f"Failed to preview effective permissions: {str(e)}") from e
+        variables: dict[str, Any] = {"input": input_config}
+        response = await make_graphql_request(PREVIEW_EFFECTIVE_PERMISSIONS_QUERY, variables)
+        permissions = ensure_list(response.get("previewEffectivePermissions", []))
+        return {"count": len(permissions), "permissions": permissions}
 
     @mcp.tool()
+    @tool_error_handler("get available auth actions")
     async def get_available_auth_actions() -> dict[str, Any]:
         """Lists all available authentication actions."""
-        try:
-            logger.info("Executing get_available_auth_actions")
-            response = await make_graphql_request(GET_AVAILABLE_AUTH_ACTIONS_QUERY)
-            actions = ensure_list(response.get("availableAuthActions", []))
-            return {"count": len(actions), "actions": actions}
-        except Exception as e:
-            logger.error(f"Error in get_available_auth_actions: {e}", exc_info=True)
-            raise ToolError(f"Failed to get available auth actions: {str(e)}") from e
+        response = await make_graphql_request(GET_AVAILABLE_AUTH_ACTIONS_QUERY)
+        actions = ensure_list(response.get("availableAuthActions", []))
+        return {"count": len(actions), "actions": actions}
 
     @mcp.tool()
+    @tool_error_handler("get API key creation schema")
     async def get_api_key_creation_form_schema() -> dict[str, Any]:
         """Gets the form schema for creating a new API key."""
-        try:
-            logger.info("Executing get_api_key_creation_form_schema")
-            response = await make_graphql_request(GET_API_KEY_CREATION_FORM_SCHEMA_QUERY)
-            return ensure_dict(response.get("apiKeyCreationFormSchema", {}))
-        except Exception as e:
-            logger.error(
-                f"Error in get_api_key_creation_form_schema: {e}",
-                exc_info=True,
-            )
-            raise ToolError(f"Failed to get API key creation schema: {str(e)}") from e
+        response = await make_graphql_request(GET_API_KEY_CREATION_FORM_SCHEMA_QUERY)
+        return ensure_dict(response.get("apiKeyCreationFormSchema", {}))
 
     @mcp.tool()
+    @tool_error_handler("create API key")
     async def create_api_key(input_config: dict[str, Any], confirm: bool = False) -> dict[str, Any]:
         """Creates a new API key. Requires confirm=True.
 
@@ -177,42 +134,28 @@ def register_auth_tools(mcp: FastMCP) -> None:
             input_config: Dict with API key configuration (name, roles, etc.)
             confirm: Safety gate - must be True to proceed
         """
-        if not confirm:
-            raise ToolError(
-                "confirm must be True to create an API key. "
-                "API keys grant access to the server — handle with care."
-            )
+        require_confirm(confirm, "create an API key")
+        validate_input_dict(input_config)
 
-        if not input_config or not isinstance(input_config, dict):
-            raise ToolError("input_config must be a non-empty dictionary")
-
-        try:
-            logger.info("Executing create_api_key")
-            variables: dict[str, Any] = {"input": input_config}
-            response = await make_graphql_request(CREATE_API_KEY_MUTATION, variables)
-            result = response.get("createApiKey")
-            if not result:
-                raise ToolError("Failed to create API key")
-            # Log only redacted key info
-            key_value = result.get("key", "")
-            if key_value and len(key_value) > 8:
-                logger.info(
-                    f"API key created: {result.get('name')} (key: {key_value[:8]}...redacted)"
-                )
-            elif key_value:
-                logger.info(f"API key created: {result.get('name')} (key: [redacted])")
-            return {
-                "success": True,
-                "apiKey": result,
-                "message": "API key created. Store the key value securely — it cannot be retrieved later.",
-            }
-        except ToolError:
-            raise
-        except Exception as e:
-            logger.error(f"Error in create_api_key: {e}", exc_info=True)
-            raise ToolError(f"Failed to create API key: {str(e)}") from e
+        variables: dict[str, Any] = {"input": input_config}
+        response = await make_graphql_request(CREATE_API_KEY_MUTATION, variables)
+        result = response.get("createApiKey")
+        if not result:
+            raise ToolError("Failed to create API key")
+        # Log only redacted key info
+        key_value = result.get("key", "")
+        if key_value and len(key_value) > 8:
+            logger.info(f"API key created: {result.get('name')} (key: {key_value[:8]}...redacted)")
+        elif key_value:
+            logger.info(f"API key created: {result.get('name')} (key: [redacted])")
+        return {
+            "success": True,
+            "apiKey": result,
+            "message": "API key created. Store the key value securely — it cannot be retrieved later.",
+        }
 
     @mcp.tool()
+    @tool_error_handler("add role to API key")
     async def add_role_to_api_key(
         input_config: dict[str, Any], confirm: bool = False
     ) -> dict[str, Any]:
@@ -222,34 +165,22 @@ def register_auth_tools(mcp: FastMCP) -> None:
             input_config: Dict with keyId and role to add
             confirm: Safety gate - must be True to proceed
         """
-        if not confirm:
-            raise ToolError(
-                "confirm must be True to add a role to an API key. "
-                "This expands the key's permissions."
-            )
+        require_confirm(confirm, "add a role to an API key")
+        validate_input_dict(input_config)
 
-        if not input_config or not isinstance(input_config, dict):
-            raise ToolError("input_config must be a non-empty dictionary")
-
-        try:
-            logger.info("Executing add_role_to_api_key")
-            variables: dict[str, Any] = {"input": input_config}
-            response = await make_graphql_request(ADD_ROLE_TO_API_KEY_MUTATION, variables)
-            result = response.get("addRoleToApiKey")
-            if not result:
-                raise ToolError("Failed to add role to API key")
-            return {
-                "success": True,
-                "apiKey": result,
-                "message": "Role added to API key",
-            }
-        except ToolError:
-            raise
-        except Exception as e:
-            logger.error(f"Error in add_role_to_api_key: {e}", exc_info=True)
-            raise ToolError(f"Failed to add role to API key: {str(e)}") from e
+        variables: dict[str, Any] = {"input": input_config}
+        response = await make_graphql_request(ADD_ROLE_TO_API_KEY_MUTATION, variables)
+        result = response.get("addRoleToApiKey")
+        if not result:
+            raise ToolError("Failed to add role to API key")
+        return {
+            "success": True,
+            "apiKey": result,
+            "message": "Role added to API key",
+        }
 
     @mcp.tool()
+    @tool_error_handler("remove role from API key")
     async def remove_role_from_api_key(
         input_config: dict[str, Any], confirm: bool = False
     ) -> dict[str, Any]:
@@ -259,34 +190,22 @@ def register_auth_tools(mcp: FastMCP) -> None:
             input_config: Dict with keyId and role to remove
             confirm: Safety gate - must be True to proceed
         """
-        if not confirm:
-            raise ToolError(
-                "confirm must be True to remove a role from an API key. "
-                "This reduces the key's permissions."
-            )
+        require_confirm(confirm, "remove a role from an API key")
+        validate_input_dict(input_config)
 
-        if not input_config or not isinstance(input_config, dict):
-            raise ToolError("input_config must be a non-empty dictionary")
-
-        try:
-            logger.info("Executing remove_role_from_api_key")
-            variables: dict[str, Any] = {"input": input_config}
-            response = await make_graphql_request(REMOVE_ROLE_FROM_API_KEY_MUTATION, variables)
-            result = response.get("removeRoleFromApiKey")
-            if not result:
-                raise ToolError("Failed to remove role from API key")
-            return {
-                "success": True,
-                "apiKey": result,
-                "message": "Role removed from API key",
-            }
-        except ToolError:
-            raise
-        except Exception as e:
-            logger.error(f"Error in remove_role_from_api_key: {e}", exc_info=True)
-            raise ToolError(f"Failed to remove role from API key: {str(e)}") from e
+        variables: dict[str, Any] = {"input": input_config}
+        response = await make_graphql_request(REMOVE_ROLE_FROM_API_KEY_MUTATION, variables)
+        result = response.get("removeRoleFromApiKey")
+        if not result:
+            raise ToolError("Failed to remove role from API key")
+        return {
+            "success": True,
+            "apiKey": result,
+            "message": "Role removed from API key",
+        }
 
     @mcp.tool()
+    @tool_error_handler("delete API key")
     async def delete_api_key(key_id: str, confirm: bool = False) -> dict[str, Any]:
         """Deletes an API key permanently. Requires confirm=True.
 
@@ -294,34 +213,24 @@ def register_auth_tools(mcp: FastMCP) -> None:
             key_id: ID of the API key to delete
             confirm: Safety gate - must be True to proceed
         """
-        if not confirm:
-            raise ToolError(
-                "confirm must be True to delete an API key. "
-                "This permanently revokes the key and cannot be undone."
-            )
+        require_confirm(confirm, "delete an API key")
 
         if not key_id or not isinstance(key_id, str):
             raise ToolError("key_id must be a non-empty string")
 
-        try:
-            logger.info(f"Executing delete_api_key: {key_id}")
-            variables: dict[str, Any] = {"keyId": key_id}
-            response = await make_graphql_request(DELETE_API_KEY_MUTATION, variables)
-            result = response.get("deleteApiKey", {})
-            success = result.get("success", False)
-            if not success:
-                raise ToolError(f"Failed to delete API key {key_id}")
-            return {
-                "success": True,
-                "message": f"API key {key_id} deleted",
-            }
-        except ToolError:
-            raise
-        except Exception as e:
-            logger.error(f"Error in delete_api_key: {e}", exc_info=True)
-            raise ToolError(f"Failed to delete API key: {str(e)}") from e
+        variables: dict[str, Any] = {"keyId": key_id}
+        response = await make_graphql_request(DELETE_API_KEY_MUTATION, variables)
+        result = response.get("deleteApiKey", {})
+        success = result.get("success", False)
+        if not success:
+            raise ToolError(f"Failed to delete API key {key_id}")
+        return {
+            "success": True,
+            "message": f"API key {key_id} deleted",
+        }
 
     @mcp.tool()
+    @tool_error_handler("update API key")
     async def update_api_key(input_config: dict[str, Any], confirm: bool = False) -> dict[str, Any]:
         """Updates an existing API key's configuration. Requires confirm=True.
 
@@ -329,31 +238,18 @@ def register_auth_tools(mcp: FastMCP) -> None:
             input_config: Dict with API key update fields (id, name, description, etc.)
             confirm: Safety gate - must be True to proceed
         """
-        if not confirm:
-            raise ToolError(
-                "confirm must be True to update an API key. "
-                "This modifies the key's configuration."
-            )
+        require_confirm(confirm, "update an API key")
+        validate_input_dict(input_config)
 
-        if not input_config or not isinstance(input_config, dict):
-            raise ToolError("input_config must be a non-empty dictionary")
-
-        try:
-            logger.info("Executing update_api_key")
-            variables: dict[str, Any] = {"input": input_config}
-            response = await make_graphql_request(UPDATE_API_KEY_MUTATION, variables)
-            result = response.get("updateApiKey")
-            if not result:
-                raise ToolError("Failed to update API key")
-            return {
-                "success": True,
-                "apiKey": result,
-                "message": "API key updated",
-            }
-        except ToolError:
-            raise
-        except Exception as e:
-            logger.error(f"Error in update_api_key: {e}", exc_info=True)
-            raise ToolError(f"Failed to update API key: {str(e)}") from e
+        variables: dict[str, Any] = {"input": input_config}
+        response = await make_graphql_request(UPDATE_API_KEY_MUTATION, variables)
+        result = response.get("updateApiKey")
+        if not result:
+            raise ToolError("Failed to update API key")
+        return {
+            "success": True,
+            "apiKey": result,
+            "message": "API key updated",
+        }
 
     logger.info("Auth tools registered successfully")

@@ -18,6 +18,7 @@ from ..core.constants import (
     PARITY_STATE_INITIAL_DELAY_S,
     PARITY_STATE_MAX_RETRIES,
 )
+from ..core.decorators import tool_error_handler
 from ..core.exceptions import ToolError
 from ..core.utils import poll_with_backoff, validate_enum
 from .queries.parity import PARITY_CHECK_MUTATIONS, PARITY_STATUS_QUERY
@@ -31,6 +32,7 @@ def register_parity_tools(mcp: FastMCP) -> None:
     """
 
     @mcp.tool()
+    @tool_error_handler("manage parity check")
     async def manage_parity_check(
         action: str,
         correcting: bool = False,
@@ -57,58 +59,47 @@ def register_parity_tools(mcp: FastMCP) -> None:
                 "This operation can take many hours and impacts array performance."
             )
 
-        try:
-            logger.info(
-                f"Executing manage_parity_check: action={validated_action}, correcting={correcting}"
-            )
+        mutation = PARITY_CHECK_MUTATIONS[validated_action]
+        variables: dict[str, Any] | None = (
+            {"correcting": correcting} if validated_action == "START" else None
+        )
 
-            mutation = PARITY_CHECK_MUTATIONS[validated_action]
-            variables: dict[str, Any] | None = (
-                {"correcting": correcting} if validated_action == "START" else None
-            )
+        response = await make_graphql_request(mutation, variables)
 
-            response = await make_graphql_request(mutation, variables)
+        parity_check = response.get("parityCheck")
+        if parity_check is None:
+            raise ToolError(f"Failed to {validated_action.lower()} parity check")
+        mutation_result = parity_check.get(validated_action.lower())
+        if mutation_result is None:
+            raise ToolError(f"Failed to {validated_action.lower()} parity check")
 
-            parity_check = response.get("parityCheck")
-            if parity_check is None:
-                raise ToolError(f"Failed to {validated_action.lower()} parity check")
-            mutation_result = parity_check.get(validated_action.lower())
-            if mutation_result is None:
-                raise ToolError(f"Failed to {validated_action.lower()} parity check")
+        # Wait for state to settle, then poll for updated status
+        await asyncio.sleep(PARITY_OPERATION_SETTLE_DELAY_S)
 
-            # Wait for state to settle, then poll for updated status
-            await asyncio.sleep(PARITY_OPERATION_SETTLE_DELAY_S)
+        async def _query_parity_status() -> dict[str, Any] | None:
+            status_resp = await make_graphql_request(PARITY_STATUS_QUERY)
+            array_data = status_resp.get("array")
+            if isinstance(array_data, dict):
+                return array_data
+            return None
 
-            async def _query_parity_status() -> dict[str, Any] | None:
-                status_resp = await make_graphql_request(PARITY_STATUS_QUERY)
-                array_data = status_resp.get("array")
-                if isinstance(array_data, dict):
-                    return array_data
-                return None
+        polled = await poll_with_backoff(
+            query_fn=_query_parity_status,
+            max_retries=PARITY_STATE_MAX_RETRIES,
+            initial_delay=PARITY_STATE_INITIAL_DELAY_S,
+            backoff_factor=PARITY_STATE_BACKOFF_FACTOR,
+            operation_name=f"parity {validated_action.lower()} state poll",
+        )
 
-            polled = await poll_with_backoff(
-                query_fn=_query_parity_status,
-                max_retries=PARITY_STATE_MAX_RETRIES,
-                initial_delay=PARITY_STATE_INITIAL_DELAY_S,
-                backoff_factor=PARITY_STATE_BACKOFF_FACTOR,
-                operation_name=f"parity {validated_action.lower()} state poll",
-            )
-
-            return {
-                "mutation_result": mutation_result,
-                "current_status": polled,
-                "success": polled is not None,
-                "message": (
-                    f"Parity check {validated_action.lower()} operation completed"
-                    if polled is not None
-                    else f"Parity check {validated_action.lower()} initiated but status verification timed out"
-                ),
-            }
-
-        except ToolError:
-            raise
-        except Exception as e:
-            logger.error(f"Error in manage_parity_check: {e}", exc_info=True)
-            raise ToolError(f"Failed to {validated_action.lower()} parity check: {str(e)}") from e
+        return {
+            "mutation_result": mutation_result,
+            "current_status": polled,
+            "success": polled is not None,
+            "message": (
+                f"Parity check {validated_action.lower()} operation completed"
+                if polled is not None
+                else f"Parity check {validated_action.lower()} initiated but status verification timed out"
+            ),
+        }
 
     logger.info("Parity tools registered successfully")

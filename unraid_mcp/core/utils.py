@@ -7,8 +7,10 @@ from typing import Any, TypeVar
 
 # Re-export validation functions for backward compatibility
 from .validation import (
+    require_confirm,
     truncate_for_error,
     validate_enum,
+    validate_input_dict,
     validate_log_file_path,
     validate_positive_int,
     validate_rclone_remote_name,
@@ -25,8 +27,10 @@ __all__ = [
     "format_bytes",
     "format_kb",
     "poll_with_backoff",
+    "require_confirm",
     "truncate_for_error",
     "validate_enum",
+    "validate_input_dict",
     "validate_log_file_path",
     "validate_positive_int",
     "validate_rclone_remote_name",

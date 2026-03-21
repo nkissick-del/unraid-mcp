@@ -4,6 +4,7 @@ This is the main server implementation using the modular architecture with
 separate modules for configuration, core functionality, subscriptions, and tools.
 """
 
+import importlib
 import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -21,38 +22,9 @@ from .config.settings import (
     UNRAID_MCP_TRANSPORT,
 )
 from .core.client import close_http_client
-from .subscriptions.diagnostics import register_diagnostic_tools
+from .registry import MODULE_REGISTRY
 from .subscriptions.manager import subscription_manager
-from .subscriptions.resources import (
-    register_extra_subscription_resources,
-    register_live_subscription_resources,
-    register_subscription_resources,
-)
-from .tools.api import register_api_tools
-from .tools.array import register_array_tools
-from .tools.array_admin import register_array_admin_tools
-from .tools.auth import register_auth_tools
-from .tools.connect_admin import register_connect_admin_tools
-from .tools.customization import register_customization_tools
-from .tools.docker import register_docker_tools
-from .tools.docker_admin import register_docker_admin_tools
-from .tools.docker_batch import register_docker_batch_tools
-from .tools.docker_organize import register_docker_organize_tools
-from .tools.health import register_health_tools
-from .tools.metrics_tools import register_metrics_tools
-from .tools.notification_actions import register_notification_tools
-from .tools.notifications_extra import register_notifications_extra_tools
-from .tools.onboarding import register_onboarding_tools
-from .tools.parity import register_parity_tools
-from .tools.plugins import register_plugins_tools
-from .tools.rclone import register_rclone_tools
-from .tools.server_admin import register_server_admin_tools
-from .tools.storage import register_storage_tools
-from .tools.system import register_system_tools
-from .tools.system_extra import register_system_extra_tools
-from .tools.ups_admin import register_ups_admin_tools
-from .tools.ups_tools import register_ups_tools
-from .tools.virtualization import register_vm_tools
+from .subscriptions.resources import register_subscription_resources
 
 
 @asynccontextmanager
@@ -81,63 +53,14 @@ def register_all_modules() -> None:
         # Always register base subscription resources (lightweight log stream endpoint)
         register_subscription_resources(mcp)
 
-        # Conditionally register tool modules
-        if "diagnostics" in ENABLED_MODULES:
-            register_diagnostic_tools(mcp)
-        if "system" in ENABLED_MODULES:
-            register_system_tools(mcp)
-        if "docker" in ENABLED_MODULES:
-            register_docker_tools(mcp)
-        if "docker-admin" in ENABLED_MODULES:
-            register_docker_admin_tools(mcp)
-        if "vms" in ENABLED_MODULES:
-            register_vm_tools(mcp)
-        if "storage" in ENABLED_MODULES:
-            register_storage_tools(mcp)
-        if "notifications" in ENABLED_MODULES:
-            register_notification_tools(mcp)
-        if "array" in ENABLED_MODULES:
-            register_array_tools(mcp)
-        if "health" in ENABLED_MODULES:
-            register_health_tools(mcp)
-        if "rclone" in ENABLED_MODULES:
-            register_rclone_tools(mcp)
-        if "api" in ENABLED_MODULES:
-            register_api_tools(mcp)
-        if "system-extra" in ENABLED_MODULES:
-            register_system_extra_tools(mcp)
-        if "metrics" in ENABLED_MODULES:
-            register_metrics_tools(mcp)
-        if "ups" in ENABLED_MODULES:
-            register_ups_tools(mcp)
-        if "parity" in ENABLED_MODULES:
-            register_parity_tools(mcp)
-        if "docker-batch" in ENABLED_MODULES:
-            register_docker_batch_tools(mcp)
-        if "notifications-extra" in ENABLED_MODULES:
-            register_notifications_extra_tools(mcp)
-        if "ups-admin" in ENABLED_MODULES:
-            register_ups_admin_tools(mcp)
-        if "subscriptions" in ENABLED_MODULES:
-            register_live_subscription_resources(mcp)
-        if "subscriptions-extra" in ENABLED_MODULES:
-            register_extra_subscription_resources(mcp)
-        if "customization" in ENABLED_MODULES:
-            register_customization_tools(mcp)
-        if "onboarding" in ENABLED_MODULES:
-            register_onboarding_tools(mcp)
-        if "docker-organize" in ENABLED_MODULES:
-            register_docker_organize_tools(mcp)
-        if "plugins" in ENABLED_MODULES:
-            register_plugins_tools(mcp)
-        if "server-admin" in ENABLED_MODULES:
-            register_server_admin_tools(mcp)
-        if "connect" in ENABLED_MODULES:
-            register_connect_admin_tools(mcp)
-        if "auth" in ENABLED_MODULES:
-            register_auth_tools(mcp)
-        if "array-admin" in ENABLED_MODULES:
-            register_array_admin_tools(mcp)
+        # Conditionally register tool modules via registry
+        for module_name in ENABLED_MODULES:
+            if module_name not in MODULE_REGISTRY:
+                logger.warning(f"Unknown module '{module_name}' in ENABLED_MODULES, skipping")
+                continue
+            import_path, func_name = MODULE_REGISTRY[module_name]
+            mod = importlib.import_module(import_path)
+            getattr(mod, func_name)(mcp)
 
         logger.info(f"Modules registered: {sorted(ENABLED_MODULES)}")
 

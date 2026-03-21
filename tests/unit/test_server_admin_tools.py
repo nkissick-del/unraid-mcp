@@ -2,6 +2,7 @@
 
 import pytest
 
+from tests.helpers import get_registered_tool_names, get_tool_fn
 from unraid_mcp.core.exceptions import ToolError
 from unraid_mcp.tools.queries.server_admin import (
     INITIATE_FLASH_BACKUP_MUTATION,
@@ -11,6 +12,7 @@ from unraid_mcp.tools.queries.server_admin import (
     UPDATE_SYSTEM_TIME_MUTATION,
     UPDATE_TEMPERATURE_CONFIG_MUTATION,
 )
+from unraid_mcp.tools.server_admin import register_server_admin_tools
 
 
 class TestServerAdminMutations:
@@ -58,20 +60,7 @@ class TestServerAdminConfirmGates:
     )
     @pytest.mark.asyncio
     async def test_confirm_false_raises(self, tool_name):
-        from fastmcp import FastMCP
-
-        from unraid_mcp.tools.server_admin import register_server_admin_tools
-
-        test_mcp = FastMCP("test")
-        register_server_admin_tools(test_mcp)
-
-        tool_fn = None
-        for tool in test_mcp._tool_manager._tools.values():
-            if tool.name == tool_name:
-                tool_fn = tool.fn
-                break
-
-        assert tool_fn is not None, f"{tool_name} tool not registered"
+        tool_fn = get_tool_fn(register_server_admin_tools, tool_name)
 
         if tool_name == "initiate_flash_backup":
             with pytest.raises(ToolError, match="confirm must be True"):
@@ -94,34 +83,14 @@ class TestServerAdminInputValidation:
     )
     @pytest.mark.asyncio
     async def test_empty_config_raises(self, tool_name):
-        from fastmcp import FastMCP
-
-        from unraid_mcp.tools.server_admin import register_server_admin_tools
-
-        test_mcp = FastMCP("test")
-        register_server_admin_tools(test_mcp)
-
-        tool_fn = None
-        for tool in test_mcp._tool_manager._tools.values():
-            if tool.name == tool_name:
-                tool_fn = tool.fn
-                break
-
-        assert tool_fn is not None
+        tool_fn = get_tool_fn(register_server_admin_tools, tool_name)
         with pytest.raises(ToolError, match="non-empty dictionary"):
             await tool_fn(input_config={}, confirm=True)
 
 
 class TestServerAdminToolRegistration:
     def test_all_tools_registered(self):
-        from fastmcp import FastMCP
-
-        from unraid_mcp.tools.server_admin import register_server_admin_tools
-
-        test_mcp = FastMCP("test")
-        register_server_admin_tools(test_mcp)
-
-        tool_names = set(test_mcp._tool_manager._tools.keys())
+        tool_names = get_registered_tool_names(register_server_admin_tools)
         expected = {
             "update_server_identity",
             "update_ssh_settings",

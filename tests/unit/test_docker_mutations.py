@@ -2,8 +2,10 @@
 
 import pytest
 
+from tests.helpers import get_tool_fn
 from unraid_mcp.core.client import is_idempotent_error
 from unraid_mcp.core.exceptions import ToolError
+from unraid_mcp.tools.docker_admin import register_docker_admin_tools
 from unraid_mcp.tools.queries.docker import (
     DOCKER_ACTION_MUTATIONS,
     DOCKER_LOGS_QUERY,
@@ -77,20 +79,6 @@ class TestRemoveContainerConfirmGate:
     @pytest.mark.asyncio
     async def test_confirm_false_raises(self):
         """remove_docker_container must raise when confirm is False."""
-        from fastmcp import FastMCP
-
-        from unraid_mcp.tools.docker_admin import register_docker_admin_tools
-
-        test_mcp = FastMCP("test")
-        register_docker_admin_tools(test_mcp)
-
-        # Find the registered tool function
-        tool_fn = None
-        for tool in test_mcp._tool_manager._tools.values():
-            if tool.name == "remove_docker_container":
-                tool_fn = tool.fn
-                break
-
-        assert tool_fn is not None, "remove_docker_container tool not registered"
+        tool_fn = get_tool_fn(register_docker_admin_tools, "remove_docker_container")
         with pytest.raises(ToolError, match="confirm must be True"):
             await tool_fn("test-container", with_image=False, confirm=False)

@@ -2,7 +2,9 @@
 
 import pytest
 
+from tests.helpers import get_registered_tool_names, get_tool_fn
 from unraid_mcp.core.exceptions import ToolError
+from unraid_mcp.tools.docker_organize import register_docker_organize_tools
 from unraid_mcp.tools.queries.docker_organize import (
     CREATE_DOCKER_FOLDER_MUTATION,
     CREATE_DOCKER_FOLDER_WITH_ITEMS_MUTATION,
@@ -74,39 +76,13 @@ class TestDockerOrganizeMutations:
 class TestDeleteDockerEntriesConfirmGate:
     @pytest.mark.asyncio
     async def test_confirm_false_raises(self):
-        from fastmcp import FastMCP
-
-        from unraid_mcp.tools.docker_organize import register_docker_organize_tools
-
-        test_mcp = FastMCP("test")
-        register_docker_organize_tools(test_mcp)
-
-        tool_fn = None
-        for tool in test_mcp._tool_manager._tools.values():
-            if tool.name == "delete_docker_entries":
-                tool_fn = tool.fn
-                break
-
-        assert tool_fn is not None, "delete_docker_entries tool not registered"
+        tool_fn = get_tool_fn(register_docker_organize_tools, "delete_docker_entries")
         with pytest.raises(ToolError, match="confirm must be True"):
             await tool_fn(ids=["entry1"], confirm=False)
 
     @pytest.mark.asyncio
     async def test_confirm_default_raises(self):
-        from fastmcp import FastMCP
-
-        from unraid_mcp.tools.docker_organize import register_docker_organize_tools
-
-        test_mcp = FastMCP("test")
-        register_docker_organize_tools(test_mcp)
-
-        tool_fn = None
-        for tool in test_mcp._tool_manager._tools.values():
-            if tool.name == "delete_docker_entries":
-                tool_fn = tool.fn
-                break
-
-        assert tool_fn is not None
+        tool_fn = get_tool_fn(register_docker_organize_tools, "delete_docker_entries")
         with pytest.raises(ToolError, match="confirm must be True"):
             await tool_fn(ids=["entry1"])
 
@@ -114,20 +90,7 @@ class TestDeleteDockerEntriesConfirmGate:
 class TestResetTemplateMappingsConfirmGate:
     @pytest.mark.asyncio
     async def test_confirm_false_raises(self):
-        from fastmcp import FastMCP
-
-        from unraid_mcp.tools.docker_organize import register_docker_organize_tools
-
-        test_mcp = FastMCP("test")
-        register_docker_organize_tools(test_mcp)
-
-        tool_fn = None
-        for tool in test_mcp._tool_manager._tools.values():
-            if tool.name == "reset_docker_template_mappings":
-                tool_fn = tool.fn
-                break
-
-        assert tool_fn is not None, "reset_docker_template_mappings tool not registered"
+        tool_fn = get_tool_fn(register_docker_organize_tools, "reset_docker_template_mappings")
         with pytest.raises(ToolError, match="confirm must be True"):
             await tool_fn(confirm=False)
 
@@ -135,72 +98,26 @@ class TestResetTemplateMappingsConfirmGate:
 class TestDockerOrganizeInputValidation:
     @pytest.mark.asyncio
     async def test_create_folder_empty_name_raises(self):
-        from fastmcp import FastMCP
-
-        from unraid_mcp.tools.docker_organize import register_docker_organize_tools
-
-        test_mcp = FastMCP("test")
-        register_docker_organize_tools(test_mcp)
-
-        tool_fn = None
-        for tool in test_mcp._tool_manager._tools.values():
-            if tool.name == "create_docker_folder":
-                tool_fn = tool.fn
-                break
-
-        assert tool_fn is not None
+        tool_fn = get_tool_fn(register_docker_organize_tools, "create_docker_folder")
         with pytest.raises(ToolError, match="non-empty string"):
             await tool_fn(name="")
 
     @pytest.mark.asyncio
     async def test_set_folder_children_empty_id_raises(self):
-        from fastmcp import FastMCP
-
-        from unraid_mcp.tools.docker_organize import register_docker_organize_tools
-
-        test_mcp = FastMCP("test")
-        register_docker_organize_tools(test_mcp)
-
-        tool_fn = None
-        for tool in test_mcp._tool_manager._tools.values():
-            if tool.name == "set_docker_folder_children":
-                tool_fn = tool.fn
-                break
-
-        assert tool_fn is not None
+        tool_fn = get_tool_fn(register_docker_organize_tools, "set_docker_folder_children")
         with pytest.raises(ToolError, match="non-empty string"):
             await tool_fn(folder_id="", children=["a"])
 
     @pytest.mark.asyncio
     async def test_view_preferences_empty_config_raises(self):
-        from fastmcp import FastMCP
-
-        from unraid_mcp.tools.docker_organize import register_docker_organize_tools
-
-        test_mcp = FastMCP("test")
-        register_docker_organize_tools(test_mcp)
-
-        tool_fn = None
-        for tool in test_mcp._tool_manager._tools.values():
-            if tool.name == "update_docker_view_preferences":
-                tool_fn = tool.fn
-                break
-
-        assert tool_fn is not None
+        tool_fn = get_tool_fn(register_docker_organize_tools, "update_docker_view_preferences")
         with pytest.raises(ToolError, match="non-empty dictionary"):
             await tool_fn(input_config={})
 
 
 class TestDockerOrganizeToolRegistration:
     def test_all_tools_registered(self):
-        from fastmcp import FastMCP
-
-        from unraid_mcp.tools.docker_organize import register_docker_organize_tools
-
-        test_mcp = FastMCP("test")
-        register_docker_organize_tools(test_mcp)
-
-        tool_names = set(test_mcp._tool_manager._tools.keys())
+        tool_names = get_registered_tool_names(register_docker_organize_tools)
         expected = {
             "create_docker_folder",
             "set_docker_folder_children",

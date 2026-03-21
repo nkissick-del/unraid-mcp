@@ -18,6 +18,7 @@ from ..core.constants import (
     DISK_STATUS_NOT_PRESENT,
     DISK_STATUS_OK,
 )
+from ..core.decorators import tool_error_handler
 from ..core.exceptions import ToolError
 from ..core.utils import ensure_dict, ensure_list, format_kb
 from .queries.system_extra import PARITY_HISTORY_QUERY
@@ -239,6 +240,7 @@ def register_system_tools(mcp: FastMCP) -> None:
         return await _get_array_status()
 
     @mcp.tool()
+    @tool_error_handler("retrieve network configuration")
     async def get_network_config() -> dict[str, Any]:
         """Retrieves network configuration details, including access URLs."""
         query = """
@@ -249,16 +251,12 @@ def register_system_tools(mcp: FastMCP) -> None:
           }
         }
         """
-        try:
-            logger.info("Executing get_network_config tool")
-            response_data = await make_graphql_request(query)
-            network = response_data.get("network", {})
-            return ensure_dict(network)
-        except Exception as e:
-            logger.error(f"Error in get_network_config: {e}", exc_info=True)
-            raise ToolError(f"Failed to retrieve network configuration: {str(e)}") from e
+        response_data = await make_graphql_request(query)
+        network = response_data.get("network", {})
+        return ensure_dict(network)
 
     @mcp.tool()
+    @tool_error_handler("retrieve registration information")
     async def get_registration_info() -> dict[str, Any]:
         """Retrieves Unraid registration details."""
         query = """
@@ -273,16 +271,12 @@ def register_system_tools(mcp: FastMCP) -> None:
           }
         }
         """
-        try:
-            logger.info("Executing get_registration_info tool")
-            response_data = await make_graphql_request(query)
-            registration = response_data.get("registration", {})
-            return ensure_dict(registration)
-        except Exception as e:
-            logger.error(f"Error in get_registration_info: {e}", exc_info=True)
-            raise ToolError(f"Failed to retrieve registration information: {str(e)}") from e
+        response_data = await make_graphql_request(query)
+        registration = response_data.get("registration", {})
+        return ensure_dict(registration)
 
     @mcp.tool()
+    @tool_error_handler("retrieve Unraid Connect settings")
     async def get_connect_settings() -> dict[str, Any]:
         """Retrieves settings related to Unraid Connect."""
         # Based on actual schema: settings.unified.values contains the JSON settings
@@ -295,33 +289,29 @@ def register_system_tools(mcp: FastMCP) -> None:
           }
         }
         """
-        try:
-            logger.info("Executing get_connect_settings tool")
-            response_data = await make_graphql_request(query)
+        response_data = await make_graphql_request(query)
 
-            # Navigate down to the unified settings values
-            if response_data.get("settings") and response_data["settings"].get("unified"):
-                values = response_data["settings"]["unified"].get("values", {})
-                # Filter for Connect-related settings if values is a dict
-                if isinstance(values, dict):
-                    # Look for connect-related keys in the unified settings
-                    connect_settings = {}
-                    for key, value in values.items():
-                        key_lower = key.lower()
-                        if "connect" in key_lower or key_lower in {
-                            "accesstype",
-                            "forwardtype",
-                            "port",
-                        }:
-                            connect_settings[key] = value
-                    return connect_settings if connect_settings else values
-                return ensure_dict(values)
-            return {}
-        except Exception as e:
-            logger.error(f"Error in get_connect_settings: {e}", exc_info=True)
-            raise ToolError(f"Failed to retrieve Unraid Connect settings: {str(e)}") from e
+        # Navigate down to the unified settings values
+        if response_data.get("settings") and response_data["settings"].get("unified"):
+            values = response_data["settings"]["unified"].get("values", {})
+            # Filter for Connect-related settings if values is a dict
+            if isinstance(values, dict):
+                # Look for connect-related keys in the unified settings
+                connect_settings = {}
+                for key, value in values.items():
+                    key_lower = key.lower()
+                    if "connect" in key_lower or key_lower in {
+                        "accesstype",
+                        "forwardtype",
+                        "port",
+                    }:
+                        connect_settings[key] = value
+                return connect_settings if connect_settings else values
+            return ensure_dict(values)
+        return {}
 
     @mcp.tool()
+    @tool_error_handler("retrieve Unraid variables")
     async def get_unraid_variables() -> dict[str, Any]:
         """Retrieves a selection of Unraid system variables and settings.
         Note: Many variables are omitted due to API type issues (Int overflow/NaN).
@@ -409,33 +399,24 @@ def register_system_tools(mcp: FastMCP) -> None:
           }
         }
         """
-        try:
-            logger.info("Executing get_unraid_variables tool with a selective query")
-            response_data = await make_graphql_request(query)
-            vars_data = response_data.get("vars", {})
-            return ensure_dict(vars_data)
-        except Exception as e:
-            logger.error(f"Error in get_unraid_variables: {e}", exc_info=True)
-            raise ToolError(f"Failed to retrieve Unraid variables: {str(e)}") from e
+        response_data = await make_graphql_request(query)
+        vars_data = response_data.get("vars", {})
+        return ensure_dict(vars_data)
 
     @mcp.tool()
+    @tool_error_handler("retrieve parity history")
     async def get_parity_history() -> dict[str, Any]:
         """Retrieves the parity check history, including dates, durations, speeds, error counts, and status of each check."""
-        try:
-            logger.info("Executing get_parity_history")
-            response_data = await make_graphql_request(PARITY_HISTORY_QUERY)
-            checks = ensure_list(response_data.get("parityHistory", []))
+        response_data = await make_graphql_request(PARITY_HISTORY_QUERY)
+        checks = ensure_list(response_data.get("parityHistory", []))
 
-            summary: dict[str, Any] = {"total_checks": len(checks)}
-            if checks:
-                last_check = checks[0]
-                summary["last_check_date"] = last_check.get("date")
-                summary["last_check_status"] = last_check.get("status")
-                summary["last_check_errors"] = last_check.get("errors")
+        summary: dict[str, Any] = {"total_checks": len(checks)}
+        if checks:
+            last_check = checks[0]
+            summary["last_check_date"] = last_check.get("date")
+            summary["last_check_status"] = last_check.get("status")
+            summary["last_check_errors"] = last_check.get("errors")
 
-            return {"summary": summary, "history": checks}
-        except Exception as e:
-            logger.error(f"Error in get_parity_history: {e}", exc_info=True)
-            raise ToolError(f"Failed to retrieve parity history: {str(e)}") from e
+        return {"summary": summary, "history": checks}
 
     logger.info("System tools registered successfully")

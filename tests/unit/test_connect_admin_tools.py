@@ -2,7 +2,9 @@
 
 import pytest
 
+from tests.helpers import get_registered_tool_names, get_tool_fn
 from unraid_mcp.core.exceptions import ToolError
+from unraid_mcp.tools.connect_admin import register_connect_admin_tools
 from unraid_mcp.tools.queries.connect_admin import (
     CONNECT_SIGN_IN_MUTATION,
     CONNECT_SIGN_OUT_MUTATION,
@@ -82,20 +84,7 @@ class TestConnectAdminConfirmGates:
     )
     @pytest.mark.asyncio
     async def test_confirm_false_raises(self, tool_name):
-        from fastmcp import FastMCP
-
-        from unraid_mcp.tools.connect_admin import register_connect_admin_tools
-
-        test_mcp = FastMCP("test")
-        register_connect_admin_tools(test_mcp)
-
-        tool_fn = None
-        for tool in test_mcp._tool_manager._tools.values():
-            if tool.name == tool_name:
-                tool_fn = tool.fn
-                break
-
-        assert tool_fn is not None, f"{tool_name} tool not registered"
+        tool_fn = get_tool_fn(register_connect_admin_tools, tool_name)
 
         if tool_name == "connect_sign_out":
             with pytest.raises(ToolError, match="confirm must be True"):
@@ -117,34 +106,14 @@ class TestConnectAdminInputValidation:
     )
     @pytest.mark.asyncio
     async def test_empty_config_raises(self, tool_name):
-        from fastmcp import FastMCP
-
-        from unraid_mcp.tools.connect_admin import register_connect_admin_tools
-
-        test_mcp = FastMCP("test")
-        register_connect_admin_tools(test_mcp)
-
-        tool_fn = None
-        for tool in test_mcp._tool_manager._tools.values():
-            if tool.name == tool_name:
-                tool_fn = tool.fn
-                break
-
-        assert tool_fn is not None
+        tool_fn = get_tool_fn(register_connect_admin_tools, tool_name)
         with pytest.raises(ToolError, match="non-empty dictionary"):
             await tool_fn(input_config={}, confirm=True)
 
 
 class TestConnectAdminToolRegistration:
     def test_all_tools_registered(self):
-        from fastmcp import FastMCP
-
-        from unraid_mcp.tools.connect_admin import register_connect_admin_tools
-
-        test_mcp = FastMCP("test")
-        register_connect_admin_tools(test_mcp)
-
-        tool_names = set(test_mcp._tool_manager._tools.keys())
+        tool_names = get_registered_tool_names(register_connect_admin_tools)
         expected = {
             "get_connect_info",
             "get_remote_access",

@@ -24,6 +24,7 @@ from ..core.constants import (
     DOCKER_STATE_INITIAL_DELAY_S,
     DOCKER_STATE_MAX_RETRIES,
 )
+from ..core.decorators import tool_error_handler
 from ..core.exceptions import ToolError
 from ..core.utils import (
     ensure_list,
@@ -112,6 +113,7 @@ def register_docker_tools(mcp: FastMCP) -> None:
     """
 
     @mcp.tool()
+    @tool_error_handler("list Docker containers")
     async def list_docker_containers() -> list[dict[str, Any]]:
         """Lists all Docker containers on the Unraid system.
 
@@ -127,19 +129,15 @@ def register_docker_tools(mcp: FastMCP) -> None:
           }}
         }}
         """
-        try:
-            logger.info("Executing list_docker_containers tool")
-            response_data = await make_graphql_request(query)
-            if response_data.get("docker"):
-                containers = response_data["docker"].get("containers", [])
-                return ensure_list(containers)
-            logger.warning("GraphQL response missing 'docker' field — returning empty list")
-            return []
-        except Exception as e:
-            logger.error(f"Error in list_docker_containers: {e}", exc_info=True)
-            raise ToolError(f"Failed to list Docker containers: {str(e)}") from e
+        response_data = await make_graphql_request(query)
+        if response_data.get("docker"):
+            containers = response_data["docker"].get("containers", [])
+            return ensure_list(containers)
+        logger.warning("GraphQL response missing 'docker' field — returning empty list")
+        return []
 
     @mcp.tool()
+    @tool_error_handler("manage Docker container")
     async def manage_docker_container(container_id: str, action: str) -> dict[str, Any]:
         """Manages a Docker container lifecycle. Action must be 'start', 'stop', 'pause', or 'unpause'.
 
@@ -156,114 +154,53 @@ def register_docker_tools(mcp: FastMCP) -> None:
 
         variables = {"id": container_id}
 
-        try:
-            logger.info(f"Executing manage_docker_container: action={action}, id={container_id}")
-
-            # Step 1: Resolve container identifier to actual container ID if needed
-            actual_container_id = container_id
-            if not _is_container_id(container_id):
-                # This looks like a name, not a full container ID - need to resolve it
-                logger.info(
-                    f"Resolving container identifier '{container_id}' to actual container ID"
-                )
-                list_query = """
-                query ResolveContainerID {
-                  docker {
-                    containers(skipCache: true) {
-                      id
-                      names
-                    }
-                  }
+        # Step 1: Resolve container identifier to actual container ID if needed
+        actual_container_id = container_id
+        if not _is_container_id(container_id):
+            # This looks like a name, not a full container ID - need to resolve it
+            logger.info(f"Resolving container identifier '{container_id}' to actual container ID")
+            list_query = """
+            query ResolveContainerID {
+              docker {
+                containers(skipCache: true) {
+                  id
+                  names
                 }
-                """
-                list_response = await make_graphql_request(list_query)
-                if list_response.get("docker"):
-                    containers = list_response["docker"].get("containers", [])
-                    resolved_container = find_container_by_identifier(container_id, containers)
-                    if resolved_container:
-                        actual_container_id = str(resolved_container.get("id", ""))
-                        logger.info(
-                            f"Resolved '{container_id}' to container ID: {actual_container_id}"
-                        )
-                    else:
-                        available_names = get_available_container_names(containers)
-                        error_msg = f"Container '{container_id}' not found for {action} operation."
-                        if available_names:
-                            error_msg += f" Available containers: {', '.join(available_names[:CONTAINER_DISPLAY_LIMIT])}"
-                        raise ToolError(error_msg)
+              }
+            }
+            """
+            list_response = await make_graphql_request(list_query)
+            if list_response.get("docker"):
+                containers = list_response["docker"].get("containers", [])
+                resolved_container = find_container_by_identifier(container_id, containers)
+                if resolved_container and resolved_container.get("id"):
+                    actual_container_id = str(resolved_container["id"])
+                    logger.info(f"Resolved '{container_id}' to container ID: {actual_container_id}")
+                else:
+                    available_names = get_available_container_names(containers)
+                    error_msg = f"Container '{container_id}' not found for {action} operation."
+                    if available_names:
+                        error_msg += f" Available containers: {', '.join(available_names[:CONTAINER_DISPLAY_LIMIT])}"
+                    raise ToolError(error_msg)
 
-            # Update variables with the actual container ID
-            variables = {"id": actual_container_id}
+        # Update variables with the actual container ID
+        variables = {"id": actual_container_id}
 
-            # Execute the operation with idempotent error handling
-            operation_context = {"operation": action}
-            operation_response = await make_graphql_request(
-                operation_query, variables, operation_context=operation_context
+        # Execute the operation with idempotent error handling
+        operation_context = {"operation": action}
+        operation_response = await make_graphql_request(
+            operation_query, variables, operation_context=operation_context
+        )
+
+        # Handle idempotent success case
+        if operation_response.get("idempotent_success"):
+            logger.info(
+                f"Container {action} operation was idempotent: {operation_response.get('message')}"
             )
-
-            # Handle idempotent success case
-            if operation_response.get("idempotent_success"):
-                logger.info(
-                    f"Container {action} operation was idempotent: {operation_response.get('message')}"
-                )
-                # Get current container state since the operation was already complete
-                try:
-                    list_query = f"""
-                    query GetContainerStateAfterIdempotent($skipCache: Boolean!) {{
-                      docker {{
-                        containers(skipCache: $skipCache) {{
-                          {CONTAINER_LIST_FIELDS}
-                        }}
-                      }}
-                    }}
-                    """
-                    list_response = await make_graphql_request(list_query, {"skipCache": True})
-
-                    if list_response.get("docker"):
-                        containers = list_response["docker"].get("containers", [])
-                        container = find_container_by_identifier(container_id, containers)
-
-                        if container:
-                            return {
-                                "operation_result": {
-                                    "id": container_id,
-                                    "names": container.get("names", []),
-                                },
-                                "container_details": container,
-                                "success": True,
-                                "message": f"Container {action} operation was already complete - current state returned",
-                                "idempotent": True,
-                            }
-
-                except Exception as lookup_error:
-                    logger.warning(
-                        f"Could not retrieve container state after idempotent operation: {lookup_error}"
-                    )
-
-                return {
-                    "operation_result": {"id": container_id},
-                    "container_details": None,
-                    "success": True,
-                    "message": f"Container {action} operation was already complete",
-                    "idempotent": True,
-                }
-
-            # Handle normal successful operation
-            if not (
-                operation_response.get("docker") and operation_response["docker"].get(mutation_name)
-            ):
-                raise ToolError(f"Failed to execute {action} operation on container")
-
-            operation_result = operation_response["docker"][mutation_name]
-            logger.info(f"Container {action} operation completed for {container_id}")
-
-            # Step 2: Wait briefly for state to propagate, then fetch current container details
-            await asyncio.sleep(DOCKER_OPERATION_SETTLE_DELAY_S)
-
-            # Step 3: Try to get updated container details with retry logic
-            async def _query_container_state() -> dict[str, Any] | None:
+            # Get current container state since the operation was already complete
+            try:
                 list_query = f"""
-                query GetUpdatedContainerState($skipCache: Boolean!) {{
+                query GetContainerStateAfterIdempotent($skipCache: Boolean!) {{
                   docker {{
                     containers(skipCache: $skipCache) {{
                       {CONTAINER_LIST_FIELDS}
@@ -272,47 +209,96 @@ def register_docker_tools(mcp: FastMCP) -> None:
                 }}
                 """
                 list_response = await make_graphql_request(list_query, {"skipCache": True})
+
                 if list_response.get("docker"):
                     containers = list_response["docker"].get("containers", [])
                     container = find_container_by_identifier(container_id, containers)
+
                     if container:
-                        logger.info(f"Found updated container state for {container_id}")
-                        return container
-                return None
+                        return {
+                            "operation_result": {
+                                "id": container_id,
+                                "names": container.get("names", []),
+                            },
+                            "container_details": container,
+                            "success": True,
+                            "message": f"Container {action} operation was already complete - current state returned",
+                            "idempotent": True,
+                        }
 
-            polled_container = await poll_with_backoff(
-                query_fn=_query_container_state,
-                max_retries=DOCKER_STATE_MAX_RETRIES,
-                initial_delay=DOCKER_STATE_INITIAL_DELAY_S,
-                backoff_factor=DOCKER_STATE_BACKOFF_FACTOR,
-                operation_name=f"container {action} state poll",
-            )
+            except Exception as lookup_error:
+                logger.warning(
+                    f"Could not retrieve container state after idempotent operation: {lookup_error}"
+                )
 
-            if polled_container is not None:
-                return {
-                    "operation_result": operation_result,
-                    "container_details": polled_container,
-                    "success": True,
-                    "message": f"Container {action} operation completed successfully",
-                }
-
-            # All retries exhausted — operation succeeded but state not found
-            logger.warning(
-                f"Container {container_id} not found in any retry attempt after {action}"
-            )
             return {
-                "operation_result": operation_result,
+                "operation_result": {"id": container_id},
                 "container_details": None,
                 "success": True,
-                "message": f"Container {action} operation completed, but container not found in subsequent queries",
-                "warning": "Container not found in updated state - this may indicate the operation succeeded but container is no longer listed",
+                "message": f"Container {action} operation was already complete",
+                "idempotent": True,
             }
 
-        except Exception as e:
-            logger.error(f"Error in manage_docker_container ({action}): {e}", exc_info=True)
-            raise ToolError(f"Failed to {action} Docker container: {str(e)}") from e
+        # Handle normal successful operation
+        if not (
+            operation_response.get("docker") and operation_response["docker"].get(mutation_name)
+        ):
+            raise ToolError(f"Failed to execute {action} operation on container")
+
+        operation_result = operation_response["docker"][mutation_name]
+        logger.info(f"Container {action} operation completed for {container_id}")
+
+        # Step 2: Wait briefly for state to propagate, then fetch current container details
+        await asyncio.sleep(DOCKER_OPERATION_SETTLE_DELAY_S)
+
+        # Step 3: Try to get updated container details with retry logic
+        async def _query_container_state() -> dict[str, Any] | None:
+            list_query = f"""
+            query GetUpdatedContainerState($skipCache: Boolean!) {{
+              docker {{
+                containers(skipCache: $skipCache) {{
+                  {CONTAINER_LIST_FIELDS}
+                }}
+              }}
+            }}
+            """
+            list_response = await make_graphql_request(list_query, {"skipCache": True})
+            if list_response.get("docker"):
+                containers = list_response["docker"].get("containers", [])
+                container = find_container_by_identifier(container_id, containers)
+                if container:
+                    logger.info(f"Found updated container state for {container_id}")
+                    return container
+            return None
+
+        polled_container = await poll_with_backoff(
+            query_fn=_query_container_state,
+            max_retries=DOCKER_STATE_MAX_RETRIES,
+            initial_delay=DOCKER_STATE_INITIAL_DELAY_S,
+            backoff_factor=DOCKER_STATE_BACKOFF_FACTOR,
+            operation_name=f"container {action} state poll",
+        )
+
+        if polled_container is not None:
+            return {
+                "operation_result": operation_result,
+                "container_details": polled_container,
+                "success": True,
+                "message": f"Container {action} operation completed successfully",
+            }
+
+        # All retries exhausted — operation succeeded but state not found
+        logger.warning(f"Container {container_id} not found in any retry attempt after {action}")
+        return {
+            "operation_result": operation_result,
+            "container_details": None,
+            "success": True,
+            "message": f"Container {action} operation completed, but container not found in subsequent queries",
+            "warning": "Container not found in updated state - this may indicate the operation succeeded but container is no longer listed",
+        }
 
     @mcp.tool()
+    @tool_error_handler("retrieve Docker container details")
     async def get_docker_container_details(container_identifier: str) -> dict[str, Any]:
         """Retrieves detailed information for a specific Docker container by its ID or name.
 
@@ -353,44 +339,37 @@ def register_docker_tools(mcp: FastMCP) -> None:
           }}
         }}
         """
-        try:
-            logger.info(
-                f"Executing get_docker_container_details for identifier: {container_identifier}"
+        response_data = await make_graphql_request(list_query)
+
+        containers = []
+        if response_data.get("docker"):
+            containers = response_data["docker"].get("containers", [])
+
+        # Use our enhanced container lookup
+        container = find_container_by_identifier(container_identifier, containers)
+        if container:
+            logger.info(f"Found container {container_identifier}")
+            return container
+
+        # Container not found - provide helpful error message with available containers
+        available_names = get_available_container_names(containers)
+        logger.warning(f"Container with identifier '{container_identifier}' not found.")
+        logger.info(f"Available containers: {available_names}")
+
+        error_msg = f"Container '{container_identifier}' not found."
+        if available_names:
+            error_msg += (
+                f" Available containers: {', '.join(available_names[:CONTAINER_DISPLAY_LIMIT])}"
             )
-            response_data = await make_graphql_request(list_query)
+            if len(available_names) > CONTAINER_DISPLAY_LIMIT:
+                error_msg += f" (and {len(available_names) - CONTAINER_DISPLAY_LIMIT} more)"
+        else:
+            error_msg += " No containers are currently available."
 
-            containers = []
-            if response_data.get("docker"):
-                containers = response_data["docker"].get("containers", [])
-
-            # Use our enhanced container lookup
-            container = find_container_by_identifier(container_identifier, containers)
-            if container:
-                logger.info(f"Found container {container_identifier}")
-                return container
-
-            # Container not found - provide helpful error message with available containers
-            available_names = get_available_container_names(containers)
-            logger.warning(f"Container with identifier '{container_identifier}' not found.")
-            logger.info(f"Available containers: {available_names}")
-
-            error_msg = f"Container '{container_identifier}' not found."
-            if available_names:
-                error_msg += (
-                    f" Available containers: {', '.join(available_names[:CONTAINER_DISPLAY_LIMIT])}"
-                )
-                if len(available_names) > CONTAINER_DISPLAY_LIMIT:
-                    error_msg += f" (and {len(available_names) - CONTAINER_DISPLAY_LIMIT} more)"
-            else:
-                error_msg += " No containers are currently available."
-
-            raise ToolError(error_msg)
-
-        except Exception as e:
-            logger.error(f"Error in get_docker_container_details: {e}", exc_info=True)
-            raise ToolError(f"Failed to retrieve Docker container details: {str(e)}") from e
+        raise ToolError(error_msg)
 
     @mcp.tool()
+    @tool_error_handler("retrieve Docker container logs")
     async def get_docker_container_logs(
         container_identifier: str,
         tail: int = DOCKER_LOG_TAIL_DEFAULT,
@@ -409,49 +388,42 @@ def register_docker_tools(mcp: FastMCP) -> None:
         validate_string_not_empty(container_identifier, "container_identifier")
         validate_positive_int(tail, "tail", max_value=DOCKER_LOG_TAIL_MAX)
 
-        try:
-            logger.info(f"Executing get_docker_container_logs for: {container_identifier}")
-
-            # Resolve name -> ID if needed
-            actual_id = container_identifier
-            if not _is_container_id(container_identifier):
-                list_query = """
-                query ResolveContainerID {
-                  docker {
-                    containers(skipCache: true) {
-                      id
-                      names
-                    }
-                  }
+        # Resolve name -> ID if needed
+        actual_id = container_identifier
+        if not _is_container_id(container_identifier):
+            list_query = """
+            query ResolveContainerID {
+              docker {
+                containers(skipCache: true) {
+                  id
+                  names
                 }
-                """
-                list_response = await make_graphql_request(list_query)
-                if list_response.get("docker"):
-                    containers = list_response["docker"].get("containers", [])
-                    resolved = find_container_by_identifier(container_identifier, containers)
-                    if resolved:
-                        actual_id = str(resolved.get("id", ""))
-                    else:
-                        available_names = get_available_container_names(containers)
-                        error_msg = f"Container '{container_identifier}' not found."
-                        if available_names:
-                            error_msg += f" Available containers: {', '.join(available_names[:CONTAINER_DISPLAY_LIMIT])}"
-                        raise ToolError(error_msg)
+              }
+            }
+            """
+            list_response = await make_graphql_request(list_query)
+            if list_response.get("docker"):
+                containers = list_response["docker"].get("containers", [])
+                resolved = find_container_by_identifier(container_identifier, containers)
+                if resolved and resolved.get("id"):
+                    actual_id = str(resolved["id"])
+                else:
+                    available_names = get_available_container_names(containers)
+                    error_msg = f"Container '{container_identifier}' not found."
+                    if available_names:
+                        error_msg += f" Available containers: {', '.join(available_names[:CONTAINER_DISPLAY_LIMIT])}"
+                    raise ToolError(error_msg)
 
-            variables: dict[str, Any] = {"id": actual_id, "tail": tail}
-            if since:
-                variables["since"] = since
+        variables: dict[str, Any] = {"id": actual_id, "tail": tail}
+        if since:
+            variables["since"] = since
 
-            response_data = await make_graphql_request(DOCKER_LOGS_QUERY, variables)
+        response_data = await make_graphql_request(DOCKER_LOGS_QUERY, variables)
 
-            if response_data.get("docker") and response_data["docker"].get("logs"):
-                result: dict[str, Any] = response_data["docker"]["logs"]
-                return result
+        if response_data.get("docker") and response_data["docker"].get("logs"):
+            result: dict[str, Any] = response_data["docker"]["logs"]
+            return result
 
-            return {"containerId": actual_id, "lines": [], "cursor": None}
-
-        except Exception as e:
-            logger.error(f"Error in get_docker_container_logs: {e}", exc_info=True)
-            raise ToolError(f"Failed to retrieve Docker container logs: {str(e)}") from e
+        return {"containerId": actual_id, "lines": [], "cursor": None}
 
     logger.info("Docker tools registered successfully")

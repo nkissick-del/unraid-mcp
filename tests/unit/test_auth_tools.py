@@ -2,7 +2,9 @@
 
 import pytest
 
+from tests.helpers import get_registered_tool_names, get_tool_fn
 from unraid_mcp.core.exceptions import ToolError
+from unraid_mcp.tools.auth import register_auth_tools
 from unraid_mcp.tools.queries.auth import (
     ADD_ROLE_TO_API_KEY_MUTATION,
     CREATE_API_KEY_MUTATION,
@@ -107,20 +109,7 @@ class TestAuthConfirmGates:
     )
     @pytest.mark.asyncio
     async def test_confirm_false_raises(self, tool_name):
-        from fastmcp import FastMCP
-
-        from unraid_mcp.tools.auth import register_auth_tools
-
-        test_mcp = FastMCP("test")
-        register_auth_tools(test_mcp)
-
-        tool_fn = None
-        for tool in test_mcp._tool_manager._tools.values():
-            if tool.name == tool_name:
-                tool_fn = tool.fn
-                break
-
-        assert tool_fn is not None, f"{tool_name} tool not registered"
+        tool_fn = get_tool_fn(register_auth_tools, tool_name)
 
         if tool_name == "delete_api_key":
             with pytest.raises(ToolError, match="confirm must be True"):
@@ -133,91 +122,32 @@ class TestAuthConfirmGates:
 class TestAuthInputValidation:
     @pytest.mark.asyncio
     async def test_get_api_key_empty_id_raises(self):
-        from fastmcp import FastMCP
-
-        from unraid_mcp.tools.auth import register_auth_tools
-
-        test_mcp = FastMCP("test")
-        register_auth_tools(test_mcp)
-
-        tool_fn = None
-        for tool in test_mcp._tool_manager._tools.values():
-            if tool.name == "get_api_key":
-                tool_fn = tool.fn
-                break
-
-        assert tool_fn is not None
+        tool_fn = get_tool_fn(register_auth_tools, "get_api_key")
         with pytest.raises(ToolError, match="non-empty string"):
             await tool_fn(key_id="")
 
     @pytest.mark.asyncio
     async def test_get_permissions_for_roles_empty_raises(self):
-        from fastmcp import FastMCP
-
-        from unraid_mcp.tools.auth import register_auth_tools
-
-        test_mcp = FastMCP("test")
-        register_auth_tools(test_mcp)
-
-        tool_fn = None
-        for tool in test_mcp._tool_manager._tools.values():
-            if tool.name == "get_permissions_for_roles":
-                tool_fn = tool.fn
-                break
-
-        assert tool_fn is not None
+        tool_fn = get_tool_fn(register_auth_tools, "get_permissions_for_roles")
         with pytest.raises(ToolError, match="non-empty list"):
             await tool_fn(roles=[])
 
     @pytest.mark.asyncio
     async def test_preview_permissions_empty_config_raises(self):
-        from fastmcp import FastMCP
-
-        from unraid_mcp.tools.auth import register_auth_tools
-
-        test_mcp = FastMCP("test")
-        register_auth_tools(test_mcp)
-
-        tool_fn = None
-        for tool in test_mcp._tool_manager._tools.values():
-            if tool.name == "preview_effective_permissions":
-                tool_fn = tool.fn
-                break
-
-        assert tool_fn is not None
+        tool_fn = get_tool_fn(register_auth_tools, "preview_effective_permissions")
         with pytest.raises(ToolError, match="non-empty dictionary"):
             await tool_fn(input_config={})
 
     @pytest.mark.asyncio
     async def test_delete_api_key_empty_id_raises(self):
-        from fastmcp import FastMCP
-
-        from unraid_mcp.tools.auth import register_auth_tools
-
-        test_mcp = FastMCP("test")
-        register_auth_tools(test_mcp)
-
-        tool_fn = None
-        for tool in test_mcp._tool_manager._tools.values():
-            if tool.name == "delete_api_key":
-                tool_fn = tool.fn
-                break
-
-        assert tool_fn is not None
+        tool_fn = get_tool_fn(register_auth_tools, "delete_api_key")
         with pytest.raises(ToolError, match="non-empty string"):
             await tool_fn(key_id="", confirm=True)
 
 
 class TestAuthToolRegistration:
     def test_all_tools_registered(self):
-        from fastmcp import FastMCP
-
-        from unraid_mcp.tools.auth import register_auth_tools
-
-        test_mcp = FastMCP("test")
-        register_auth_tools(test_mcp)
-
-        tool_names = set(test_mcp._tool_manager._tools.keys())
+        tool_names = get_registered_tool_names(register_auth_tools)
         expected = {
             "list_api_keys",
             "get_api_key",

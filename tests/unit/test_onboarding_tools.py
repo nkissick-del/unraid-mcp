@@ -2,7 +2,9 @@
 
 import pytest
 
+from tests.helpers import get_registered_tool_names, get_tool_fn
 from unraid_mcp.core.exceptions import ToolError
+from unraid_mcp.tools.onboarding import register_onboarding_tools
 from unraid_mcp.tools.queries.onboarding import (
     BYPASS_ONBOARDING_MUTATION,
     CLEAR_ONBOARDING_OVERRIDE_MUTATION,
@@ -62,39 +64,13 @@ class TestOnboardingMutations:
 class TestCreateBootPoolConfirmGate:
     @pytest.mark.asyncio
     async def test_confirm_false_raises(self):
-        from fastmcp import FastMCP
-
-        from unraid_mcp.tools.onboarding import register_onboarding_tools
-
-        test_mcp = FastMCP("test")
-        register_onboarding_tools(test_mcp)
-
-        tool_fn = None
-        for tool in test_mcp._tool_manager._tools.values():
-            if tool.name == "create_internal_boot_pool":
-                tool_fn = tool.fn
-                break
-
-        assert tool_fn is not None, "create_internal_boot_pool tool not registered"
+        tool_fn = get_tool_fn(register_onboarding_tools, "create_internal_boot_pool")
         with pytest.raises(ToolError, match="confirm must be True"):
             await tool_fn(confirm=False)
 
     @pytest.mark.asyncio
     async def test_confirm_default_raises(self):
-        from fastmcp import FastMCP
-
-        from unraid_mcp.tools.onboarding import register_onboarding_tools
-
-        test_mcp = FastMCP("test")
-        register_onboarding_tools(test_mcp)
-
-        tool_fn = None
-        for tool in test_mcp._tool_manager._tools.values():
-            if tool.name == "create_internal_boot_pool":
-                tool_fn = tool.fn
-                break
-
-        assert tool_fn is not None
+        tool_fn = get_tool_fn(register_onboarding_tools, "create_internal_boot_pool")
         with pytest.raises(ToolError, match="confirm must be True"):
             await tool_fn()
 
@@ -102,34 +78,14 @@ class TestCreateBootPoolConfirmGate:
 class TestSetOverrideValidation:
     @pytest.mark.asyncio
     async def test_empty_config_raises(self):
-        from fastmcp import FastMCP
-
-        from unraid_mcp.tools.onboarding import register_onboarding_tools
-
-        test_mcp = FastMCP("test")
-        register_onboarding_tools(test_mcp)
-
-        tool_fn = None
-        for tool in test_mcp._tool_manager._tools.values():
-            if tool.name == "set_onboarding_override":
-                tool_fn = tool.fn
-                break
-
-        assert tool_fn is not None
+        tool_fn = get_tool_fn(register_onboarding_tools, "set_onboarding_override")
         with pytest.raises(ToolError, match="non-empty dictionary"):
             await tool_fn({})
 
 
 class TestOnboardingToolRegistration:
     def test_all_tools_registered(self):
-        from fastmcp import FastMCP
-
-        from unraid_mcp.tools.onboarding import register_onboarding_tools
-
-        test_mcp = FastMCP("test")
-        register_onboarding_tools(test_mcp)
-
-        tool_names = set(test_mcp._tool_manager._tools.keys())
+        tool_names = get_registered_tool_names(register_onboarding_tools)
         expected = {
             "is_fresh_install",
             "complete_onboarding",

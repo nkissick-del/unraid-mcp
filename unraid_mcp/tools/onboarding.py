@@ -9,7 +9,8 @@ from fastmcp import FastMCP
 
 from ..config.logging import logger
 from ..core.client import make_graphql_request
-from ..core.exceptions import ToolError
+from ..core.decorators import tool_error_handler
+from ..core.utils import require_confirm, validate_input_dict
 from .queries.onboarding import (
     BYPASS_ONBOARDING_MUTATION,
     CLEAR_ONBOARDING_OVERRIDE_MUTATION,
@@ -29,123 +30,85 @@ def register_onboarding_tools(mcp: FastMCP) -> None:
     """Register onboarding tools with the FastMCP instance."""
 
     @mcp.tool()
+    @tool_error_handler("check fresh install status")
     async def is_fresh_install() -> dict[str, Any]:
         """Checks whether this Unraid server is a fresh installation."""
-        try:
-            logger.info("Executing is_fresh_install")
-            response = await make_graphql_request(IS_FRESH_INSTALL_QUERY)
-            return {"freshInstall": response.get("freshInstall", False)}
-        except Exception as e:
-            logger.error(f"Error in is_fresh_install: {e}", exc_info=True)
-            raise ToolError(f"Failed to check fresh install status: {str(e)}") from e
+        response = await make_graphql_request(IS_FRESH_INSTALL_QUERY)
+        return {"freshInstall": response.get("freshInstall", False)}
 
     @mcp.tool()
+    @tool_error_handler("complete onboarding")
     async def complete_onboarding() -> dict[str, Any]:
         """Marks the onboarding process as complete. Idempotent."""
-        try:
-            logger.info("Executing complete_onboarding")
-            response = await make_graphql_request(COMPLETE_ONBOARDING_MUTATION)
-            result = response.get("onboarding", {}).get("complete", {})
-            return {"success": result.get("success", False), "action": "complete"}
-        except Exception as e:
-            logger.error(f"Error in complete_onboarding: {e}", exc_info=True)
-            raise ToolError(f"Failed to complete onboarding: {str(e)}") from e
+        response = await make_graphql_request(COMPLETE_ONBOARDING_MUTATION)
+        result = response.get("onboarding", {}).get("complete", {})
+        return {"success": result.get("success", False), "action": "complete"}
 
     @mcp.tool()
+    @tool_error_handler("reset onboarding")
     async def reset_onboarding() -> dict[str, Any]:
         """Resets the onboarding process to start over. Idempotent."""
-        try:
-            logger.info("Executing reset_onboarding")
-            response = await make_graphql_request(RESET_ONBOARDING_MUTATION)
-            result = response.get("onboarding", {}).get("reset", {})
-            return {"success": result.get("success", False), "action": "reset"}
-        except Exception as e:
-            logger.error(f"Error in reset_onboarding: {e}", exc_info=True)
-            raise ToolError(f"Failed to reset onboarding: {str(e)}") from e
+        response = await make_graphql_request(RESET_ONBOARDING_MUTATION)
+        result = response.get("onboarding", {}).get("reset", {})
+        return {"success": result.get("success", False), "action": "reset"}
 
     @mcp.tool()
+    @tool_error_handler("open onboarding")
     async def open_onboarding() -> dict[str, Any]:
         """Opens the onboarding wizard. Idempotent."""
-        try:
-            logger.info("Executing open_onboarding")
-            response = await make_graphql_request(OPEN_ONBOARDING_MUTATION)
-            result = response.get("onboarding", {}).get("open", {})
-            return {"success": result.get("success", False), "action": "open"}
-        except Exception as e:
-            logger.error(f"Error in open_onboarding: {e}", exc_info=True)
-            raise ToolError(f"Failed to open onboarding: {str(e)}") from e
+        response = await make_graphql_request(OPEN_ONBOARDING_MUTATION)
+        result = response.get("onboarding", {}).get("open", {})
+        return {"success": result.get("success", False), "action": "open"}
 
     @mcp.tool()
+    @tool_error_handler("close onboarding")
     async def close_onboarding() -> dict[str, Any]:
         """Closes the onboarding wizard. Idempotent."""
-        try:
-            logger.info("Executing close_onboarding")
-            response = await make_graphql_request(CLOSE_ONBOARDING_MUTATION)
-            result = response.get("onboarding", {}).get("close", {})
-            return {"success": result.get("success", False), "action": "close"}
-        except Exception as e:
-            logger.error(f"Error in close_onboarding: {e}", exc_info=True)
-            raise ToolError(f"Failed to close onboarding: {str(e)}") from e
+        response = await make_graphql_request(CLOSE_ONBOARDING_MUTATION)
+        result = response.get("onboarding", {}).get("close", {})
+        return {"success": result.get("success", False), "action": "close"}
 
     @mcp.tool()
+    @tool_error_handler("bypass onboarding")
     async def bypass_onboarding() -> dict[str, Any]:
         """Bypasses the onboarding process entirely. Idempotent."""
-        try:
-            logger.info("Executing bypass_onboarding")
-            response = await make_graphql_request(BYPASS_ONBOARDING_MUTATION)
-            result = response.get("onboarding", {}).get("bypass", {})
-            return {"success": result.get("success", False), "action": "bypass"}
-        except Exception as e:
-            logger.error(f"Error in bypass_onboarding: {e}", exc_info=True)
-            raise ToolError(f"Failed to bypass onboarding: {str(e)}") from e
+        response = await make_graphql_request(BYPASS_ONBOARDING_MUTATION)
+        result = response.get("onboarding", {}).get("bypass", {})
+        return {"success": result.get("success", False), "action": "bypass"}
 
     @mcp.tool()
+    @tool_error_handler("resume onboarding")
     async def resume_onboarding() -> dict[str, Any]:
         """Resumes a previously paused onboarding process. Idempotent."""
-        try:
-            logger.info("Executing resume_onboarding")
-            response = await make_graphql_request(RESUME_ONBOARDING_MUTATION)
-            result = response.get("onboarding", {}).get("resume", {})
-            return {"success": result.get("success", False), "action": "resume"}
-        except Exception as e:
-            logger.error(f"Error in resume_onboarding: {e}", exc_info=True)
-            raise ToolError(f"Failed to resume onboarding: {str(e)}") from e
+        response = await make_graphql_request(RESUME_ONBOARDING_MUTATION)
+        result = response.get("onboarding", {}).get("resume", {})
+        return {"success": result.get("success", False), "action": "resume"}
 
     @mcp.tool()
+    @tool_error_handler("set onboarding override")
     async def set_onboarding_override(input_config: dict[str, Any]) -> dict[str, Any]:
         """Sets an onboarding override configuration. Idempotent.
 
         Args:
             input_config: Dict of onboarding override fields to set
         """
-        if not input_config or not isinstance(input_config, dict):
-            raise ToolError("input_config must be a non-empty dictionary")
+        validate_input_dict(input_config)
 
-        try:
-            logger.info("Executing set_onboarding_override")
-            variables: dict[str, Any] = {"input": input_config}
-            response = await make_graphql_request(SET_ONBOARDING_OVERRIDE_MUTATION, variables)
-            result = response.get("onboarding", {}).get("setOverride", {})
-            return {"success": result.get("success", False), "action": "setOverride"}
-        except ToolError:
-            raise
-        except Exception as e:
-            logger.error(f"Error in set_onboarding_override: {e}", exc_info=True)
-            raise ToolError(f"Failed to set onboarding override: {str(e)}") from e
+        variables: dict[str, Any] = {"input": input_config}
+        response = await make_graphql_request(SET_ONBOARDING_OVERRIDE_MUTATION, variables)
+        result = response.get("onboarding", {}).get("setOverride", {})
+        return {"success": result.get("success", False), "action": "setOverride"}
 
     @mcp.tool()
+    @tool_error_handler("clear onboarding override")
     async def clear_onboarding_override() -> dict[str, Any]:
         """Clears any onboarding override configuration. Idempotent."""
-        try:
-            logger.info("Executing clear_onboarding_override")
-            response = await make_graphql_request(CLEAR_ONBOARDING_OVERRIDE_MUTATION)
-            result = response.get("onboarding", {}).get("clearOverride", {})
-            return {"success": result.get("success", False), "action": "clearOverride"}
-        except Exception as e:
-            logger.error(f"Error in clear_onboarding_override: {e}", exc_info=True)
-            raise ToolError(f"Failed to clear onboarding override: {str(e)}") from e
+        response = await make_graphql_request(CLEAR_ONBOARDING_OVERRIDE_MUTATION)
+        result = response.get("onboarding", {}).get("clearOverride", {})
+        return {"success": result.get("success", False), "action": "clearOverride"}
 
     @mcp.tool()
+    @tool_error_handler("create internal boot pool")
     async def create_internal_boot_pool(
         confirm: bool = False,
     ) -> dict[str, Any]:
@@ -157,39 +120,24 @@ def register_onboarding_tools(mcp: FastMCP) -> None:
         Args:
             confirm: Safety gate - must be True to proceed
         """
-        if not confirm:
-            raise ToolError(
-                "confirm must be True to create the internal boot pool. "
-                "This creates system-level storage infrastructure."
-            )
+        require_confirm(confirm, "create the internal boot pool")
 
-        try:
-            logger.info("Executing create_internal_boot_pool")
-            response = await make_graphql_request(CREATE_INTERNAL_BOOT_POOL_MUTATION)
-            result = response.get("onboarding", {}).get("createInternalBootPool", {})
-            return {
-                "success": result.get("success", False),
-                "action": "createInternalBootPool",
-            }
-        except ToolError:
-            raise
-        except Exception as e:
-            logger.error(f"Error in create_internal_boot_pool: {e}", exc_info=True)
-            raise ToolError(f"Failed to create internal boot pool: {str(e)}") from e
+        response = await make_graphql_request(CREATE_INTERNAL_BOOT_POOL_MUTATION)
+        result = response.get("onboarding", {}).get("createInternalBootPool", {})
+        return {
+            "success": result.get("success", False),
+            "action": "createInternalBootPool",
+        }
 
     @mcp.tool()
+    @tool_error_handler("refresh internal boot context")
     async def refresh_internal_boot_context() -> dict[str, Any]:
         """Refreshes the internal boot context information."""
-        try:
-            logger.info("Executing refresh_internal_boot_context")
-            response = await make_graphql_request(REFRESH_INTERNAL_BOOT_CONTEXT_MUTATION)
-            result = response.get("onboarding", {}).get("refreshInternalBootContext", {})
-            return {
-                "success": result.get("success", False),
-                "action": "refreshInternalBootContext",
-            }
-        except Exception as e:
-            logger.error(f"Error in refresh_internal_boot_context: {e}", exc_info=True)
-            raise ToolError(f"Failed to refresh internal boot context: {str(e)}") from e
+        response = await make_graphql_request(REFRESH_INTERNAL_BOOT_CONTEXT_MUTATION)
+        result = response.get("onboarding", {}).get("refreshInternalBootContext", {})
+        return {
+            "success": result.get("success", False),
+            "action": "refreshInternalBootContext",
+        }
 
     logger.info("Onboarding tools registered successfully")

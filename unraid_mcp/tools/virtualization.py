@@ -11,6 +11,7 @@ from fastmcp import FastMCP
 
 from ..config.logging import logger
 from ..core.client import make_graphql_request
+from ..core.decorators import tool_error_handler
 from ..core.exceptions import ToolError
 from ..core.utils import ensure_dict, ensure_list, validate_enum, validate_string_not_empty
 from .queries.virtualization import VM_ACTION_MUTATIONS
@@ -24,6 +25,7 @@ def register_vm_tools(mcp: FastMCP) -> None:
     """
 
     @mcp.tool()
+    @tool_error_handler("list virtual machines")
     async def list_vms() -> list[dict[str, Any]]:
         """Lists all Virtual Machines (VMs) on the Unraid system and their current state.
 
@@ -43,27 +45,18 @@ def register_vm_tools(mcp: FastMCP) -> None:
           }
         }
         """
-        try:
-            logger.info("Executing list_vms tool")
-            response_data = await make_graphql_request(query)
-            logger.info(f"VM query response: {response_data}")
-            if response_data.get("vms") and response_data["vms"].get("domains"):
-                vms = response_data["vms"]["domains"]
-                logger.info(f"Found {len(vms)} VMs")
-                return ensure_list(vms)
-            else:
-                logger.info("No VMs found in domains field")
-                return []
-        except Exception as e:
-            logger.error(f"Error in list_vms: {e}", exc_info=True)
-            if "VMs are not available" in str(e):
-                raise ToolError(
-                    "VMs are not available on this Unraid server. This could mean: 1) VM support is not enabled, 2) VM service is not running, or 3) no VMs are configured. Check Unraid VM settings."
-                ) from e
-            else:
-                raise ToolError(f"Failed to list virtual machines: {e}") from e
+        response_data = await make_graphql_request(query)
+        logger.debug(f"VM query response: {response_data}")
+        if response_data.get("vms") and response_data["vms"].get("domains"):
+            vms = response_data["vms"]["domains"]
+            logger.info(f"Found {len(vms)} VMs")
+            return ensure_list(vms)
+        else:
+            logger.info("No VMs found in domains field")
+            return []
 
     @mcp.tool()
+    @tool_error_handler("manage virtual machine")
     async def manage_vm(vm_uuid: str, action: str) -> dict[str, Any]:
         """Manages a VM: start, stop, pause, resume, force_stop, reboot, reset. Uses VM UUID.
 
@@ -78,19 +71,15 @@ def register_vm_tools(mcp: FastMCP) -> None:
         mutation_name = validate_enum(action, list(VM_ACTION_MUTATIONS), "action")
         query = VM_ACTION_MUTATIONS[mutation_name]
         variables = {"id": vm_uuid}
-        try:
-            logger.info(f"Executing manage_vm tool: action={action}, uuid={vm_uuid}")
-            response_data = await make_graphql_request(query, variables)
-            if response_data.get("vm") and mutation_name in response_data["vm"]:
-                # Mutations for VM return Boolean for success
-                success = response_data["vm"][mutation_name]
-                return {"success": success, "action": action, "vm_uuid": vm_uuid}
-            raise ToolError(f"Failed to {action} VM or unexpected response structure.")
-        except Exception as e:
-            logger.error(f"Error in manage_vm ({action}): {e}", exc_info=True)
-            raise ToolError(f"Failed to {action} virtual machine: {str(e)}") from e
+        response_data = await make_graphql_request(query, variables)
+        if response_data.get("vm") and mutation_name in response_data["vm"]:
+            # Mutations for VM return Boolean for success
+            success = response_data["vm"][mutation_name]
+            return {"success": success, "action": action, "vm_uuid": vm_uuid}
+        raise ToolError(f"Failed to {action} VM or unexpected response structure.")
 
     @mcp.tool()
+    @tool_error_handler("retrieve VM details")
     async def get_vm_details(vm_identifier: str) -> dict[str, Any]:
         """Retrieves detailed information for a specific VM by its UUID or name.
 
@@ -120,45 +109,39 @@ def register_vm_tools(mcp: FastMCP) -> None:
           }
         }
         """
-        try:
-            logger.info(f"Executing get_vm_details for identifier: {vm_identifier}")
-            response_data = await make_graphql_request(query)
+        response_data = await make_graphql_request(query)
 
-            if response_data.get("vms"):
-                vms_data = response_data["vms"]
-                # Try to get VMs from either domains or domain field
-                vms = vms_data.get("domains") or vms_data.get("domain") or []
+        if response_data.get("vms"):
+            vms_data = response_data["vms"]
+            # Try to get VMs from either domains or domain field
+            vms = vms_data.get("domains") or []
+            if not vms:
+                domain = vms_data.get("domain")
+                if isinstance(domain, list):
+                    vms = domain
+                elif isinstance(domain, dict):
+                    vms = [domain]
 
-                if vms:
-                    for vm_data in vms:
-                        if (
-                            vm_data.get("uuid") == vm_identifier
-                            or vm_data.get("id") == vm_identifier
-                            or vm_data.get("name") == vm_identifier
-                        ):
-                            logger.info(f"Found VM {vm_identifier}")
-                            return ensure_dict(vm_data)
+            if vms:
+                for vm_data in vms:
+                    if (
+                        vm_data.get("uuid") == vm_identifier
+                        or vm_data.get("id") == vm_identifier
+                        or vm_data.get("name") == vm_identifier
+                    ):
+                        logger.info(f"Found VM {vm_identifier}")
+                        return ensure_dict(vm_data)
 
-                    logger.warning(f"VM with identifier '{vm_identifier}' not found.")
-                    available_vms = [
-                        f"{vm.get('name')} (UUID: {vm.get('uuid')}, ID: {vm.get('id')})"
-                        for vm in vms
-                    ]
-                    raise ToolError(
-                        f"VM '{vm_identifier}' not found. Available VMs: {', '.join(available_vms)}"
-                    )
-                else:
-                    raise ToolError("No VMs available or VMs not accessible")
-            else:
-                raise ToolError("No VMs data returned from server")
-
-        except Exception as e:
-            logger.error(f"Error in get_vm_details: {e}", exc_info=True)
-            if "VMs are not available" in str(e):
+                logger.warning(f"VM with identifier '{vm_identifier}' not found.")
+                available_vms = [
+                    f"{vm.get('name')} (UUID: {vm.get('uuid')}, ID: {vm.get('id')})" for vm in vms
+                ]
                 raise ToolError(
-                    "VMs are not available on this Unraid server. This could mean: 1) VM support is not enabled, 2) VM service is not running, or 3) no VMs are configured. Check Unraid VM settings."
-                ) from e
+                    f"VM '{vm_identifier}' not found. Available VMs: {', '.join(available_vms)}"
+                )
             else:
-                raise ToolError(f"Failed to retrieve VM details: {e}") from e
+                raise ToolError("No VMs available or VMs not accessible")
+        else:
+            raise ToolError("No VMs data returned from server")
 
     logger.info("VM tools registered successfully")

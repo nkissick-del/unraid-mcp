@@ -12,6 +12,7 @@ from fastmcp import FastMCP
 from ..config.logging import logger
 from ..core.client import get_timeout_for_operation, make_graphql_request
 from ..core.constants import LOG_TAIL_MAX_LINES, NOTIFICATION_MAX_LIMIT
+from ..core.decorators import tool_error_handler
 from ..core.exceptions import ToolError
 from ..core.utils import (
     ensure_dict,
@@ -32,6 +33,7 @@ def register_storage_tools(mcp: FastMCP) -> None:
     """
 
     @mcp.tool()
+    @tool_error_handler("retrieve shares information")
     async def get_shares_info() -> list[dict[str, Any]]:
         """Retrieves information about user shares."""
         query = """
@@ -56,16 +58,12 @@ def register_storage_tools(mcp: FastMCP) -> None:
           }
         }
         """
-        try:
-            logger.info("Executing get_shares_info tool")
-            response_data = await make_graphql_request(query)
-            shares = response_data.get("shares", [])
-            return ensure_list(shares)
-        except Exception as e:
-            logger.error(f"Error in get_shares_info: {e}", exc_info=True)
-            raise ToolError(f"Failed to retrieve shares information: {str(e)}") from e
+        response_data = await make_graphql_request(query)
+        shares = response_data.get("shares", [])
+        return ensure_list(shares)
 
     @mcp.tool()
+    @tool_error_handler("retrieve notifications overview")
     async def get_notifications_overview() -> dict[str, Any]:
         """Retrieves an overview of system notifications (unread and archive counts by severity)."""
         query = """
@@ -78,19 +76,15 @@ def register_storage_tools(mcp: FastMCP) -> None:
           }
         }
         """
-        try:
-            logger.info("Executing get_notifications_overview tool")
-            response_data = await make_graphql_request(query)
-            if response_data.get("notifications"):
-                overview = response_data["notifications"].get("overview", {})
-                return ensure_dict(overview)
-            logger.warning("GraphQL response missing 'notifications' field — returning empty dict")
-            return {}
-        except Exception as e:
-            logger.error(f"Error in get_notifications_overview: {e}", exc_info=True)
-            raise ToolError(f"Failed to retrieve notifications overview: {str(e)}") from e
+        response_data = await make_graphql_request(query)
+        if response_data.get("notifications"):
+            overview = response_data["notifications"].get("overview", {})
+            return ensure_dict(overview)
+        logger.warning("GraphQL response missing 'notifications' field — returning empty dict")
+        return {}
 
     @mcp.tool()
+    @tool_error_handler("list notifications")
     async def list_notifications(
         notification_type: str, offset: int, limit: int, importance: str | None = None
     ) -> list[dict[str, Any]]:
@@ -131,20 +125,14 @@ def register_storage_tools(mcp: FastMCP) -> None:
         if not importance:
             del variables["filter"]["importance"]
 
-        try:
-            logger.info(
-                f"Executing list_notifications: type={notification_type}, offset={offset}, limit={limit}, importance={importance}"
-            )
-            response_data = await make_graphql_request(query, variables)
-            if response_data.get("notifications"):
-                notifications_list = response_data["notifications"].get("list", [])
-                return ensure_list(notifications_list)
-            return []
-        except Exception as e:
-            logger.error(f"Error in list_notifications: {e}", exc_info=True)
-            raise ToolError(f"Failed to list notifications: {str(e)}") from e
+        response_data = await make_graphql_request(query, variables)
+        if response_data.get("notifications"):
+            notifications_list = response_data["notifications"].get("list", [])
+            return ensure_list(notifications_list)
+        return []
 
     @mcp.tool()
+    @tool_error_handler("list available log files")
     async def list_available_log_files() -> list[dict[str, Any]]:
         """Lists all available log files that can be queried."""
         query = """
@@ -157,34 +145,16 @@ def register_storage_tools(mcp: FastMCP) -> None:
           }
         }
         """
-        try:
-            logger.info("Executing list_available_log_files tool")
-            response_data = await make_graphql_request(query)
-            log_files = response_data.get("logFiles", [])
-            return ensure_list(log_files)
-        except Exception as e:
-            logger.error(f"Error in list_available_log_files: {e}", exc_info=True)
-            raise ToolError(f"Failed to list available log files: {str(e)}") from e
+        response_data = await make_graphql_request(query)
+        log_files = response_data.get("logFiles", [])
+        return ensure_list(log_files)
 
     @mcp.tool()
+    @tool_error_handler("retrieve logs")
     async def get_logs(log_file_path: str, tail_lines: int = 100) -> dict[str, Any]:
         """Retrieves content from a specific log file, defaulting to the last 100 lines."""
         validate_log_file_path(log_file_path)
         validate_positive_int(tail_lines, "tail_lines", max_value=LOG_TAIL_MAX_LINES)
-        # The Unraid GraphQL API Query.logFile takes 'lines' and 'startLine'.
-        # To implement 'tail_lines', we would ideally need to know the total lines first,
-        # then calculate startLine. However, Query.logFile itself returns totalLines.
-        # A simple approach for 'tail' is to request a large number of lines if totalLines is not known beforehand,
-        # and let the API handle it, or make two calls (one to get totalLines, then another).
-        # For now, let's assume 'lines' parameter in Query.logFile effectively means tail if startLine is not given.
-        # If not, this tool might need to be smarter or the API might not directly support 'tail' easily.
-        # The SDL for LogFileContent implies it returns startLine, so it seems aware of ranges.
-
-        # Let's try fetching with just 'lines' to see if it acts as a tail,
-        # or if we need Query.logFiles first to get totalLines for calculation.
-        # For robust tailing, one might need to fetch totalLines first, then calculate start_line for the tail.
-        # Simplified: query for the last 'tail_lines'. If the API doesn't support tailing this way, we may need adjustment.
-        # The current plan is to pass 'lines=tail_lines' directly.
 
         query = """
         query GetLogContent($path: String!, $lines: Int) {
@@ -197,16 +167,12 @@ def register_storage_tools(mcp: FastMCP) -> None:
         }
         """
         variables = {"path": log_file_path, "lines": tail_lines}
-        try:
-            logger.info(f"Executing get_logs for {log_file_path}, tail_lines={tail_lines}")
-            response_data = await make_graphql_request(query, variables)
-            log_file = response_data.get("logFile", {})
-            return ensure_dict(log_file)
-        except Exception as e:
-            logger.error(f"Error in get_logs for {log_file_path}: {e}", exc_info=True)
-            raise ToolError(f"Failed to retrieve logs from {log_file_path}: {str(e)}") from e
+        response_data = await make_graphql_request(query, variables)
+        log_file = response_data.get("logFile", {})
+        return ensure_dict(log_file)
 
     @mcp.tool()
+    @tool_error_handler("list physical disks")
     async def list_physical_disks() -> list[dict[str, Any]]:
         """Lists all physical disks recognized by the Unraid system."""
         # Querying an extremely minimal set of fields for diagnostics
@@ -219,21 +185,15 @@ def register_storage_tools(mcp: FastMCP) -> None:
           }
         }
         """
-        try:
-            logger.info(
-                "Executing list_physical_disks tool with minimal query and increased timeout"
-            )
-            # Increased read timeout for this potentially slow query
-            response_data = await make_graphql_request(
-                query, custom_timeout=get_timeout_for_operation("disk_operations")
-            )
-            disks = response_data.get("disks", [])
-            return ensure_list(disks)
-        except Exception as e:
-            logger.error(f"Error in list_physical_disks: {e}", exc_info=True)
-            raise ToolError(f"Failed to list physical disks: {str(e)}") from e
+        # Increased read timeout for this potentially slow query
+        response_data = await make_graphql_request(
+            query, custom_timeout=get_timeout_for_operation("disk_operations")
+        )
+        disks = response_data.get("disks", [])
+        return ensure_list(disks)
 
     @mcp.tool()
+    @tool_error_handler("retrieve disk details")
     async def get_disk_details(disk_id: str) -> dict[str, Any]:
         """Retrieves detailed SMART information and partition data for a specific physical disk."""
         validate_string_not_empty(disk_id, "disk_id")
@@ -255,51 +215,45 @@ def register_storage_tools(mcp: FastMCP) -> None:
         }
         """
         variables = {"id": disk_id}
-        try:
-            logger.info(f"Executing get_disk_details for disk: {disk_id}")
-            response_data = await make_graphql_request(query, variables)
-            raw_disk = response_data.get("disk", {})
+        response_data = await make_graphql_request(query, variables)
+        raw_disk = response_data.get("disk", {})
 
-            if not raw_disk:
-                raise ToolError(f"Disk '{disk_id}' not found")
+        if not raw_disk:
+            raise ToolError(f"Disk '{disk_id}' not found")
 
-            partitions = raw_disk.get("partitions") or []
+        partitions = raw_disk.get("partitions") or []
 
-            # Safely calculate total partition size
-            total_size_bytes = 0
-            for p in partitions:
-                if p and p.get("size"):
-                    try:
-                        total_size_bytes += int(p["size"])
-                    except (ValueError, TypeError):
-                        pass
+        # Safely calculate total partition size
+        total_size_bytes = 0
+        for p in partitions:
+            if p and p.get("size"):
+                try:
+                    total_size_bytes += int(p["size"])
+                except (ValueError, TypeError):
+                    pass
 
-            summary = {
-                "disk_id": raw_disk.get("id"),
-                "device": raw_disk.get("device"),
-                "name": raw_disk.get("name"),
-                "serial_number": raw_disk.get("serialNum"),
-                "size_formatted": format_bytes(raw_disk.get("size")),
-                "temperature": (
-                    f"{raw_disk.get('temperature')}°C"
-                    if raw_disk.get("temperature") is not None
-                    else "N/A"
-                ),
-                "interface_type": raw_disk.get("interfaceType"),
-                "smart_status": raw_disk.get("smartStatus"),
-                "is_spinning": raw_disk.get("isSpinning"),
-                "partition_count": len(partitions),
-                "total_partition_size": format_bytes(total_size_bytes),
-            }
+        summary = {
+            "disk_id": raw_disk.get("id"),
+            "device": raw_disk.get("device"),
+            "name": raw_disk.get("name"),
+            "serial_number": raw_disk.get("serialNum"),
+            "size_formatted": format_bytes(raw_disk.get("size")),
+            "temperature": (
+                f"{raw_disk.get('temperature')}°C"
+                if raw_disk.get("temperature") is not None
+                else "N/A"
+            ),
+            "interface_type": raw_disk.get("interfaceType"),
+            "smart_status": raw_disk.get("smartStatus"),
+            "is_spinning": raw_disk.get("isSpinning"),
+            "partition_count": len(partitions),
+            "total_partition_size": format_bytes(total_size_bytes),
+        }
 
-            return {
-                "summary": summary,
-                "partitions": partitions,
-                "details": raw_disk,
-            }
-
-        except Exception as e:
-            logger.error(f"Error in get_disk_details for {disk_id}: {e}", exc_info=True)
-            raise ToolError(f"Failed to retrieve disk details for {disk_id}: {str(e)}") from e
+        return {
+            "summary": summary,
+            "partitions": partitions,
+            "details": raw_disk,
+        }
 
     logger.info("Storage tools registered successfully")

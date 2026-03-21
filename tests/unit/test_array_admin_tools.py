@@ -2,7 +2,9 @@
 
 import pytest
 
+from tests.helpers import get_registered_tool_names, get_tool_fn
 from unraid_mcp.core.exceptions import ToolError
+from unraid_mcp.tools.array_admin import register_array_admin_tools
 from unraid_mcp.tools.queries.array_admin import (
     ADD_DISK_TO_ARRAY_MUTATION,
     CLEAR_ARRAY_DISK_STATISTICS_MUTATION,
@@ -65,20 +67,7 @@ class TestArrayAdminConfirmGates:
     )
     @pytest.mark.asyncio
     async def test_confirm_false_raises(self, tool_name):
-        from fastmcp import FastMCP
-
-        from unraid_mcp.tools.array_admin import register_array_admin_tools
-
-        test_mcp = FastMCP("test")
-        register_array_admin_tools(test_mcp)
-
-        tool_fn = None
-        for tool in test_mcp._tool_manager._tools.values():
-            if tool.name == tool_name:
-                tool_fn = tool.fn
-                break
-
-        assert tool_fn is not None, f"{tool_name} tool not registered"
+        tool_fn = get_tool_fn(register_array_admin_tools, tool_name)
         with pytest.raises(ToolError, match="confirm must be True"):
             await tool_fn(input_config={"id": "test-disk"}, confirm=False)
 
@@ -86,39 +75,13 @@ class TestArrayAdminConfirmGates:
 class TestArrayAdminExtraStrongWarnings:
     @pytest.mark.asyncio
     async def test_add_disk_warns_extremely_destructive(self):
-        from fastmcp import FastMCP
-
-        from unraid_mcp.tools.array_admin import register_array_admin_tools
-
-        test_mcp = FastMCP("test")
-        register_array_admin_tools(test_mcp)
-
-        tool_fn = None
-        for tool in test_mcp._tool_manager._tools.values():
-            if tool.name == "add_disk_to_array":
-                tool_fn = tool.fn
-                break
-
-        assert tool_fn is not None
+        tool_fn = get_tool_fn(register_array_admin_tools, "add_disk_to_array")
         with pytest.raises(ToolError, match="EXTREMELY DESTRUCTIVE"):
             await tool_fn(input_config={"id": "test-disk"}, confirm=False)
 
     @pytest.mark.asyncio
     async def test_remove_disk_warns_extremely_destructive(self):
-        from fastmcp import FastMCP
-
-        from unraid_mcp.tools.array_admin import register_array_admin_tools
-
-        test_mcp = FastMCP("test")
-        register_array_admin_tools(test_mcp)
-
-        tool_fn = None
-        for tool in test_mcp._tool_manager._tools.values():
-            if tool.name == "remove_disk_from_array":
-                tool_fn = tool.fn
-                break
-
-        assert tool_fn is not None
+        tool_fn = get_tool_fn(register_array_admin_tools, "remove_disk_from_array")
         with pytest.raises(ToolError, match="EXTREMELY DESTRUCTIVE"):
             await tool_fn(input_config={"id": "test-disk"}, confirm=False)
 
@@ -136,34 +99,14 @@ class TestArrayAdminInputValidation:
     )
     @pytest.mark.asyncio
     async def test_empty_config_raises(self, tool_name):
-        from fastmcp import FastMCP
-
-        from unraid_mcp.tools.array_admin import register_array_admin_tools
-
-        test_mcp = FastMCP("test")
-        register_array_admin_tools(test_mcp)
-
-        tool_fn = None
-        for tool in test_mcp._tool_manager._tools.values():
-            if tool.name == tool_name:
-                tool_fn = tool.fn
-                break
-
-        assert tool_fn is not None
+        tool_fn = get_tool_fn(register_array_admin_tools, tool_name)
         with pytest.raises(ToolError, match="non-empty dictionary"):
             await tool_fn(input_config={}, confirm=True)
 
 
 class TestArrayAdminToolRegistration:
     def test_all_tools_registered(self):
-        from fastmcp import FastMCP
-
-        from unraid_mcp.tools.array_admin import register_array_admin_tools
-
-        test_mcp = FastMCP("test")
-        register_array_admin_tools(test_mcp)
-
-        tool_names = set(test_mcp._tool_manager._tools.keys())
+        tool_names = get_registered_tool_names(register_array_admin_tools)
         expected = {
             "list_assignable_disks",
             "add_disk_to_array",

@@ -10,7 +10,9 @@ from fastmcp import FastMCP
 
 from ..config.logging import logger
 from ..core.client import make_graphql_request
+from ..core.decorators import tool_error_handler
 from ..core.exceptions import ToolError
+from ..core.utils import require_confirm, validate_input_dict
 from .queries.ups_admin import CONFIGURE_UPS_MUTATION
 
 
@@ -22,6 +24,7 @@ def register_ups_admin_tools(mcp: FastMCP) -> None:
     """
 
     @mcp.tool()
+    @tool_error_handler("configure UPS")
     async def configure_ups(
         input_config: dict[str, Any],
         confirm: bool = False,
@@ -38,35 +41,20 @@ def register_ups_admin_tools(mcp: FastMCP) -> None:
         Returns:
             Dict containing the updated UPS configuration
         """
-        if not confirm:
-            raise ToolError(
-                "confirm must be True to configure UPS settings. "
-                "Incorrect UPS configuration may affect shutdown behavior during power events."
-            )
+        require_confirm(confirm, "configure UPS settings")
+        validate_input_dict(input_config)
 
-        if not input_config or not isinstance(input_config, dict):
-            raise ToolError("input_config must be a non-empty dictionary")
+        variables: dict[str, Any] = {"input": input_config}
+        response = await make_graphql_request(CONFIGURE_UPS_MUTATION, variables)
 
-        try:
-            logger.info("Executing configure_ups")
+        result = response.get("configureUps")
+        if not result:
+            raise ToolError("Failed to configure UPS")
 
-            variables: dict[str, Any] = {"input": input_config}
-            response = await make_graphql_request(CONFIGURE_UPS_MUTATION, variables)
-
-            result = response.get("configureUps")
-            if not result:
-                raise ToolError("Failed to configure UPS")
-
-            return {
-                "success": True,
-                "configuration": result,
-                "message": "UPS configuration updated successfully",
-            }
-
-        except ToolError:
-            raise
-        except Exception as e:
-            logger.error(f"Error in configure_ups: {e}", exc_info=True)
-            raise ToolError(f"Failed to configure UPS: {str(e)}") from e
+        return {
+            "success": True,
+            "configuration": result,
+            "message": "UPS configuration updated successfully",
+        }
 
     logger.info("UPS admin tools registered successfully")

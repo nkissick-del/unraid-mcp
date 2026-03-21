@@ -119,6 +119,11 @@ The server loads environment variables from multiple locations in order:
 - Optional caching controls for Docker container queries
 - Rotating log files to prevent disk space issues
 
+## Workflow Rules
+
+### Plans must include commit-and-push
+Every implementation plan MUST include `/commit-and-push` as the final step. The workflow is: do the work, verify you're happy with it, then invoke `/commit-and-push` which handles the full quality gate loop (CodeRabbit review, lint, test, commit, push, monitor CI, fix and loop on failures until all green).
+
 ## Sprint Learnings & Gotchas
 
 ### macOS `/tmp` symlink resolution (Phase 8c)

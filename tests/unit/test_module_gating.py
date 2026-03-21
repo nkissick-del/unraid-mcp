@@ -3,6 +3,16 @@
 import importlib
 from unittest.mock import patch
 
+from unraid_mcp.registry import MODULE_REGISTRY
+
+
+class TestRegistryConsistency:
+    def test_registry_keys_match_all_modules(self):
+        """MODULE_REGISTRY must cover every module in _ALL_MODULES."""
+        import unraid_mcp.config.settings as settings_mod
+
+        assert set(MODULE_REGISTRY.keys()) == set(settings_mod._ALL_MODULES)
+
 
 class TestEnabledModulesDefault:
     def test_default_modules_when_env_not_set(self):

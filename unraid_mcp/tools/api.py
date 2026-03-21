@@ -15,6 +15,7 @@ from graphql.language.ast import OperationDefinitionNode
 
 from ..config.logging import logger
 from ..core.client import make_graphql_request
+from ..core.decorators import tool_error_handler
 from ..core.exceptions import ToolError
 
 
@@ -121,82 +122,77 @@ def register_api_tools(mcp: FastMCP) -> None:
     """
 
     @mcp.tool()
+    @tool_error_handler("introspect schema")
     async def introspect_schema(type_name: str | None = None) -> dict[str, Any]:
         """Introspect the Unraid GraphQL schema. Without arguments, returns root query/mutation/subscription fields. With a type_name, returns fields and types for that specific type."""
-        try:
-            if type_name:
-                logger.info(f"Introspecting schema type: {type_name}")
-                query = """
-                query IntrospectType($name: String!) {
-                  __type(name: $name) {
+        if type_name:
+            logger.info(f"Introspecting schema type: {type_name}")
+            query = """
+            query IntrospectType($name: String!) {
+              __type(name: $name) {
+                name
+                kind
+                description
+                fields {
+                  name
+                  description
+                  type {
                     name
                     kind
-                    description
-                    fields {
+                    ofType { name kind ofType { name kind ofType { name kind } } }
+                  }
+                  args {
+                    name
+                    type {
                       name
-                      description
-                      type {
-                        name
-                        kind
-                        ofType { name kind ofType { name kind ofType { name kind } } }
-                      }
-                      args {
-                        name
-                        type {
-                          name
-                          kind
-                          ofType { name kind ofType { name kind } }
-                        }
-                        defaultValue
-                      }
+                      kind
+                      ofType { name kind ofType { name kind } }
                     }
-                    inputFields {
-                      name
-                      type {
-                        name
-                        kind
-                        ofType { name kind ofType { name kind } }
-                      }
-                      defaultValue
-                    }
-                    enumValues { name description }
+                    defaultValue
                   }
                 }
-                """
-                response_data = await make_graphql_request(query, {"name": type_name})
-                type_info: dict[str, Any] = response_data.get("__type", {})
-                if not type_info:
-                    raise ToolError(f"Type '{type_name}' not found in schema")
-                return type_info
-            else:
-                logger.info("Introspecting root schema fields")
-                query = """
-                query IntrospectRootFields {
-                  __schema {
-                    queryType { fields { name description } }
-                    mutationType { fields { name description } }
-                    subscriptionType { fields { name description } }
+                inputFields {
+                  name
+                  type {
+                    name
+                    kind
+                    ofType { name kind ofType { name kind } }
                   }
+                  defaultValue
                 }
-                """
-                response_data = await make_graphql_request(query)
-                schema = response_data.get("__schema", {})
-                result: dict[str, Any] = {}
-                if q := schema.get("queryType", {}).get("fields"):
-                    result["queries"] = q
-                if m := schema.get("mutationType", {}).get("fields"):
-                    result["mutations"] = m
-                if s := schema.get("subscriptionType", {}).get("fields"):
-                    result["subscriptions"] = s
-                return result
-
-        except ToolError:
-            raise
-        except Exception as e:
-            logger.error(f"Error in introspect_schema: {e}", exc_info=True)
-            raise ToolError(f"Failed to introspect schema: {str(e)}") from e
+                enumValues { name description }
+              }
+            }
+            """
+            response_data = await make_graphql_request(query, {"name": type_name})
+            type_info: dict[str, Any] = response_data.get("__type", {})
+            if not type_info:
+                raise ToolError(f"Type '{type_name}' not found in schema")
+            return type_info
+        else:
+            logger.info("Introspecting root schema fields")
+            query = """
+            query IntrospectRootFields {
+              __schema {
+                queryType { fields { name description } }
+                mutationType { fields { name description } }
+                subscriptionType { fields { name description } }
+              }
+            }
+            """
+            response_data = await make_graphql_request(query)
+            schema = response_data.get("__schema", {})
+            result: dict[str, Any] = {}
+            if q := schema.get("queryType", {}).get("fields"):
+                result["queries"] = q
+            if m := schema.get("mutationType", {}).get("fields"):
+                result["mutations"] = m
+            if s := schema.get("subscriptionType", {}).get("fields"):
+                result["subscriptions"] = s
+            return result
 
     @mcp.tool()
+    @tool_error_handler("execute query")
     async def query_unraid_api(
         graphql_query: str,
         variables: dict[str, Any] | None = None,
@@ -220,15 +216,8 @@ def register_api_tools(mcp: FastMCP) -> None:
         # Validate variables for security
         validated_variables = _validate_variables(variables)
 
-        try:
-            logger.info("Executing raw GraphQL query via query_unraid_api")
-            logger.debug(f"Query: {graphql_query[:200]}")
-            response_data = await make_graphql_request(graphql_query, validated_variables)
-            return response_data
-        except ToolError:
-            raise
-        except Exception as e:
-            logger.error(f"Error in query_unraid_api: {e}", exc_info=True)
-            raise ToolError(f"Failed to execute query: {str(e)}") from e
+        logger.debug(f"Query: {graphql_query[:200]}")
+        response_data = await make_graphql_request(graphql_query, validated_variables)
+        return response_data
 
     logger.info("API tools registered successfully")

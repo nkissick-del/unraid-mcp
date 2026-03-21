@@ -1,13 +1,37 @@
 """Centralized input validation functions for Unraid MCP tools."""
 
 import re
+from typing import Any
 
 from ..core.constants import (
     ALLOWED_LOG_PREFIXES,
     ERROR_TRUNCATION_LENGTH,
     RCLONE_REMOTE_NAME_PATTERN,
 )
-from ..core.exceptions import ValidationError
+from ..core.exceptions import ToolError, ValidationError
+
+
+def require_confirm(confirm: bool, action: str, reason: str = "") -> None:
+    """Raise ToolError if confirm is not True.
+
+    Args:
+        confirm: The confirm flag value
+        action: Description of the action (e.g. "remove a container")
+        reason: Optional extra context appended to the message
+    """
+    if not confirm:
+        msg = f"confirm must be True to {action}."
+        if reason:
+            msg += f" {reason}"
+        raise ToolError(msg)
+
+
+def validate_input_dict(value: Any, name: str = "input_config") -> dict[str, Any]:
+    """Validate value is a non-empty dict, raise ToolError otherwise."""
+    if not value or not isinstance(value, dict):
+        raise ToolError(f"{name} must be a non-empty dictionary")
+    result: dict[str, Any] = value
+    return result
 
 
 def validate_positive_int(value: int, name: str, max_value: int | None = None) -> int:
