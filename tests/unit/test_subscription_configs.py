@@ -2,6 +2,7 @@
 
 import pytest
 
+from unraid_mcp.subscriptions.configs import SUBSCRIPTION_CONFIGS
 from unraid_mcp.subscriptions.manager import SubscriptionManager
 
 
@@ -55,6 +56,20 @@ class TestSubscriptionConfigs:
     def test_total_subscription_count(self):
         """Should have 16 subscription configs total (5 original + 11 new)."""
         assert len(self.configs) == 16
+
+
+class TestConfigsModuleConstant:
+    """Tests that the extracted SUBSCRIPTION_CONFIGS matches the manager's runtime copy."""
+
+    def test_module_constant_keys_match_manager(self):
+        manager = SubscriptionManager()
+        assert set(SUBSCRIPTION_CONFIGS.keys()) == set(manager.subscription_configs.keys())
+
+    def test_manager_copy_is_independent(self):
+        """Runtime mutations to manager.subscription_configs don't affect the module constant."""
+        manager = SubscriptionManager()
+        manager.subscription_configs["_test_key"] = {"test": True}
+        assert "_test_key" not in SUBSCRIPTION_CONFIGS
 
 
 class TestExtraSubscriptionConfigs:

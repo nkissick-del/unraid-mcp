@@ -3,6 +3,8 @@
 import importlib
 from unittest.mock import patch
 
+import pytest
+
 from unraid_mcp.registry import MODULE_REGISTRY
 
 
@@ -152,41 +154,31 @@ class TestEnabledModulesCustom:
             assert "docker" in settings_mod.ENABLED_MODULES
 
 
-class TestPhase2ModulesDisabledByDefault:
-    def test_parity_not_in_default(self):
+class TestNonDefaultModulesExcluded:
+    @pytest.mark.parametrize(
+        "module",
+        [
+            "parity",
+            "docker-batch",
+            "notifications-extra",
+            "ups-admin",
+            "subscriptions-extra",
+            "customization",
+            "onboarding",
+            "docker-organize",
+            "plugins",
+            "server-admin",
+            "connect",
+            "auth",
+            "array-admin",
+        ],
+    )
+    def test_module_not_in_default(self, module):
         with patch.dict("os.environ", {"UNRAID_MCP_ENABLED_MODULES": "default"}):
             import unraid_mcp.config.settings as settings_mod
 
             importlib.reload(settings_mod)
-            assert "parity" not in settings_mod.ENABLED_MODULES
-
-    def test_docker_batch_not_in_default(self):
-        with patch.dict("os.environ", {"UNRAID_MCP_ENABLED_MODULES": "default"}):
-            import unraid_mcp.config.settings as settings_mod
-
-            importlib.reload(settings_mod)
-            assert "docker-batch" not in settings_mod.ENABLED_MODULES
-
-    def test_notifications_extra_not_in_default(self):
-        with patch.dict("os.environ", {"UNRAID_MCP_ENABLED_MODULES": "default"}):
-            import unraid_mcp.config.settings as settings_mod
-
-            importlib.reload(settings_mod)
-            assert "notifications-extra" not in settings_mod.ENABLED_MODULES
-
-    def test_ups_admin_not_in_default(self):
-        with patch.dict("os.environ", {"UNRAID_MCP_ENABLED_MODULES": "default"}):
-            import unraid_mcp.config.settings as settings_mod
-
-            importlib.reload(settings_mod)
-            assert "ups-admin" not in settings_mod.ENABLED_MODULES
-
-    def test_subscriptions_extra_not_in_default(self):
-        with patch.dict("os.environ", {"UNRAID_MCP_ENABLED_MODULES": "default"}):
-            import unraid_mcp.config.settings as settings_mod
-
-            importlib.reload(settings_mod)
-            assert "subscriptions-extra" not in settings_mod.ENABLED_MODULES
+            assert module not in settings_mod.ENABLED_MODULES
 
     def test_default_plus_subscriptions_extra(self):
         with patch.dict(
@@ -198,61 +190,3 @@ class TestPhase2ModulesDisabledByDefault:
             assert "subscriptions-extra" in settings_mod.ENABLED_MODULES
             assert "system" in settings_mod.ENABLED_MODULES
             assert "docker" in settings_mod.ENABLED_MODULES
-
-
-class TestPhase4ModulesDisabledByDefault:
-    def test_customization_not_in_default(self):
-        with patch.dict("os.environ", {"UNRAID_MCP_ENABLED_MODULES": "default"}):
-            import unraid_mcp.config.settings as settings_mod
-
-            importlib.reload(settings_mod)
-            assert "customization" not in settings_mod.ENABLED_MODULES
-
-    def test_onboarding_not_in_default(self):
-        with patch.dict("os.environ", {"UNRAID_MCP_ENABLED_MODULES": "default"}):
-            import unraid_mcp.config.settings as settings_mod
-
-            importlib.reload(settings_mod)
-            assert "onboarding" not in settings_mod.ENABLED_MODULES
-
-    def test_docker_organize_not_in_default(self):
-        with patch.dict("os.environ", {"UNRAID_MCP_ENABLED_MODULES": "default"}):
-            import unraid_mcp.config.settings as settings_mod
-
-            importlib.reload(settings_mod)
-            assert "docker-organize" not in settings_mod.ENABLED_MODULES
-
-    def test_plugins_not_in_default(self):
-        with patch.dict("os.environ", {"UNRAID_MCP_ENABLED_MODULES": "default"}):
-            import unraid_mcp.config.settings as settings_mod
-
-            importlib.reload(settings_mod)
-            assert "plugins" not in settings_mod.ENABLED_MODULES
-
-    def test_server_admin_not_in_default(self):
-        with patch.dict("os.environ", {"UNRAID_MCP_ENABLED_MODULES": "default"}):
-            import unraid_mcp.config.settings as settings_mod
-
-            importlib.reload(settings_mod)
-            assert "server-admin" not in settings_mod.ENABLED_MODULES
-
-    def test_connect_not_in_default(self):
-        with patch.dict("os.environ", {"UNRAID_MCP_ENABLED_MODULES": "default"}):
-            import unraid_mcp.config.settings as settings_mod
-
-            importlib.reload(settings_mod)
-            assert "connect" not in settings_mod.ENABLED_MODULES
-
-    def test_auth_not_in_default(self):
-        with patch.dict("os.environ", {"UNRAID_MCP_ENABLED_MODULES": "default"}):
-            import unraid_mcp.config.settings as settings_mod
-
-            importlib.reload(settings_mod)
-            assert "auth" not in settings_mod.ENABLED_MODULES
-
-    def test_array_admin_not_in_default(self):
-        with patch.dict("os.environ", {"UNRAID_MCP_ENABLED_MODULES": "default"}):
-            import unraid_mcp.config.settings as settings_mod
-
-            importlib.reload(settings_mod)
-            assert "array-admin" not in settings_mod.ENABLED_MODULES

@@ -23,77 +23,50 @@ from unraid_mcp.tools.queries.auth import (
 
 
 class TestAuthQueries:
-    def test_list_api_keys_query(self):
-        assert "query" in LIST_API_KEYS_QUERY
-        assert "apiKeys" in LIST_API_KEYS_QUERY
-
-    def test_list_api_keys_has_expected_fields(self):
-        assert "name" in LIST_API_KEYS_QUERY
-        assert "roles" in LIST_API_KEYS_QUERY
-        assert "createdAt" in LIST_API_KEYS_QUERY
-
-    def test_get_api_key_query(self):
-        assert "query" in GET_API_KEY_QUERY
-        assert "$keyId" in GET_API_KEY_QUERY
-        assert "apiKey" in GET_API_KEY_QUERY
-
-    def test_get_api_key_has_expected_fields(self):
-        assert "permissions" in GET_API_KEY_QUERY
-        assert "lastUsedAt" in GET_API_KEY_QUERY
-
-    def test_get_possible_roles_query(self):
-        assert "query" in GET_API_KEY_POSSIBLE_ROLES_QUERY
-        assert "apiKeyPossibleRoles" in GET_API_KEY_POSSIBLE_ROLES_QUERY
-
-    def test_get_possible_permissions_query(self):
-        assert "query" in GET_API_KEY_POSSIBLE_PERMISSIONS_QUERY
-        assert "apiKeyPossiblePermissions" in GET_API_KEY_POSSIBLE_PERMISSIONS_QUERY
-
-    def test_get_permissions_for_roles_query(self):
-        assert "query" in GET_PERMISSIONS_FOR_ROLES_QUERY
-        assert "$roles" in GET_PERMISSIONS_FOR_ROLES_QUERY
-        assert "permissionsForRoles" in GET_PERMISSIONS_FOR_ROLES_QUERY
-
-    def test_preview_effective_permissions_query(self):
-        assert "query" in PREVIEW_EFFECTIVE_PERMISSIONS_QUERY
-        assert "$input" in PREVIEW_EFFECTIVE_PERMISSIONS_QUERY
-        assert "previewEffectivePermissions" in PREVIEW_EFFECTIVE_PERMISSIONS_QUERY
-
-    def test_get_available_auth_actions_query(self):
-        assert "query" in GET_AVAILABLE_AUTH_ACTIONS_QUERY
-        assert "availableAuthActions" in GET_AVAILABLE_AUTH_ACTIONS_QUERY
-
-    def test_get_api_key_creation_form_schema_query(self):
-        assert "query" in GET_API_KEY_CREATION_FORM_SCHEMA_QUERY
-        assert "apiKeyCreationFormSchema" in GET_API_KEY_CREATION_FORM_SCHEMA_QUERY
+    @pytest.mark.parametrize(
+        "query,keywords",
+        [
+            (LIST_API_KEYS_QUERY, ["query", "apiKeys", "name", "roles", "createdAt"]),
+            (GET_API_KEY_QUERY, ["query", "$keyId", "apiKey", "permissions", "lastUsedAt"]),
+            (GET_API_KEY_POSSIBLE_ROLES_QUERY, ["query", "apiKeyPossibleRoles"]),
+            (GET_API_KEY_POSSIBLE_PERMISSIONS_QUERY, ["query", "apiKeyPossiblePermissions"]),
+            (
+                GET_PERMISSIONS_FOR_ROLES_QUERY,
+                ["query", "$roles", "permissionsForRoles"],
+            ),
+            (
+                PREVIEW_EFFECTIVE_PERMISSIONS_QUERY,
+                ["query", "$input", "previewEffectivePermissions"],
+            ),
+            (GET_AVAILABLE_AUTH_ACTIONS_QUERY, ["query", "availableAuthActions"]),
+            (
+                GET_API_KEY_CREATION_FORM_SCHEMA_QUERY,
+                ["query", "apiKeyCreationFormSchema"],
+            ),
+        ],
+    )
+    def test_query_structure(self, query, keywords):
+        for kw in keywords:
+            assert kw in query
 
 
 class TestAuthMutations:
-    def test_create_api_key_mutation(self):
-        assert "mutation" in CREATE_API_KEY_MUTATION
-        assert "$input" in CREATE_API_KEY_MUTATION
-        assert "createApiKey" in CREATE_API_KEY_MUTATION
-        assert "key" in CREATE_API_KEY_MUTATION
-
-    def test_add_role_mutation(self):
-        assert "mutation" in ADD_ROLE_TO_API_KEY_MUTATION
-        assert "$input" in ADD_ROLE_TO_API_KEY_MUTATION
-        assert "addRoleToApiKey" in ADD_ROLE_TO_API_KEY_MUTATION
-
-    def test_remove_role_mutation(self):
-        assert "mutation" in REMOVE_ROLE_FROM_API_KEY_MUTATION
-        assert "$input" in REMOVE_ROLE_FROM_API_KEY_MUTATION
-        assert "removeRoleFromApiKey" in REMOVE_ROLE_FROM_API_KEY_MUTATION
-
-    def test_delete_api_key_mutation(self):
-        assert "mutation" in DELETE_API_KEY_MUTATION
-        assert "$keyId" in DELETE_API_KEY_MUTATION
-        assert "deleteApiKey" in DELETE_API_KEY_MUTATION
-
-    def test_update_api_key_mutation(self):
-        assert "mutation" in UPDATE_API_KEY_MUTATION
-        assert "$input" in UPDATE_API_KEY_MUTATION
-        assert "updateApiKey" in UPDATE_API_KEY_MUTATION
+    @pytest.mark.parametrize(
+        "mutation,keywords",
+        [
+            (CREATE_API_KEY_MUTATION, ["mutation", "$input", "createApiKey", "key"]),
+            (ADD_ROLE_TO_API_KEY_MUTATION, ["mutation", "$input", "addRoleToApiKey"]),
+            (
+                REMOVE_ROLE_FROM_API_KEY_MUTATION,
+                ["mutation", "$input", "removeRoleFromApiKey"],
+            ),
+            (DELETE_API_KEY_MUTATION, ["mutation", "$keyId", "deleteApiKey"]),
+            (UPDATE_API_KEY_MUTATION, ["mutation", "$input", "updateApiKey"]),
+        ],
+    )
+    def test_mutation_structure(self, mutation, keywords):
+        for kw in keywords:
+            assert kw in mutation
 
 
 class TestAuthConfirmGates:
