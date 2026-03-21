@@ -115,9 +115,7 @@ async def poll_with_backoff(
                 return None
 
         if attempt < max_retries - 1:
-            _logger.debug(
-                f"{operation_name}: retry {attempt + 1}/{max_retries} in {delay:.1f}s"
-            )
+            _logger.debug(f"{operation_name}: retry {attempt + 1}/{max_retries} in {delay:.1f}s")
             await asyncio.sleep(delay)
             delay *= backoff_factor
 

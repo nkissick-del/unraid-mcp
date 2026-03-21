@@ -224,7 +224,9 @@ def register_storage_tools(mcp: FastMCP) -> None:
                 "Executing list_physical_disks tool with minimal query and increased timeout"
             )
             # Increased read timeout for this potentially slow query
-            response_data = await make_graphql_request(query, custom_timeout=get_timeout_for_operation("disk_operations"))
+            response_data = await make_graphql_request(
+                query, custom_timeout=get_timeout_for_operation("disk_operations")
+            )
             disks = response_data.get("disks", [])
             return ensure_list(disks)
         except Exception as e:

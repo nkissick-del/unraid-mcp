@@ -2,7 +2,13 @@ import unittest
 
 import pytest
 
-from unraid_mcp.core.utils import ensure_dict, ensure_list, format_bytes, format_kb, poll_with_backoff
+from unraid_mcp.core.utils import (
+    ensure_dict,
+    ensure_list,
+    format_bytes,
+    format_kb,
+    poll_with_backoff,
+)
 
 # unraid_mcp.tools.api is now importable thanks to conftest.py or pip install -e .
 from unraid_mcp.tools.api import _strip_comments

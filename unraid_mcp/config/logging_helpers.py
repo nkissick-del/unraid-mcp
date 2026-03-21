@@ -69,9 +69,8 @@ def log_with_level_and_indent(message: str, level: str = "info", indent: int = 0
     # Level icon (only for certain levels)
     if level in ["error", "warning", "success"]:
         # Skip icon if message already starts with an emoji/symbol character
-        starts_with_emoji = (
-            message
-            and (unicodedata.category(message[0]) == "So" or ord(message[0]) >= 0x1F300)
+        starts_with_emoji = message and (
+            unicodedata.category(message[0]) == "So" or ord(message[0]) >= 0x1F300
         )
         if not starts_with_emoji:
             text.append(f"{config['icon']} ", style=config["color"])

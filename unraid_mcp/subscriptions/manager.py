@@ -236,28 +236,20 @@ class SubscriptionManager:
             variables: Query variables
             selected_proto: Selected WebSocket subprotocol
         """
-        logger.debug(
-            f"[SUBSCRIPTION:{subscription_name}] Starting GraphQL subscription..."
-        )
-        start_type = (
-            "subscribe" if selected_proto == "graphql-transport-ws" else "start"
-        )
+        logger.debug(f"[SUBSCRIPTION:{subscription_name}] Starting GraphQL subscription...")
+        start_type = "subscribe" if selected_proto == "graphql-transport-ws" else "start"
         subscription_message = {
             "id": subscription_name,
             "type": start_type,
             "payload": {"query": query, "variables": variables},
         }
 
-        logger.debug(
-            f"[SUBSCRIPTION:{subscription_name}] Subscription message type: {start_type}"
-        )
+        logger.debug(f"[SUBSCRIPTION:{subscription_name}] Subscription message type: {start_type}")
         logger.debug(f"[SUBSCRIPTION:{subscription_name}] Query: {query[:100]}...")
         logger.debug(f"[SUBSCRIPTION:{subscription_name}] Variables: {variables}")
 
         await websocket.send(json.dumps(subscription_message))
-        logger.info(
-            f"[SUBSCRIPTION:{subscription_name}] Subscription started successfully"
-        )
+        logger.info(f"[SUBSCRIPTION:{subscription_name}] Subscription started successfully")
         self.connection_states[subscription_name] = "subscribed"
 
     async def _process_ws_message(
@@ -277,25 +269,16 @@ class SubscriptionManager:
             data = json.loads(message)
             message_type = data.get("type", "unknown")
 
-            logger.debug(
-                f"[DATA:{subscription_name}] Message: {message_type}"
-            )
+            logger.debug(f"[DATA:{subscription_name}] Message: {message_type}")
 
             # Handle different message types
-            expected_data_type = (
-                "next" if selected_proto == "graphql-transport-ws" else "data"
-            )
+            expected_data_type = "next" if selected_proto == "graphql-transport-ws" else "data"
 
-            if (
-                data.get("type") == expected_data_type
-                and data.get("id") == subscription_name
-            ):
+            if data.get("type") == expected_data_type and data.get("id") == subscription_name:
                 payload = data.get("payload", {})
 
                 if payload.get("data"):
-                    logger.info(
-                        f"[DATA:{subscription_name}] Received subscription data update"
-                    )
+                    logger.info(f"[DATA:{subscription_name}] Received subscription data update")
                     async with self.resource_data_lock:
                         self.resource_data[subscription_name] = SubscriptionData(
                             data=payload["data"],
@@ -309,9 +292,7 @@ class SubscriptionManager:
                     logger.error(
                         f"[DATA:{subscription_name}] GraphQL errors in response: {payload['errors']}"
                     )
-                    self.last_error[subscription_name] = (
-                        f"GraphQL errors: {payload['errors']}"
-                    )
+                    self.last_error[subscription_name] = f"GraphQL errors: {payload['errors']}"
                 else:
                     logger.warning(
                         f"[DATA:{subscription_name}] Empty or invalid data payload: {payload}"
@@ -322,22 +303,16 @@ class SubscriptionManager:
                 logger.error(
                     f"[SUBSCRIPTION:{subscription_name}] Subscription error: {error_payload}"
                 )
-                self.last_error[subscription_name] = (
-                    f"Subscription error: {error_payload}"
-                )
+                self.last_error[subscription_name] = f"Subscription error: {error_payload}"
                 self.connection_states[subscription_name] = "error"
 
             elif data.get("type") == "complete":
-                logger.info(
-                    f"[SUBSCRIPTION:{subscription_name}] Subscription completed by server"
-                )
+                logger.info(f"[SUBSCRIPTION:{subscription_name}] Subscription completed by server")
                 self.connection_states[subscription_name] = "completed"
                 return False
 
             elif data.get("type") in ["ka", "pong"]:
-                logger.debug(
-                    f"[PROTOCOL:{subscription_name}] Keepalive message: {message_type}"
-                )
+                logger.debug(f"[PROTOCOL:{subscription_name}] Keepalive message: {message_type}")
 
             else:
                 logger.debug(
@@ -355,17 +330,13 @@ class SubscriptionManager:
             )
             logger.error(f"[PROTOCOL:{subscription_name}] JSON decode error: {e}")
         except (KeyError, TypeError, ValueError) as e:
-            logger.error(
-                f"[DATA:{subscription_name}] Error processing message: {e}"
-            )
+            logger.error(f"[DATA:{subscription_name}] Error processing message: {e}")
             msg_preview = (
                 message[:200]
                 if isinstance(message, str)
                 else message[:200].decode("utf-8", errors="replace")
             )
-            logger.debug(
-                f"[DATA:{subscription_name}] Raw message: {msg_preview}..."
-            )
+            logger.debug(f"[DATA:{subscription_name}] Raw message: {msg_preview}...")
 
         return True
 
