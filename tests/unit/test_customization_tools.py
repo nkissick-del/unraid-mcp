@@ -36,8 +36,8 @@ class TestCustomizationMutations:
     @pytest.mark.parametrize(
         "mutation,keywords",
         [
-            (SET_THEME_MUTATION, ["mutation", "setTheme", "$input"]),
-            (SET_LOCALE_MUTATION, ["mutation", "setLocale", "$locale"]),
+            (SET_THEME_MUTATION, ["mutation", "setTheme", "$theme", "customization"]),
+            (SET_LOCALE_MUTATION, ["mutation", "setLocale", "$locale", "customization"]),
         ],
     )
     def test_mutation_structure(self, mutation, keywords):

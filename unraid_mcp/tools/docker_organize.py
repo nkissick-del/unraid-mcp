@@ -47,7 +47,7 @@ def register_docker_organize_tools(mcp: FastMCP) -> None:
         if icon:
             variables["icon"] = icon
         response = await make_graphql_request(CREATE_DOCKER_FOLDER_MUTATION, variables)
-        result = response.get("docker", {}).get("createFolder")
+        result = response.get("createDockerFolder")
         if not result:
             raise ToolError("Failed to create Docker folder")
         return {
@@ -75,7 +75,7 @@ def register_docker_organize_tools(mcp: FastMCP) -> None:
             "children": children,
         }
         response = await make_graphql_request(SET_DOCKER_FOLDER_CHILDREN_MUTATION, variables)
-        result = response.get("docker", {}).get("setFolderChildren")
+        result = response.get("setDockerFolderChildren")
         if not result:
             raise ToolError("Failed to set folder children")
         return {
@@ -100,7 +100,7 @@ def register_docker_organize_tools(mcp: FastMCP) -> None:
 
         variables: dict[str, Any] = {"ids": ids}
         response = await make_graphql_request(DELETE_DOCKER_ENTRIES_MUTATION, variables)
-        result = response.get("docker", {}).get("deleteEntries", {})
+        result = response.get("deleteDockerEntries", {})
         success = result.get("success", False)
         return {
             "success": success,
@@ -130,7 +130,7 @@ def register_docker_organize_tools(mcp: FastMCP) -> None:
             "entryIds": entry_ids,
         }
         response = await make_graphql_request(MOVE_DOCKER_ENTRIES_TO_FOLDER_MUTATION, variables)
-        result = response.get("docker", {}).get("moveEntriesToFolder", {})
+        result = response.get("moveDockerEntriesToFolder", {})
         return {
             "success": result.get("success", False),
             "message": f"Moved {len(entry_ids)} entries to folder {folder_id}",
@@ -153,7 +153,7 @@ def register_docker_organize_tools(mcp: FastMCP) -> None:
             "position": position,
         }
         response = await make_graphql_request(MOVE_DOCKER_ITEMS_TO_POSITION_MUTATION, variables)
-        result = response.get("docker", {}).get("moveItemsToPosition", {})
+        result = response.get("moveDockerItemsToPosition", {})
         return {
             "success": result.get("success", False),
             "message": f"Moved {len(item_ids)} items to position {position}",
@@ -175,7 +175,7 @@ def register_docker_organize_tools(mcp: FastMCP) -> None:
 
         variables: dict[str, Any] = {"folderId": folder_id, "name": name}
         response = await make_graphql_request(RENAME_DOCKER_FOLDER_MUTATION, variables)
-        result = response.get("docker", {}).get("renameFolder")
+        result = response.get("renameDockerFolder")
         if not result:
             raise ToolError("Failed to rename Docker folder")
         return {
@@ -200,7 +200,7 @@ def register_docker_organize_tools(mcp: FastMCP) -> None:
 
         variables: dict[str, Any] = {"name": name, "itemIds": item_ids}
         response = await make_graphql_request(CREATE_DOCKER_FOLDER_WITH_ITEMS_MUTATION, variables)
-        result = response.get("docker", {}).get("createFolderWithItems")
+        result = response.get("createDockerFolderWithItems")
         if not result:
             raise ToolError("Failed to create folder with items")
         return {
@@ -221,9 +221,12 @@ def register_docker_organize_tools(mcp: FastMCP) -> None:
         """
         validate_input_dict(input_config)
 
-        variables: dict[str, Any] = {"input": input_config}
+        variables: dict[str, Any] = {
+            "viewId": input_config.get("viewId"),
+            "prefs": input_config.get("prefs", input_config),
+        }
         response = await make_graphql_request(UPDATE_DOCKER_VIEW_PREFERENCES_MUTATION, variables)
-        result = response.get("docker", {}).get("updateViewPreferences", {})
+        result = response.get("updateDockerViewPreferences", {})
         return {
             "success": result.get("success", False),
             "message": "Docker view preferences updated",
@@ -234,7 +237,7 @@ def register_docker_organize_tools(mcp: FastMCP) -> None:
     async def sync_docker_template_paths() -> dict[str, Any]:
         """Synchronizes Docker template paths with the file system."""
         response = await make_graphql_request(SYNC_DOCKER_TEMPLATE_PATHS_MUTATION)
-        result = response.get("docker", {}).get("syncTemplatePaths", {})
+        result = response.get("syncDockerTemplatePaths", {})
         return {
             "success": result.get("success", False),
             "message": "Docker template paths synchronized",
@@ -253,7 +256,7 @@ def register_docker_organize_tools(mcp: FastMCP) -> None:
         require_confirm(confirm, "reset Docker template mappings")
 
         response = await make_graphql_request(RESET_DOCKER_TEMPLATE_MAPPINGS_MUTATION)
-        result = response.get("docker", {}).get("resetTemplateMappings", {})
+        result = response.get("resetDockerTemplateMappings", {})
         return {
             "success": result.get("success", False),
             "message": "Docker template mappings reset to defaults",
@@ -264,7 +267,7 @@ def register_docker_organize_tools(mcp: FastMCP) -> None:
     async def refresh_docker_digests() -> dict[str, Any]:
         """Refreshes Docker image digests to check for available updates."""
         response = await make_graphql_request(REFRESH_DOCKER_DIGESTS_MUTATION)
-        result = response.get("docker", {}).get("refreshDigests", {})
+        result = response.get("refreshDockerDigests", {})
         return {
             "success": result.get("success", False),
             "message": "Docker digests refreshed",

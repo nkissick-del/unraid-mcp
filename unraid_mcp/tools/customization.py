@@ -71,9 +71,9 @@ def register_customization_tools(mcp: FastMCP) -> None:
         """
         validate_input_dict(input_config)
 
-        variables: dict[str, Any] = {"input": input_config}
+        variables: dict[str, Any] = {"theme": input_config.get("theme", input_config.get("name"))}
         response = await make_graphql_request(SET_THEME_MUTATION, variables)
-        result = response.get("setTheme")
+        result = (response.get("customization") or {}).get("setTheme")
         if result is None:
             raise ToolError("Failed to set theme")
         return {
@@ -96,7 +96,7 @@ def register_customization_tools(mcp: FastMCP) -> None:
 
         variables: dict[str, Any] = {"locale": locale}
         response = await make_graphql_request(SET_LOCALE_MUTATION, variables)
-        result = response.get("setLocale")
+        result = (response.get("customization") or {}).get("setLocale")
         if result is None:
             raise ToolError("Failed to set locale")
         return {

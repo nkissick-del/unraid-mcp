@@ -39,7 +39,7 @@ GET_CLOUD_INFO_QUERY = """
 """
 
 UPDATE_API_SETTINGS_MUTATION = """
-    mutation UpdateApiSettings($input: ApiSettingsInput!) {
+    mutation UpdateApiSettings($input: ConnectSettingsInput!) {
       updateApiSettings(input: $input) {
         success
       }

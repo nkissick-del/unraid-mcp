@@ -13,9 +13,9 @@ class TestParityMutationStrings:
         for action in PARITY_CHECK_ACTIONS:
             assert action in PARITY_CHECK_MUTATIONS
 
-    def test_start_mutation_has_correcting_variable(self):
-        assert "$correcting" in PARITY_CHECK_MUTATIONS["START"]
-        assert "Boolean" in PARITY_CHECK_MUTATIONS["START"]
+    def test_start_mutation_has_correct_variable(self):
+        assert "$correct" in PARITY_CHECK_MUTATIONS["START"]
+        assert "Boolean!" in PARITY_CHECK_MUTATIONS["START"]
 
     def test_pause_mutation_no_variables(self):
         assert "$" not in PARITY_CHECK_MUTATIONS["PAUSE"]

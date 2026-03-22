@@ -44,7 +44,7 @@ def register_ups_admin_tools(mcp: FastMCP) -> None:
         require_confirm(confirm, "configure UPS settings")
         validate_input_dict(input_config)
 
-        variables: dict[str, Any] = {"input": input_config}
+        variables: dict[str, Any] = {"config": input_config}
         response = await make_graphql_request(CONFIGURE_UPS_MUTATION, variables)
 
         result = response.get("configureUps")

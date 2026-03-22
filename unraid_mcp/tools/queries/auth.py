@@ -14,7 +14,7 @@ LIST_API_KEYS_QUERY = """
 """
 
 GET_API_KEY_QUERY = """
-    query GetApiKey($keyId: String!) {
+    query GetApiKey($keyId: PrefixedID!) {
       apiKey(id: $keyId) {
         id
         name
@@ -50,7 +50,7 @@ GET_API_KEY_POSSIBLE_PERMISSIONS_QUERY = """
 
 GET_PERMISSIONS_FOR_ROLES_QUERY = """
     query GetPermissionsForRoles($roles: [String!]!) {
-      permissionsForRoles(roles: $roles) {
+      getPermissionsForRoles(roles: $roles) {
         id
         name
         description
@@ -60,8 +60,8 @@ GET_PERMISSIONS_FOR_ROLES_QUERY = """
 """
 
 PREVIEW_EFFECTIVE_PERMISSIONS_QUERY = """
-    query PreviewEffectivePermissions($input: EffectivePermissionsInput!) {
-      previewEffectivePermissions(input: $input) {
+    query PreviewEffectivePermissions($roles: [String!]!, $permissions: [String!]!) {
+      previewEffectivePermissions(roles: $roles, permissions: $permissions) {
         id
         name
         description
@@ -72,7 +72,7 @@ PREVIEW_EFFECTIVE_PERMISSIONS_QUERY = """
 
 GET_AVAILABLE_AUTH_ACTIONS_QUERY = """
     query GetAvailableAuthActions {
-      availableAuthActions {
+      getAvailableAuthActions {
         id
         name
         description
@@ -82,7 +82,7 @@ GET_AVAILABLE_AUTH_ACTIONS_QUERY = """
 
 GET_API_KEY_CREATION_FORM_SCHEMA_QUERY = """
     query GetApiKeyCreationFormSchema {
-      apiKeyCreationFormSchema {
+      getApiKeyCreationFormSchema {
         fields
         validation
       }
@@ -91,50 +91,60 @@ GET_API_KEY_CREATION_FORM_SCHEMA_QUERY = """
 
 CREATE_API_KEY_MUTATION = """
     mutation CreateApiKey($input: CreateApiKeyInput!) {
-      createApiKey(input: $input) {
-        id
-        name
-        key
-        roles
+      apiKey {
+        create(input: $input) {
+          id
+          name
+          key
+          roles
+        }
       }
     }
 """
 
 ADD_ROLE_TO_API_KEY_MUTATION = """
-    mutation AddRoleToApiKey($input: AddRoleInput!) {
-      addRoleToApiKey(input: $input) {
-        id
-        name
-        roles
+    mutation AddRoleToApiKey($input: AddRoleForApiKeyInput!) {
+      apiKey {
+        addRole(input: $input) {
+          id
+          name
+          roles
+        }
       }
     }
 """
 
 REMOVE_ROLE_FROM_API_KEY_MUTATION = """
-    mutation RemoveRoleFromApiKey($input: RemoveRoleInput!) {
-      removeRoleFromApiKey(input: $input) {
-        id
-        name
-        roles
+    mutation RemoveRoleFromApiKey($input: RemoveRoleFromApiKeyInput!) {
+      apiKey {
+        removeRole(input: $input) {
+          id
+          name
+          roles
+        }
       }
     }
 """
 
 DELETE_API_KEY_MUTATION = """
-    mutation DeleteApiKey($keyId: String!) {
-      deleteApiKey(id: $keyId) {
-        success
+    mutation DeleteApiKey($input: DeleteApiKeyInput!) {
+      apiKey {
+        delete(input: $input) {
+          success
+        }
       }
     }
 """
 
 UPDATE_API_KEY_MUTATION = """
     mutation UpdateApiKey($input: UpdateApiKeyInput!) {
-      updateApiKey(input: $input) {
-        id
-        name
-        roles
-        description
+      apiKey {
+        update(input: $input) {
+          id
+          name
+          roles
+          description
+        }
       }
     }
 """

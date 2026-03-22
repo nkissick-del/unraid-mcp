@@ -34,14 +34,14 @@ def register_onboarding_tools(mcp: FastMCP) -> None:
     async def is_fresh_install() -> dict[str, Any]:
         """Checks whether this Unraid server is a fresh installation."""
         response = await make_graphql_request(IS_FRESH_INSTALL_QUERY)
-        return {"freshInstall": response.get("freshInstall", False)}
+        return {"freshInstall": response.get("isFreshInstall", False)}
 
     @mcp.tool()
     @tool_error_handler("complete onboarding")
     async def complete_onboarding() -> dict[str, Any]:
         """Marks the onboarding process as complete. Idempotent."""
         response = await make_graphql_request(COMPLETE_ONBOARDING_MUTATION)
-        result = response.get("onboarding", {}).get("complete", {})
+        result = response.get("onboarding", {}).get("completeOnboarding", {})
         return {"success": result.get("success", False), "action": "complete"}
 
     @mcp.tool()
@@ -49,7 +49,7 @@ def register_onboarding_tools(mcp: FastMCP) -> None:
     async def reset_onboarding() -> dict[str, Any]:
         """Resets the onboarding process to start over. Idempotent."""
         response = await make_graphql_request(RESET_ONBOARDING_MUTATION)
-        result = response.get("onboarding", {}).get("reset", {})
+        result = response.get("onboarding", {}).get("resetOnboarding", {})
         return {"success": result.get("success", False), "action": "reset"}
 
     @mcp.tool()
@@ -57,7 +57,7 @@ def register_onboarding_tools(mcp: FastMCP) -> None:
     async def open_onboarding() -> dict[str, Any]:
         """Opens the onboarding wizard. Idempotent."""
         response = await make_graphql_request(OPEN_ONBOARDING_MUTATION)
-        result = response.get("onboarding", {}).get("open", {})
+        result = response.get("onboarding", {}).get("openOnboarding", {})
         return {"success": result.get("success", False), "action": "open"}
 
     @mcp.tool()
@@ -65,7 +65,7 @@ def register_onboarding_tools(mcp: FastMCP) -> None:
     async def close_onboarding() -> dict[str, Any]:
         """Closes the onboarding wizard. Idempotent."""
         response = await make_graphql_request(CLOSE_ONBOARDING_MUTATION)
-        result = response.get("onboarding", {}).get("close", {})
+        result = response.get("onboarding", {}).get("closeOnboarding", {})
         return {"success": result.get("success", False), "action": "close"}
 
     @mcp.tool()
@@ -73,7 +73,7 @@ def register_onboarding_tools(mcp: FastMCP) -> None:
     async def bypass_onboarding() -> dict[str, Any]:
         """Bypasses the onboarding process entirely. Idempotent."""
         response = await make_graphql_request(BYPASS_ONBOARDING_MUTATION)
-        result = response.get("onboarding", {}).get("bypass", {})
+        result = response.get("onboarding", {}).get("bypassOnboarding", {})
         return {"success": result.get("success", False), "action": "bypass"}
 
     @mcp.tool()
@@ -81,7 +81,7 @@ def register_onboarding_tools(mcp: FastMCP) -> None:
     async def resume_onboarding() -> dict[str, Any]:
         """Resumes a previously paused onboarding process. Idempotent."""
         response = await make_graphql_request(RESUME_ONBOARDING_MUTATION)
-        result = response.get("onboarding", {}).get("resume", {})
+        result = response.get("onboarding", {}).get("resumeOnboarding", {})
         return {"success": result.get("success", False), "action": "resume"}
 
     @mcp.tool()
@@ -96,7 +96,7 @@ def register_onboarding_tools(mcp: FastMCP) -> None:
 
         variables: dict[str, Any] = {"input": input_config}
         response = await make_graphql_request(SET_ONBOARDING_OVERRIDE_MUTATION, variables)
-        result = response.get("onboarding", {}).get("setOverride", {})
+        result = response.get("onboarding", {}).get("setOnboardingOverride", {})
         return {"success": result.get("success", False), "action": "setOverride"}
 
     @mcp.tool()
@@ -104,7 +104,7 @@ def register_onboarding_tools(mcp: FastMCP) -> None:
     async def clear_onboarding_override() -> dict[str, Any]:
         """Clears any onboarding override configuration. Idempotent."""
         response = await make_graphql_request(CLEAR_ONBOARDING_OVERRIDE_MUTATION)
-        result = response.get("onboarding", {}).get("clearOverride", {})
+        result = response.get("onboarding", {}).get("clearOnboardingOverride", {})
         return {"success": result.get("success", False), "action": "clearOverride"}
 
     @mcp.tool()

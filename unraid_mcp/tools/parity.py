@@ -61,7 +61,7 @@ def register_parity_tools(mcp: FastMCP) -> None:
 
         mutation = PARITY_CHECK_MUTATIONS[validated_action]
         variables: dict[str, Any] | None = (
-            {"correcting": correcting} if validated_action == "START" else None
+            {"correct": correcting} if validated_action == "START" else None
         )
 
         response = await make_graphql_request(mutation, variables)

@@ -2,115 +2,93 @@
 
 CREATE_DOCKER_FOLDER_MUTATION = """
     mutation CreateDockerFolder($name: String!, $icon: String) {
-      docker {
-        createFolder(name: $name, icon: $icon) {
-          id
-          name
-          icon
-        }
+      createDockerFolder(name: $name, icon: $icon) {
+        id
+        name
+        icon
       }
     }
 """
 
 SET_DOCKER_FOLDER_CHILDREN_MUTATION = """
-    mutation SetDockerFolderChildren($folderId: String!, $children: [String!]!) {
-      docker {
-        setFolderChildren(folderId: $folderId, children: $children) {
-          id
-          name
-        }
+    mutation SetDockerFolderChildren($folderId: String, $children: [String!]!) {
+      setDockerFolderChildren(folderId: $folderId, childrenIds: $children) {
+        id
+        name
       }
     }
 """
 
 DELETE_DOCKER_ENTRIES_MUTATION = """
     mutation DeleteDockerEntries($ids: [String!]!) {
-      docker {
-        deleteEntries(ids: $ids) {
-          success
-        }
+      deleteDockerEntries(entryIds: $ids) {
+        success
       }
     }
 """
 
 MOVE_DOCKER_ENTRIES_TO_FOLDER_MUTATION = """
     mutation MoveDockerEntriesToFolder($folderId: String!, $entryIds: [String!]!) {
-      docker {
-        moveEntriesToFolder(folderId: $folderId, entryIds: $entryIds) {
-          success
-        }
+      moveDockerEntriesToFolder(sourceEntryIds: $entryIds, destinationFolderId: $folderId) {
+        success
       }
     }
 """
 
 MOVE_DOCKER_ITEMS_TO_POSITION_MUTATION = """
-    mutation MoveDockerItemsToPosition($itemIds: [String!]!, $position: Int!) {
-      docker {
-        moveItemsToPosition(itemIds: $itemIds, position: $position) {
-          success
-        }
+    mutation MoveDockerItemsToPosition($itemIds: [String!]!, $position: Float!) {
+      moveDockerItemsToPosition(sourceEntryIds: $itemIds, destinationFolderId: "", position: $position) {
+        success
       }
     }
 """
 
 RENAME_DOCKER_FOLDER_MUTATION = """
     mutation RenameDockerFolder($folderId: String!, $name: String!) {
-      docker {
-        renameFolder(folderId: $folderId, name: $name) {
-          id
-          name
-        }
+      renameDockerFolder(folderId: $folderId, newName: $name) {
+        id
+        name
       }
     }
 """
 
 CREATE_DOCKER_FOLDER_WITH_ITEMS_MUTATION = """
     mutation CreateDockerFolderWithItems($name: String!, $itemIds: [String!]!) {
-      docker {
-        createFolderWithItems(name: $name, itemIds: $itemIds) {
-          id
-          name
-        }
+      createDockerFolderWithItems(name: $name, sourceEntryIds: $itemIds) {
+        id
+        name
       }
     }
 """
 
 UPDATE_DOCKER_VIEW_PREFERENCES_MUTATION = """
-    mutation UpdateDockerViewPreferences($input: DockerViewPreferencesInput!) {
-      docker {
-        updateViewPreferences(input: $input) {
-          success
-        }
+    mutation UpdateDockerViewPreferences($viewId: String, $prefs: JSON!) {
+      updateDockerViewPreferences(viewId: $viewId, prefs: $prefs) {
+        success
       }
     }
 """
 
 SYNC_DOCKER_TEMPLATE_PATHS_MUTATION = """
     mutation SyncDockerTemplatePaths {
-      docker {
-        syncTemplatePaths {
-          success
-        }
+      syncDockerTemplatePaths {
+        success
       }
     }
 """
 
 RESET_DOCKER_TEMPLATE_MAPPINGS_MUTATION = """
     mutation ResetDockerTemplateMappings {
-      docker {
-        resetTemplateMappings {
-          success
-        }
+      resetDockerTemplateMappings {
+        success
       }
     }
 """
 
 REFRESH_DOCKER_DIGESTS_MUTATION = """
     mutation RefreshDockerDigests {
-      docker {
-        refreshDigests {
-          success
-        }
+      refreshDockerDigests {
+        success
       }
     }
 """

@@ -1,8 +1,8 @@
 """GraphQL mutations for server administration."""
 
 UPDATE_SERVER_IDENTITY_MUTATION = """
-    mutation UpdateServerIdentity($input: ServerIdentityInput!) {
-      updateServerIdentity(input: $input) {
+    mutation UpdateServerIdentity($name: String!, $comment: String, $sysModel: String) {
+      updateServerIdentity(name: $name, comment: $comment, sysModel: $sysModel) {
         name
         comment
         model
@@ -12,7 +12,7 @@ UPDATE_SERVER_IDENTITY_MUTATION = """
 """
 
 UPDATE_SSH_SETTINGS_MUTATION = """
-    mutation UpdateSshSettings($input: SshSettingsInput!) {
+    mutation UpdateSshSettings($input: UpdateSshInput!) {
       updateSshSettings(input: $input) {
         enabled
         port
@@ -22,7 +22,7 @@ UPDATE_SSH_SETTINGS_MUTATION = """
 """
 
 UPDATE_SETTINGS_MUTATION = """
-    mutation UpdateSettings($input: SettingsInput!) {
+    mutation UpdateSettings($input: JSON!) {
       updateSettings(input: $input) {
         success
       }
@@ -40,7 +40,7 @@ UPDATE_TEMPERATURE_CONFIG_MUTATION = """
 """
 
 UPDATE_SYSTEM_TIME_MUTATION = """
-    mutation UpdateSystemTime($input: SystemTimeInput!) {
+    mutation UpdateSystemTime($input: UpdateSystemTimeInput!) {
       updateSystemTime(input: $input) {
         timezone
         ntpEnabled
@@ -50,8 +50,8 @@ UPDATE_SYSTEM_TIME_MUTATION = """
 """
 
 INITIATE_FLASH_BACKUP_MUTATION = """
-    mutation InitiateFlashBackup {
-      initiateFlashBackup {
+    mutation InitiateFlashBackup($input: InitiateFlashBackupInput!) {
+      initiateFlashBackup(input: $input) {
         success
       }
     }

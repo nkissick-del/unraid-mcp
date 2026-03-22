@@ -2,14 +2,14 @@
 
 IS_FRESH_INSTALL_QUERY = """
     query IsFreshInstall {
-      freshInstall
+      isFreshInstall
     }
 """
 
 COMPLETE_ONBOARDING_MUTATION = """
     mutation CompleteOnboarding {
       onboarding {
-        complete {
+        completeOnboarding {
           success
         }
       }
@@ -19,7 +19,7 @@ COMPLETE_ONBOARDING_MUTATION = """
 RESET_ONBOARDING_MUTATION = """
     mutation ResetOnboarding {
       onboarding {
-        reset {
+        resetOnboarding {
           success
         }
       }
@@ -29,7 +29,7 @@ RESET_ONBOARDING_MUTATION = """
 OPEN_ONBOARDING_MUTATION = """
     mutation OpenOnboarding {
       onboarding {
-        open {
+        openOnboarding {
           success
         }
       }
@@ -39,7 +39,7 @@ OPEN_ONBOARDING_MUTATION = """
 CLOSE_ONBOARDING_MUTATION = """
     mutation CloseOnboarding {
       onboarding {
-        close {
+        closeOnboarding {
           success
         }
       }
@@ -49,7 +49,7 @@ CLOSE_ONBOARDING_MUTATION = """
 BYPASS_ONBOARDING_MUTATION = """
     mutation BypassOnboarding {
       onboarding {
-        bypass {
+        bypassOnboarding {
           success
         }
       }
@@ -59,7 +59,7 @@ BYPASS_ONBOARDING_MUTATION = """
 RESUME_ONBOARDING_MUTATION = """
     mutation ResumeOnboarding {
       onboarding {
-        resume {
+        resumeOnboarding {
           success
         }
       }
@@ -69,7 +69,7 @@ RESUME_ONBOARDING_MUTATION = """
 SET_ONBOARDING_OVERRIDE_MUTATION = """
     mutation SetOnboardingOverride($input: OnboardingOverrideInput!) {
       onboarding {
-        setOverride(input: $input) {
+        setOnboardingOverride(input: $input) {
           success
         }
       }
@@ -79,7 +79,7 @@ SET_ONBOARDING_OVERRIDE_MUTATION = """
 CLEAR_ONBOARDING_OVERRIDE_MUTATION = """
     mutation ClearOnboardingOverride {
       onboarding {
-        clearOverride {
+        clearOnboardingOverride {
           success
         }
       }
@@ -87,9 +87,9 @@ CLEAR_ONBOARDING_OVERRIDE_MUTATION = """
 """
 
 CREATE_INTERNAL_BOOT_POOL_MUTATION = """
-    mutation CreateInternalBootPool {
+    mutation CreateInternalBootPool($input: CreateInternalBootPoolInput!) {
       onboarding {
-        createInternalBootPool {
+        createInternalBootPool(input: $input) {
           success
         }
       }

@@ -32,16 +32,16 @@ class TestAuthQueries:
             (GET_API_KEY_POSSIBLE_PERMISSIONS_QUERY, ["query", "apiKeyPossiblePermissions"]),
             (
                 GET_PERMISSIONS_FOR_ROLES_QUERY,
-                ["query", "$roles", "permissionsForRoles"],
+                ["query", "$roles", "getPermissionsForRoles"],
             ),
             (
                 PREVIEW_EFFECTIVE_PERMISSIONS_QUERY,
-                ["query", "$input", "previewEffectivePermissions"],
+                ["query", "$roles", "$permissions", "previewEffectivePermissions"],
             ),
-            (GET_AVAILABLE_AUTH_ACTIONS_QUERY, ["query", "availableAuthActions"]),
+            (GET_AVAILABLE_AUTH_ACTIONS_QUERY, ["query", "getAvailableAuthActions"]),
             (
                 GET_API_KEY_CREATION_FORM_SCHEMA_QUERY,
-                ["query", "apiKeyCreationFormSchema"],
+                ["query", "getApiKeyCreationFormSchema"],
             ),
         ],
     )
@@ -54,14 +54,14 @@ class TestAuthMutations:
     @pytest.mark.parametrize(
         "mutation,keywords",
         [
-            (CREATE_API_KEY_MUTATION, ["mutation", "$input", "createApiKey", "key"]),
-            (ADD_ROLE_TO_API_KEY_MUTATION, ["mutation", "$input", "addRoleToApiKey"]),
+            (CREATE_API_KEY_MUTATION, ["mutation", "$input", "apiKey", "create", "key"]),
+            (ADD_ROLE_TO_API_KEY_MUTATION, ["mutation", "$input", "apiKey", "addRole", "AddRoleForApiKeyInput"]),
             (
                 REMOVE_ROLE_FROM_API_KEY_MUTATION,
-                ["mutation", "$input", "removeRoleFromApiKey"],
+                ["mutation", "$input", "apiKey", "removeRole", "RemoveRoleFromApiKeyInput"],
             ),
-            (DELETE_API_KEY_MUTATION, ["mutation", "$keyId", "deleteApiKey"]),
-            (UPDATE_API_KEY_MUTATION, ["mutation", "$input", "updateApiKey"]),
+            (DELETE_API_KEY_MUTATION, ["mutation", "$input", "apiKey", "delete", "DeleteApiKeyInput"]),
+            (UPDATE_API_KEY_MUTATION, ["mutation", "$input", "apiKey", "update"]),
         ],
     )
     def test_mutation_structure(self, mutation, keywords):

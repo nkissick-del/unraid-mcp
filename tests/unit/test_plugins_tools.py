@@ -43,18 +43,21 @@ class TestPluginQueries:
 class TestPluginMutations:
     def test_add_plugin_mutation(self):
         assert "mutation" in ADD_PLUGIN_MUTATION
-        assert "$url" in ADD_PLUGIN_MUTATION
+        assert "$input" in ADD_PLUGIN_MUTATION
+        assert "PluginManagementInput" in ADD_PLUGIN_MUTATION
         assert "addPlugin" in ADD_PLUGIN_MUTATION
 
     def test_remove_plugin_mutation(self):
         assert "mutation" in REMOVE_PLUGIN_MUTATION
-        assert "$name" in REMOVE_PLUGIN_MUTATION
+        assert "$input" in REMOVE_PLUGIN_MUTATION
+        assert "PluginManagementInput" in REMOVE_PLUGIN_MUTATION
         assert "removePlugin" in REMOVE_PLUGIN_MUTATION
 
     def test_install_plugin_mutation(self):
         assert "mutation" in INSTALL_PLUGIN_MUTATION
-        assert "$url" in INSTALL_PLUGIN_MUTATION
-        assert "installPlugin" in INSTALL_PLUGIN_MUTATION
+        assert "$input" in INSTALL_PLUGIN_MUTATION
+        assert "PluginManagementInput" in INSTALL_PLUGIN_MUTATION
+        assert "addPlugin" in INSTALL_PLUGIN_MUTATION
 
 
 class TestAddPluginConfirmGate:

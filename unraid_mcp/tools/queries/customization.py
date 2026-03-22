@@ -62,18 +62,22 @@ PUBLIC_THEME_QUERY = """
 """
 
 SET_THEME_MUTATION = """
-    mutation SetTheme($input: ThemeInput!) {
-      setTheme(input: $input) {
-        theme
-        banner
+    mutation SetTheme($theme: ThemeName!) {
+      customization {
+        setTheme(theme: $theme) {
+          theme
+          banner
+        }
       }
     }
 """
 
 SET_LOCALE_MUTATION = """
     mutation SetLocale($locale: String!) {
-      setLocale(locale: $locale) {
-        locale
+      customization {
+        setLocale(locale: $locale) {
+          locale
+        }
       }
     }
 """

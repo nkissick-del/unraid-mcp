@@ -19,7 +19,7 @@ NOTIFICATION_OVERVIEW_FIELDS = """
 """
 
 ARCHIVE_NOTIFICATION_MUTATION = """
-    mutation ArchiveNotification($id: String!) {
+    mutation ArchiveNotification($id: PrefixedID!) {
       archiveNotification(id: $id) {
         id
         importance
@@ -31,7 +31,7 @@ ARCHIVE_NOTIFICATION_MUTATION = """
 """
 
 ARCHIVE_ALL_NOTIFICATIONS_MUTATION = f"""
-    mutation ArchiveAllNotifications($importance: Importance) {{
+    mutation ArchiveAllNotifications($importance: NotificationImportance) {{
       archiveAll(importance: $importance) {{
         {NOTIFICATION_OVERVIEW_FIELDS}
       }}
@@ -39,7 +39,7 @@ ARCHIVE_ALL_NOTIFICATIONS_MUTATION = f"""
 """
 
 DELETE_NOTIFICATION_MUTATION = f"""
-    mutation DeleteNotification($id: String!, $type: NotificationType!) {{
+    mutation DeleteNotification($id: PrefixedID!, $type: NotificationType!) {{
       deleteNotification(id: $id, type: $type) {{
         {NOTIFICATION_OVERVIEW_FIELDS}
       }}

@@ -19,14 +19,14 @@ from unraid_mcp.tools.queries.notifications_extra import (
 class TestNotificationsExtraMutationStrings:
     def test_create_notification_has_input_variable(self):
         assert "$input" in CREATE_NOTIFICATION_MUTATION
-        assert "CreateNotificationInput" in CREATE_NOTIFICATION_MUTATION
+        assert "NotificationData" in CREATE_NOTIFICATION_MUTATION
 
     def test_archive_batch_has_ids_variable(self):
         assert "$ids" in ARCHIVE_NOTIFICATIONS_BATCH_MUTATION
 
     def test_notify_if_unique_has_input_variable(self):
         assert "$input" in NOTIFY_IF_UNIQUE_MUTATION
-        assert "CreateNotificationInput" in NOTIFY_IF_UNIQUE_MUTATION
+        assert "NotificationData" in NOTIFY_IF_UNIQUE_MUTATION
 
     def test_unread_notification_has_id_variable(self):
         assert "$id" in UNREAD_NOTIFICATION_MUTATION

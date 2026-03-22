@@ -18,7 +18,9 @@ from unraid_mcp.tools.server_admin import register_server_admin_tools
 class TestServerAdminMutations:
     def test_update_server_identity_mutation(self):
         assert "mutation" in UPDATE_SERVER_IDENTITY_MUTATION
-        assert "$input" in UPDATE_SERVER_IDENTITY_MUTATION
+        assert "$name" in UPDATE_SERVER_IDENTITY_MUTATION
+        assert "$comment" in UPDATE_SERVER_IDENTITY_MUTATION
+        assert "$sysModel" in UPDATE_SERVER_IDENTITY_MUTATION
         assert "updateServerIdentity" in UPDATE_SERVER_IDENTITY_MUTATION
 
     def test_update_ssh_settings_mutation(self):

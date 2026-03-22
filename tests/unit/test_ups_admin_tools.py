@@ -4,9 +4,9 @@ from unraid_mcp.tools.queries.ups_admin import CONFIGURE_UPS_MUTATION
 
 
 class TestUpsAdminMutationStrings:
-    def test_configure_ups_has_input_variable(self):
-        assert "$input" in CONFIGURE_UPS_MUTATION
-        assert "UpsConfigurationInput" in CONFIGURE_UPS_MUTATION
+    def test_configure_ups_has_config_variable(self):
+        assert "$config" in CONFIGURE_UPS_MUTATION
+        assert "UPSConfigInput" in CONFIGURE_UPS_MUTATION
 
     def test_configure_ups_is_valid_graphql(self):
         assert "mutation" in CONFIGURE_UPS_MUTATION

@@ -40,7 +40,11 @@ def register_server_admin_tools(mcp: FastMCP) -> None:
         require_confirm(confirm, "update server identity")
         validate_input_dict(input_config)
 
-        variables: dict[str, Any] = {"input": input_config}
+        variables: dict[str, Any] = {
+            "name": input_config.get("name", ""),
+            "comment": input_config.get("comment"),
+            "sysModel": input_config.get("sysModel"),
+        }
         response = await make_graphql_request(UPDATE_SERVER_IDENTITY_MUTATION, variables)
         result = response.get("updateServerIdentity")
         if not result:
@@ -162,7 +166,8 @@ def register_server_admin_tools(mcp: FastMCP) -> None:
         """
         require_confirm(confirm, "initiate a flash backup")
 
-        response = await make_graphql_request(INITIATE_FLASH_BACKUP_MUTATION)
+        variables: dict[str, Any] = {"input": {}}
+        response = await make_graphql_request(INITIATE_FLASH_BACKUP_MUTATION, variables)
         result = response.get("initiateFlashBackup")
         if not result:
             raise ToolError("Failed to initiate flash backup")

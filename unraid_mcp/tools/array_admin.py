@@ -63,7 +63,7 @@ def register_array_admin_tools(mcp: FastMCP) -> None:
 
         variables: dict[str, Any] = {"input": input_config}
         response = await make_graphql_request(ADD_DISK_TO_ARRAY_MUTATION, variables)
-        result = response.get("addDiskToArray", {})
+        result = (response.get("array") or {}).get("addDiskToArray", {})
         success = result.get("success", False)
         return {
             "success": success,
@@ -94,7 +94,7 @@ def register_array_admin_tools(mcp: FastMCP) -> None:
 
         variables: dict[str, Any] = {"input": input_config}
         response = await make_graphql_request(REMOVE_DISK_FROM_ARRAY_MUTATION, variables)
-        result = response.get("removeDiskFromArray", {})
+        result = (response.get("array") or {}).get("removeDiskFromArray", {})
         success = result.get("success", False)
         return {
             "success": success,
@@ -117,9 +117,9 @@ def register_array_admin_tools(mcp: FastMCP) -> None:
         require_confirm(confirm, "mount an array disk")
         validate_input_dict(input_config)
 
-        variables: dict[str, Any] = {"input": input_config}
+        variables: dict[str, Any] = {"id": input_config.get("id", input_config.get("diskId"))}
         response = await make_graphql_request(MOUNT_ARRAY_DISK_MUTATION, variables)
-        result = response.get("mountArrayDisk", {})
+        result = (response.get("array") or {}).get("mountArrayDisk", {})
         success = result.get("success", False)
         return {
             "success": success,
@@ -140,9 +140,9 @@ def register_array_admin_tools(mcp: FastMCP) -> None:
         require_confirm(confirm, "unmount an array disk")
         validate_input_dict(input_config)
 
-        variables: dict[str, Any] = {"input": input_config}
+        variables: dict[str, Any] = {"id": input_config.get("id", input_config.get("diskId"))}
         response = await make_graphql_request(UNMOUNT_ARRAY_DISK_MUTATION, variables)
-        result = response.get("unmountArrayDisk", {})
+        result = (response.get("array") or {}).get("unmountArrayDisk", {})
         success = result.get("success", False)
         return {
             "success": success,
@@ -163,9 +163,9 @@ def register_array_admin_tools(mcp: FastMCP) -> None:
         require_confirm(confirm, "clear array disk statistics")
         validate_input_dict(input_config)
 
-        variables: dict[str, Any] = {"input": input_config}
+        variables: dict[str, Any] = {"id": input_config.get("id", input_config.get("diskId"))}
         response = await make_graphql_request(CLEAR_ARRAY_DISK_STATISTICS_MUTATION, variables)
-        result = response.get("clearArrayDiskStatistics", {})
+        result = (response.get("array") or {}).get("clearArrayDiskStatistics", {})
         success = result.get("success", False)
         return {
             "success": success,

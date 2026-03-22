@@ -84,7 +84,7 @@ DOCKER_UPDATE_CONTAINER_MUTATION = """
 """
 
 DOCKER_LOGS_QUERY = """
-    query DockerContainerLogs($id: PrefixedID!, $since: String, $tail: Int) {
+    query DockerContainerLogs($id: PrefixedID!, $since: DateTime, $tail: Int) {
       docker {
         logs(id: $id, since: $since, tail: $tail) {
           containerId

@@ -15,7 +15,7 @@ NOTIFICATION_DETAIL_FIELDS = """
 """
 
 CREATE_NOTIFICATION_MUTATION = f"""
-    mutation CreateNotification($input: CreateNotificationInput!) {{
+    mutation CreateNotification($input: NotificationData!) {{
       createNotification(input: $input) {{
         {NOTIFICATION_DETAIL_FIELDS}
       }}
@@ -31,7 +31,7 @@ ARCHIVE_NOTIFICATIONS_BATCH_MUTATION = f"""
 """
 
 NOTIFY_IF_UNIQUE_MUTATION = f"""
-    mutation NotifyIfUnique($input: CreateNotificationInput!) {{
+    mutation NotifyIfUnique($input: NotificationData!) {{
       notifyIfUnique(input: $input) {{
         {NOTIFICATION_DETAIL_FIELDS}
       }}
@@ -39,7 +39,7 @@ NOTIFY_IF_UNIQUE_MUTATION = f"""
 """
 
 UNREAD_NOTIFICATION_MUTATION = f"""
-    mutation UnreadNotification($id: String!) {{
+    mutation UnreadNotification($id: PrefixedID!) {{
       unreadNotification(id: $id) {{
         {NOTIFICATION_DETAIL_FIELDS}
       }}

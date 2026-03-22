@@ -11,9 +11,9 @@ PARITY_CHECK_RETURN_FIELDS = """
 
 PARITY_CHECK_MUTATIONS: dict[str, str] = {
     "START": f"""
-        mutation StartParityCheck($correcting: Boolean) {{
+        mutation StartParityCheck($correct: Boolean!) {{
           parityCheck {{
-            start(correcting: $correcting) {{
+            start(correct: $correct) {{
               {PARITY_CHECK_RETURN_FIELDS}
             }}
           }}

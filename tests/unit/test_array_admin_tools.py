@@ -31,26 +31,34 @@ class TestArrayAdminMutations:
     def test_add_disk_mutation(self):
         assert "mutation" in ADD_DISK_TO_ARRAY_MUTATION
         assert "$input" in ADD_DISK_TO_ARRAY_MUTATION
+        assert "array" in ADD_DISK_TO_ARRAY_MUTATION
         assert "addDiskToArray" in ADD_DISK_TO_ARRAY_MUTATION
 
     def test_remove_disk_mutation(self):
         assert "mutation" in REMOVE_DISK_FROM_ARRAY_MUTATION
         assert "$input" in REMOVE_DISK_FROM_ARRAY_MUTATION
+        assert "array" in REMOVE_DISK_FROM_ARRAY_MUTATION
         assert "removeDiskFromArray" in REMOVE_DISK_FROM_ARRAY_MUTATION
 
     def test_mount_disk_mutation(self):
         assert "mutation" in MOUNT_ARRAY_DISK_MUTATION
-        assert "$input" in MOUNT_ARRAY_DISK_MUTATION
+        assert "$id" in MOUNT_ARRAY_DISK_MUTATION
+        assert "PrefixedID" in MOUNT_ARRAY_DISK_MUTATION
+        assert "array" in MOUNT_ARRAY_DISK_MUTATION
         assert "mountArrayDisk" in MOUNT_ARRAY_DISK_MUTATION
 
     def test_unmount_disk_mutation(self):
         assert "mutation" in UNMOUNT_ARRAY_DISK_MUTATION
-        assert "$input" in UNMOUNT_ARRAY_DISK_MUTATION
+        assert "$id" in UNMOUNT_ARRAY_DISK_MUTATION
+        assert "PrefixedID" in UNMOUNT_ARRAY_DISK_MUTATION
+        assert "array" in UNMOUNT_ARRAY_DISK_MUTATION
         assert "unmountArrayDisk" in UNMOUNT_ARRAY_DISK_MUTATION
 
     def test_clear_statistics_mutation(self):
         assert "mutation" in CLEAR_ARRAY_DISK_STATISTICS_MUTATION
-        assert "$input" in CLEAR_ARRAY_DISK_STATISTICS_MUTATION
+        assert "$id" in CLEAR_ARRAY_DISK_STATISTICS_MUTATION
+        assert "PrefixedID" in CLEAR_ARRAY_DISK_STATISTICS_MUTATION
+        assert "array" in CLEAR_ARRAY_DISK_STATISTICS_MUTATION
         assert "clearArrayDiskStatistics" in CLEAR_ARRAY_DISK_STATISTICS_MUTATION
 
 

@@ -87,7 +87,7 @@ def register_auth_tools(mcp: FastMCP) -> None:
 
         variables: dict[str, Any] = {"roles": roles}
         response = await make_graphql_request(GET_PERMISSIONS_FOR_ROLES_QUERY, variables)
-        permissions = ensure_list(response.get("permissionsForRoles", []))
+        permissions = ensure_list(response.get("getPermissionsForRoles", []))
         return {"count": len(permissions), "permissions": permissions}
 
     @mcp.tool()
@@ -102,7 +102,10 @@ def register_auth_tools(mcp: FastMCP) -> None:
         """
         validate_input_dict(input_config)
 
-        variables: dict[str, Any] = {"input": input_config}
+        variables: dict[str, Any] = {
+            "roles": input_config.get("roles", []),
+            "permissions": input_config.get("permissions", []),
+        }
         response = await make_graphql_request(PREVIEW_EFFECTIVE_PERMISSIONS_QUERY, variables)
         permissions = ensure_list(response.get("previewEffectivePermissions", []))
         return {"count": len(permissions), "permissions": permissions}
@@ -112,7 +115,7 @@ def register_auth_tools(mcp: FastMCP) -> None:
     async def get_available_auth_actions() -> dict[str, Any]:
         """Lists all available authentication actions."""
         response = await make_graphql_request(GET_AVAILABLE_AUTH_ACTIONS_QUERY)
-        actions = ensure_list(response.get("availableAuthActions", []))
+        actions = ensure_list(response.get("getAvailableAuthActions", []))
         return {"count": len(actions), "actions": actions}
 
     @mcp.tool()
@@ -120,7 +123,7 @@ def register_auth_tools(mcp: FastMCP) -> None:
     async def get_api_key_creation_form_schema() -> dict[str, Any]:
         """Gets the form schema for creating a new API key."""
         response = await make_graphql_request(GET_API_KEY_CREATION_FORM_SCHEMA_QUERY)
-        return ensure_dict(response.get("apiKeyCreationFormSchema", {}))
+        return ensure_dict(response.get("getApiKeyCreationFormSchema", {}))
 
     @mcp.tool()
     @tool_error_handler("create API key")
@@ -139,7 +142,7 @@ def register_auth_tools(mcp: FastMCP) -> None:
 
         variables: dict[str, Any] = {"input": input_config}
         response = await make_graphql_request(CREATE_API_KEY_MUTATION, variables)
-        result = response.get("createApiKey")
+        result = (response.get("apiKey") or {}).get("create")
         if not result:
             raise ToolError("Failed to create API key")
         # Log only redacted key info
@@ -170,7 +173,7 @@ def register_auth_tools(mcp: FastMCP) -> None:
 
         variables: dict[str, Any] = {"input": input_config}
         response = await make_graphql_request(ADD_ROLE_TO_API_KEY_MUTATION, variables)
-        result = response.get("addRoleToApiKey")
+        result = (response.get("apiKey") or {}).get("addRole")
         if not result:
             raise ToolError("Failed to add role to API key")
         return {
@@ -195,7 +198,7 @@ def register_auth_tools(mcp: FastMCP) -> None:
 
         variables: dict[str, Any] = {"input": input_config}
         response = await make_graphql_request(REMOVE_ROLE_FROM_API_KEY_MUTATION, variables)
-        result = response.get("removeRoleFromApiKey")
+        result = (response.get("apiKey") or {}).get("removeRole")
         if not result:
             raise ToolError("Failed to remove role from API key")
         return {
@@ -218,9 +221,9 @@ def register_auth_tools(mcp: FastMCP) -> None:
         if not key_id or not isinstance(key_id, str):
             raise ToolError("key_id must be a non-empty string")
 
-        variables: dict[str, Any] = {"keyId": key_id}
+        variables: dict[str, Any] = {"input": {"id": key_id}}
         response = await make_graphql_request(DELETE_API_KEY_MUTATION, variables)
-        result = response.get("deleteApiKey", {})
+        result = (response.get("apiKey") or {}).get("delete", {})
         success = result.get("success", False)
         if not success:
             raise ToolError(f"Failed to delete API key {key_id}")
@@ -243,7 +246,7 @@ def register_auth_tools(mcp: FastMCP) -> None:
 
         variables: dict[str, Any] = {"input": input_config}
         response = await make_graphql_request(UPDATE_API_KEY_MUTATION, variables)
-        result = response.get("updateApiKey")
+        result = (response.get("apiKey") or {}).get("update")
         if not result:
             raise ToolError("Failed to update API key")
         return {

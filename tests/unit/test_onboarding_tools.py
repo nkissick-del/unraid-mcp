@@ -23,7 +23,7 @@ from unraid_mcp.tools.queries.onboarding import (
 class TestOnboardingQueries:
     def test_is_fresh_install_query(self):
         assert "query" in IS_FRESH_INSTALL_QUERY
-        assert "freshInstall" in IS_FRESH_INSTALL_QUERY
+        assert "isFreshInstall" in IS_FRESH_INSTALL_QUERY
 
 
 class TestOnboardingMutations:
@@ -46,11 +46,11 @@ class TestOnboardingMutations:
     def test_set_override_mutation_is_valid(self):
         assert "mutation" in SET_ONBOARDING_OVERRIDE_MUTATION
         assert "$input" in SET_ONBOARDING_OVERRIDE_MUTATION
-        assert "setOverride" in SET_ONBOARDING_OVERRIDE_MUTATION
+        assert "setOnboardingOverride" in SET_ONBOARDING_OVERRIDE_MUTATION
 
     def test_clear_override_mutation_is_valid(self):
         assert "mutation" in CLEAR_ONBOARDING_OVERRIDE_MUTATION
-        assert "clearOverride" in CLEAR_ONBOARDING_OVERRIDE_MUTATION
+        assert "clearOnboardingOverride" in CLEAR_ONBOARDING_OVERRIDE_MUTATION
 
     def test_create_boot_pool_mutation_is_valid(self):
         assert "mutation" in CREATE_INTERNAL_BOOT_POOL_MUTATION

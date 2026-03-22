@@ -24,7 +24,7 @@ class TestDockerOrganizeMutations:
     def test_create_folder_mutation(self):
         assert "mutation" in CREATE_DOCKER_FOLDER_MUTATION
         assert "$name" in CREATE_DOCKER_FOLDER_MUTATION
-        assert "createFolder" in CREATE_DOCKER_FOLDER_MUTATION
+        assert "createDockerFolder" in CREATE_DOCKER_FOLDER_MUTATION
 
     def test_set_folder_children_mutation(self):
         assert "mutation" in SET_DOCKER_FOLDER_CHILDREN_MUTATION
@@ -34,7 +34,7 @@ class TestDockerOrganizeMutations:
     def test_delete_entries_mutation(self):
         assert "mutation" in DELETE_DOCKER_ENTRIES_MUTATION
         assert "$ids" in DELETE_DOCKER_ENTRIES_MUTATION
-        assert "deleteEntries" in DELETE_DOCKER_ENTRIES_MUTATION
+        assert "deleteDockerEntries" in DELETE_DOCKER_ENTRIES_MUTATION
 
     def test_move_entries_to_folder_mutation(self):
         assert "mutation" in MOVE_DOCKER_ENTRIES_TO_FOLDER_MUTATION
@@ -58,19 +58,19 @@ class TestDockerOrganizeMutations:
 
     def test_update_view_preferences_mutation(self):
         assert "mutation" in UPDATE_DOCKER_VIEW_PREFERENCES_MUTATION
-        assert "$input" in UPDATE_DOCKER_VIEW_PREFERENCES_MUTATION
+        assert "updateDockerViewPreferences" in UPDATE_DOCKER_VIEW_PREFERENCES_MUTATION
 
     def test_sync_template_paths_mutation(self):
         assert "mutation" in SYNC_DOCKER_TEMPLATE_PATHS_MUTATION
-        assert "syncTemplatePaths" in SYNC_DOCKER_TEMPLATE_PATHS_MUTATION
+        assert "syncDockerTemplatePaths" in SYNC_DOCKER_TEMPLATE_PATHS_MUTATION
 
     def test_reset_template_mappings_mutation(self):
         assert "mutation" in RESET_DOCKER_TEMPLATE_MAPPINGS_MUTATION
-        assert "resetTemplateMappings" in RESET_DOCKER_TEMPLATE_MAPPINGS_MUTATION
+        assert "resetDockerTemplateMappings" in RESET_DOCKER_TEMPLATE_MAPPINGS_MUTATION
 
     def test_refresh_digests_mutation(self):
         assert "mutation" in REFRESH_DOCKER_DIGESTS_MUTATION
-        assert "refreshDigests" in REFRESH_DOCKER_DIGESTS_MUTATION
+        assert "refreshDockerDigests" in REFRESH_DOCKER_DIGESTS_MUTATION
 
 
 class TestDeleteDockerEntriesConfirmGate:

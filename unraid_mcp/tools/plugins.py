@@ -82,7 +82,7 @@ def register_plugins_tools(mcp: FastMCP) -> None:
         if not url or not isinstance(url, str):
             raise ToolError("url must be a non-empty string")
 
-        variables: dict[str, Any] = {"url": url}
+        variables: dict[str, Any] = {"input": {"url": url}}
         response = await make_graphql_request(ADD_PLUGIN_MUTATION, variables)
         result = response.get("addPlugin")
         if not result:
@@ -107,7 +107,7 @@ def register_plugins_tools(mcp: FastMCP) -> None:
         if not name or not isinstance(name, str):
             raise ToolError("name must be a non-empty string")
 
-        variables: dict[str, Any] = {"name": name}
+        variables: dict[str, Any] = {"input": {"name": name}}
         response = await make_graphql_request(REMOVE_PLUGIN_MUTATION, variables)
         result = response.get("removePlugin", {})
         success = result.get("success", False)
@@ -132,9 +132,9 @@ def register_plugins_tools(mcp: FastMCP) -> None:
         if not url or not isinstance(url, str):
             raise ToolError("url must be a non-empty string")
 
-        variables: dict[str, Any] = {"url": url}
+        variables: dict[str, Any] = {"input": {"url": url}}
         response = await make_graphql_request(INSTALL_PLUGIN_MUTATION, variables)
-        result = response.get("installPlugin")
+        result = response.get("addPlugin")
         if not result:
             raise ToolError("Failed to install plugin")
         return {

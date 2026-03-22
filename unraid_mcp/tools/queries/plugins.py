@@ -52,8 +52,8 @@ LIST_PLUGIN_INSTALL_OPERATIONS_QUERY = """
 """
 
 ADD_PLUGIN_MUTATION = """
-    mutation AddPlugin($url: String!) {
-      addPlugin(url: $url) {
+    mutation AddPlugin($input: PluginManagementInput!) {
+      addPlugin(input: $input) {
         id
         status
       }
@@ -61,16 +61,17 @@ ADD_PLUGIN_MUTATION = """
 """
 
 REMOVE_PLUGIN_MUTATION = """
-    mutation RemovePlugin($name: String!) {
-      removePlugin(name: $name) {
+    mutation RemovePlugin($input: PluginManagementInput!) {
+      removePlugin(input: $input) {
         success
       }
     }
 """
 
+# installPlugin is an alias for addPlugin — the API only has addPlugin
 INSTALL_PLUGIN_MUTATION = """
-    mutation InstallPlugin($url: String!) {
-      installPlugin(url: $url) {
+    mutation InstallPlugin($input: PluginManagementInput!) {
+      addPlugin(input: $input) {
         id
         status
       }

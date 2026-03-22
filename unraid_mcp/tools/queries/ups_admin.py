@@ -1,8 +1,8 @@
 """GraphQL mutations for UPS administration."""
 
 CONFIGURE_UPS_MUTATION = """
-    mutation ConfigureUps($input: UpsConfigurationInput!) {
-      configureUps(input: $input) {
+    mutation ConfigureUps($config: UPSConfigInput!) {
+      configureUps(config: $config) {
         service
         upsCable
         customUpsCable
