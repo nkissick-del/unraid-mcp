@@ -425,5 +425,3 @@ def register_docker_tools(mcp: FastMCP) -> None:
             return result
 
         return {"containerId": actual_id, "lines": [], "cursor": None}
-
-    logger.info("Docker tools registered successfully")

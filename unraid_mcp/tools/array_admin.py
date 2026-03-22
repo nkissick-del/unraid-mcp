@@ -12,7 +12,6 @@ from typing import Any
 
 from fastmcp import FastMCP
 
-from ..config.logging import logger
 from ..core.client import make_graphql_request
 from ..core.decorators import tool_error_handler
 from ..core.utils import ensure_list, require_confirm, validate_input_dict
@@ -175,5 +174,3 @@ def register_array_admin_tools(mcp: FastMCP) -> None:
                 else "Failed to clear array disk statistics"
             ),
         }
-
-    logger.info("Array admin tools registered successfully")

@@ -8,7 +8,6 @@ from typing import Any
 
 from fastmcp import FastMCP
 
-from ..config.logging import logger
 from ..core.client import make_graphql_request
 from ..core.decorators import tool_error_handler
 from ..core.exceptions import ToolError
@@ -175,5 +174,3 @@ def register_server_admin_tools(mcp: FastMCP) -> None:
             "success": result.get("success", True),
             "message": "Flash backup initiated",
         }
-
-    logger.info("Server admin tools registered successfully")

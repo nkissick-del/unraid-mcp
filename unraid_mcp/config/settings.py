@@ -6,7 +6,6 @@ and provides all configuration constants used throughout the application.
 
 import os
 from pathlib import Path
-from typing import Any
 
 from dotenv import load_dotenv
 
@@ -141,42 +140,3 @@ else:
         _parts.discard("default")
         _parts |= _DEFAULT_MODULES
     ENABLED_MODULES = frozenset(_parts) & _ALL_MODULES
-
-
-def validate_required_config() -> tuple[bool, list[str]]:
-    """Validate that required configuration is present.
-
-    Returns:
-        bool: True if all required config is present, False otherwise.
-    """
-    required_vars = [("UNRAID_API_URL", UNRAID_API_URL), ("UNRAID_API_KEY", UNRAID_API_KEY)]
-
-    missing = []
-    for name, value in required_vars:
-        if not value:
-            missing.append(name)
-
-    return len(missing) == 0, missing
-
-
-def get_config_summary() -> dict[str, Any]:
-    """Get a summary of current configuration (safe for logging).
-
-    Returns:
-        dict: Configuration summary with sensitive data redacted.
-    """
-    is_valid, missing = validate_required_config()
-
-    return {
-        "api_url_configured": bool(UNRAID_API_URL),
-        "api_url_preview": UNRAID_API_URL[:20] + "..." if UNRAID_API_URL else None,
-        "api_key_configured": bool(UNRAID_API_KEY),
-        "server_host": UNRAID_MCP_HOST,
-        "server_port": UNRAID_MCP_PORT,
-        "transport": UNRAID_MCP_TRANSPORT,
-        "ssl_verify": UNRAID_VERIFY_SSL,
-        "log_level": LOG_LEVEL_STR,
-        "log_file": str(LOG_FILE_PATH),
-        "config_valid": is_valid,
-        "missing_config": missing if not is_valid else None,
-    }

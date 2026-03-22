@@ -43,22 +43,18 @@ class TestOnboardingMutations:
         assert keyword in mutation_str.lower()
         assert "success" in mutation_str
 
-    def test_set_override_mutation_is_valid(self):
-        assert "mutation" in SET_ONBOARDING_OVERRIDE_MUTATION
-        assert "$input" in SET_ONBOARDING_OVERRIDE_MUTATION
-        assert "setOnboardingOverride" in SET_ONBOARDING_OVERRIDE_MUTATION
-
-    def test_clear_override_mutation_is_valid(self):
-        assert "mutation" in CLEAR_ONBOARDING_OVERRIDE_MUTATION
-        assert "clearOnboardingOverride" in CLEAR_ONBOARDING_OVERRIDE_MUTATION
-
-    def test_create_boot_pool_mutation_is_valid(self):
-        assert "mutation" in CREATE_INTERNAL_BOOT_POOL_MUTATION
-        assert "createInternalBootPool" in CREATE_INTERNAL_BOOT_POOL_MUTATION
-
-    def test_refresh_boot_context_mutation_is_valid(self):
-        assert "mutation" in REFRESH_INTERNAL_BOOT_CONTEXT_MUTATION
-        assert "refreshInternalBootContext" in REFRESH_INTERNAL_BOOT_CONTEXT_MUTATION
+    @pytest.mark.parametrize(
+        "mutation,keywords",
+        [
+            (SET_ONBOARDING_OVERRIDE_MUTATION, ["mutation", "$input", "setOnboardingOverride"]),
+            (CLEAR_ONBOARDING_OVERRIDE_MUTATION, ["mutation", "clearOnboardingOverride"]),
+            (CREATE_INTERNAL_BOOT_POOL_MUTATION, ["mutation", "createInternalBootPool"]),
+            (REFRESH_INTERNAL_BOOT_CONTEXT_MUTATION, ["mutation", "refreshInternalBootContext"]),
+        ],
+    )
+    def test_other_mutation_structure(self, mutation, keywords):
+        for kw in keywords:
+            assert kw in mutation
 
 
 class TestCreateBootPoolConfirmGate:

@@ -254,5 +254,3 @@ def register_auth_tools(mcp: FastMCP) -> None:
             "apiKey": result,
             "message": "API key updated",
         }
-
-    logger.info("Auth tools registered successfully")

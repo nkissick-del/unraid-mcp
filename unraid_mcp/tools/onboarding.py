@@ -7,7 +7,6 @@ from typing import Any
 
 from fastmcp import FastMCP
 
-from ..config.logging import logger
 from ..core.client import make_graphql_request
 from ..core.decorators import tool_error_handler
 from ..core.utils import require_confirm, validate_input_dict
@@ -139,5 +138,3 @@ def register_onboarding_tools(mcp: FastMCP) -> None:
             "success": result.get("success", False),
             "action": "refreshInternalBootContext",
         }
-
-    logger.info("Onboarding tools registered successfully")

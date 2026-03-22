@@ -8,7 +8,6 @@ from typing import Any
 
 from fastmcp import FastMCP
 
-from ..config.logging import logger
 from ..core.client import make_graphql_request
 from ..core.decorators import tool_error_handler
 from ..core.exceptions import ToolError
@@ -56,5 +55,3 @@ def register_ups_admin_tools(mcp: FastMCP) -> None:
             "configuration": result,
             "message": "UPS configuration updated successfully",
         }
-
-    logger.info("UPS admin tools registered successfully")

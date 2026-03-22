@@ -219,5 +219,3 @@ def register_api_tools(mcp: FastMCP) -> None:
         logger.debug(f"Query: {graphql_query[:200]}")
         response_data = await make_graphql_request(graphql_query, validated_variables)
         return response_data
-
-    logger.info("API tools registered successfully")

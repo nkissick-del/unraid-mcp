@@ -12,38 +12,26 @@ from unraid_mcp.tools.queries.docker_batch import (
 
 
 class TestDockerBatchMutationStrings:
-    def test_update_containers_has_ids_variable(self):
-        assert "$ids" in DOCKER_UPDATE_CONTAINERS_MUTATION
-        assert "PrefixedID" in DOCKER_UPDATE_CONTAINERS_MUTATION
-
-    def test_update_all_containers_is_valid_graphql(self):
-        assert "mutation" in DOCKER_UPDATE_ALL_CONTAINERS_MUTATION
-        assert "updateAllContainers" in DOCKER_UPDATE_ALL_CONTAINERS_MUTATION
-
-    def test_update_autostart_has_input_variable(self):
-        assert "$input" in DOCKER_UPDATE_AUTOSTART_MUTATION
-        assert "AutostartConfigurationInput" in DOCKER_UPDATE_AUTOSTART_MUTATION
-
-    def test_all_mutations_contain_container_fields(self):
-        for mutation in [
-            DOCKER_UPDATE_CONTAINERS_MUTATION,
-            DOCKER_UPDATE_ALL_CONTAINERS_MUTATION,
-        ]:
-            assert "id" in mutation
-            assert "names" in mutation
-            assert "state" in mutation
-            assert "image" in mutation
-
-    def test_autostart_mutation_returns_autostart_field(self):
-        assert "autoStart" in DOCKER_UPDATE_AUTOSTART_MUTATION
-
-    def test_all_mutations_nested_under_docker(self):
-        for mutation in [
-            DOCKER_UPDATE_CONTAINERS_MUTATION,
-            DOCKER_UPDATE_ALL_CONTAINERS_MUTATION,
-            DOCKER_UPDATE_AUTOSTART_MUTATION,
-        ]:
-            assert "docker" in mutation
+    @pytest.mark.parametrize(
+        "mutation,keywords",
+        [
+            (
+                DOCKER_UPDATE_CONTAINERS_MUTATION,
+                ["mutation", "$ids", "PrefixedID", "docker", "id", "names", "state", "image"],
+            ),
+            (
+                DOCKER_UPDATE_ALL_CONTAINERS_MUTATION,
+                ["mutation", "updateAllContainers", "docker", "id", "names", "state", "image"],
+            ),
+            (
+                DOCKER_UPDATE_AUTOSTART_MUTATION,
+                ["mutation", "$input", "AutostartConfigurationInput", "docker", "autoStart"],
+            ),
+        ],
+    )
+    def test_mutation_structure(self, mutation, keywords):
+        for kw in keywords:
+            assert kw in mutation
 
 
 class TestDockerBatchValidation:

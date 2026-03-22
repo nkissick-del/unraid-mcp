@@ -8,7 +8,6 @@ from typing import Any
 
 from fastmcp import FastMCP
 
-from ..config.logging import logger
 from ..core.client import make_graphql_request
 from ..core.constants import (
     NOTIFICATION_IMPORTANCE_VALUES,
@@ -149,5 +148,3 @@ def register_notification_tools(mcp: FastMCP) -> None:
             "overview": result,
             "message": "All archived notifications deleted",
         }
-
-    logger.info("Notification tools registered successfully")

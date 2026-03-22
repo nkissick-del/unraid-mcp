@@ -8,7 +8,6 @@ from typing import Any
 
 from fastmcp import FastMCP
 
-from ..config.logging import logger
 from ..core.client import make_graphql_request
 from ..core.decorators import tool_error_handler
 from ..core.exceptions import ToolError
@@ -142,5 +141,3 @@ def register_plugins_tools(mcp: FastMCP) -> None:
             "operation": result,
             "message": f"Plugin installation started from {url}",
         }
-
-    logger.info("Plugin tools registered successfully")

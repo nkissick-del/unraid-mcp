@@ -55,12 +55,18 @@ class TestAuthMutations:
         "mutation,keywords",
         [
             (CREATE_API_KEY_MUTATION, ["mutation", "$input", "apiKey", "create", "key"]),
-            (ADD_ROLE_TO_API_KEY_MUTATION, ["mutation", "$input", "apiKey", "addRole", "AddRoleForApiKeyInput"]),
+            (
+                ADD_ROLE_TO_API_KEY_MUTATION,
+                ["mutation", "$input", "apiKey", "addRole", "AddRoleForApiKeyInput"],
+            ),
             (
                 REMOVE_ROLE_FROM_API_KEY_MUTATION,
                 ["mutation", "$input", "apiKey", "removeRole", "RemoveRoleFromApiKeyInput"],
             ),
-            (DELETE_API_KEY_MUTATION, ["mutation", "$input", "apiKey", "delete", "DeleteApiKeyInput"]),
+            (
+                DELETE_API_KEY_MUTATION,
+                ["mutation", "$input", "apiKey", "delete", "DeleteApiKeyInput"],
+            ),
             (UPDATE_API_KEY_MUTATION, ["mutation", "$input", "apiKey", "update"]),
         ],
     )

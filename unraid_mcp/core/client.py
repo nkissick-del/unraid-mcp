@@ -115,6 +115,24 @@ def is_idempotent_error(error_message: str, operation: str) -> bool:
     return False
 
 
+def _redact_recursive(obj: Any) -> Any:
+    """Recursively redact sensitive keys from a data structure for logging."""
+    if isinstance(obj, dict):
+        return {
+            k: (
+                "[REDACTED]"
+                if any(s in k.lower() for s in SENSITIVE_VARIABLE_KEYS)
+                else _redact_recursive(v)
+            )
+            for k, v in obj.items()
+        }
+    elif isinstance(obj, list):
+        return [_redact_recursive(i) for i in obj]
+    elif isinstance(obj, tuple):
+        return tuple(_redact_recursive(i) for i in obj)
+    return obj
+
+
 async def make_graphql_request(
     query: str,
     variables: dict[str, Any] | None = None,
@@ -150,23 +168,6 @@ async def make_graphql_request(
     sanitized = sanitize_query(query)
     logger.debug(f"Query: {sanitized}")
     if variables:
-        # Mask variables to prevent logging secrets
-        def _redact_recursive(obj: Any) -> Any:
-            if isinstance(obj, dict):
-                return {
-                    k: (
-                        "[REDACTED]"
-                        if any(s in k.lower() for s in SENSITIVE_VARIABLE_KEYS)
-                        else _redact_recursive(v)
-                    )
-                    for k, v in obj.items()
-                }
-            elif isinstance(obj, list):
-                return [_redact_recursive(i) for i in obj]
-            elif isinstance(obj, tuple):
-                return tuple(_redact_recursive(i) for i in obj)
-            return obj
-
         masked = _redact_recursive(variables)
         logger.debug(f"Variables: {masked}")
 

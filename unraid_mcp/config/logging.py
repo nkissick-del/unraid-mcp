@@ -14,43 +14,23 @@ try:
 except ImportError:
     FASTMCP_AVAILABLE = False
 
+from rich.console import Console
+
 from ..core.constants import LOG_FILE_MAX_BYTES
 from .logging_handlers import JsonFormatter, OverwriteFileHandler, RedactingFilter
-from .logging_helpers import (
-    console,
-    get_est_timestamp,
-    log_error,
-    log_header,
-    log_info,
-    log_separator,
-    log_status,
-    log_success,
-    log_warning,
-    log_with_level_and_indent,
-)
 from .settings import LOG_FILE_PATH, LOG_FORMAT, LOG_LEVEL_STR
 
-# Re-export everything for backward compatibility
 __all__ = [
-    "console",
-    "get_est_timestamp",
-    "JsonFormatter",
-    "log_configuration_status",
-    "log_error",
-    "log_header",
-    "log_info",
-    "log_separator",
-    "log_status",
-    "log_success",
-    "log_warning",
-    "log_with_level_and_indent",
     "logger",
+    "setup_logger",
+    "configure_fastmcp_logger_with_rich",
+    "JsonFormatter",
     "OverwriteFileHandler",
     "RedactingFilter",
-    "setup_logger",
-    "setup_uvicorn_logging",
-    "configure_fastmcp_logger_with_rich",
 ]
+
+# Shared Rich console for consistent formatting
+console = Console(stderr=True, force_terminal=True)
 
 
 def setup_logger(name: str = "UnraidMCPServer") -> logging.Logger:
@@ -209,55 +189,6 @@ def configure_fastmcp_logger_with_rich() -> logging.Logger | None:
     root_logger.setLevel(numeric_log_level)
 
     return fastmcp_logger
-
-
-def setup_uvicorn_logging() -> logging.Logger | None:
-    """Configure uvicorn and other third-party loggers to use Rich formatting."""
-    # This function is kept for backward compatibility but now delegates to FastMCP
-    return configure_fastmcp_logger_with_rich()
-
-
-def log_configuration_status(logger: logging.Logger) -> None:
-    """Log configuration status at startup.
-
-    Args:
-        logger: Logger instance to use for logging
-    """
-    from .settings import get_config_summary
-
-    logger.info(f"Logging initialized (console and file: {LOG_FILE_PATH}).")
-
-    config = get_config_summary()
-
-    # Log configuration status
-    if config["api_url_configured"]:
-        logger.info(f"UNRAID_API_URL loaded: {config['api_url_preview']}")
-    else:
-        logger.warning("UNRAID_API_URL not found in environment or .env file.")
-
-    if config["api_key_configured"]:
-        logger.info("UNRAID_API_KEY loaded: ****")  # Don't log the key itself
-    else:
-        logger.warning("UNRAID_API_KEY not found in environment or .env file.")
-
-    logger.info(f"UNRAID_MCP_PORT set to: {config['server_port']}")
-    logger.info(f"UNRAID_MCP_HOST set to: {config['server_host']}")
-    logger.info(f"UNRAID_MCP_TRANSPORT set to: {config['transport']}")
-    logger.info(f"UNRAID_MCP_LOG_LEVEL set to: {config['log_level']}")
-
-    ssl_verify = config["ssl_verify"]
-    if ssl_verify is False:
-        logger.warning(
-            "UNRAID_VERIFY_SSL is disabled — TLS certificates will NOT be validated. "
-            "This is insecure for production use."
-        )
-    elif isinstance(ssl_verify, str):
-        logger.info(f"UNRAID_VERIFY_SSL using custom CA bundle: {ssl_verify}")
-    else:
-        logger.info("UNRAID_VERIFY_SSL is enabled (default)")
-
-    if not config["config_valid"]:
-        logger.error(f"Missing required configuration: {config['missing_config']}")
 
 
 # Global logger instance - modules can import this directly

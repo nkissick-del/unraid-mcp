@@ -8,7 +8,6 @@ from typing import Any
 
 from fastmcp import FastMCP
 
-from ..config.logging import logger
 from ..core.client import make_graphql_request
 from ..core.constants import NOTIFICATION_IMPORTANCE_VALUES
 from ..core.decorators import tool_error_handler
@@ -249,5 +248,3 @@ def register_notifications_extra_tools(mcp: FastMCP) -> None:
             "overview": result,
             "message": "Notification overview recalculated",
         }
-
-    logger.info("Notifications-extra tools registered successfully")

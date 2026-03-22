@@ -7,7 +7,6 @@ from typing import Any
 
 from fastmcp import FastMCP
 
-from ..config.logging import logger
 from ..core.client import make_graphql_request
 from ..core.decorators import tool_error_handler
 from ..core.exceptions import ToolError
@@ -104,5 +103,3 @@ def register_customization_tools(mcp: FastMCP) -> None:
             "locale": result,
             "message": f"Locale set to {locale}",
         }
-
-    logger.info("Customization tools registered successfully")

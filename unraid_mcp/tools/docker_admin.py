@@ -9,7 +9,6 @@ from typing import Any
 
 from fastmcp import FastMCP
 
-from ..config.logging import logger
 from ..core.client import get_timeout_for_operation, make_graphql_request
 from ..core.constants import (
     CONTAINER_DISPLAY_LIMIT,
@@ -177,5 +176,3 @@ def register_docker_admin_tools(mcp: FastMCP) -> None:
             "success": True,
             "message": "Container updated successfully",
         }
-
-    logger.info("Docker admin tools registered successfully")

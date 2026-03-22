@@ -16,36 +16,23 @@ from unraid_mcp.tools.server_admin import register_server_admin_tools
 
 
 class TestServerAdminMutations:
-    def test_update_server_identity_mutation(self):
-        assert "mutation" in UPDATE_SERVER_IDENTITY_MUTATION
-        assert "$name" in UPDATE_SERVER_IDENTITY_MUTATION
-        assert "$comment" in UPDATE_SERVER_IDENTITY_MUTATION
-        assert "$sysModel" in UPDATE_SERVER_IDENTITY_MUTATION
-        assert "updateServerIdentity" in UPDATE_SERVER_IDENTITY_MUTATION
-
-    def test_update_ssh_settings_mutation(self):
-        assert "mutation" in UPDATE_SSH_SETTINGS_MUTATION
-        assert "$input" in UPDATE_SSH_SETTINGS_MUTATION
-        assert "updateSshSettings" in UPDATE_SSH_SETTINGS_MUTATION
-
-    def test_update_settings_mutation(self):
-        assert "mutation" in UPDATE_SETTINGS_MUTATION
-        assert "$input" in UPDATE_SETTINGS_MUTATION
-        assert "updateSettings" in UPDATE_SETTINGS_MUTATION
-
-    def test_update_temperature_config_mutation(self):
-        assert "mutation" in UPDATE_TEMPERATURE_CONFIG_MUTATION
-        assert "$input" in UPDATE_TEMPERATURE_CONFIG_MUTATION
-        assert "updateTemperatureConfig" in UPDATE_TEMPERATURE_CONFIG_MUTATION
-
-    def test_update_system_time_mutation(self):
-        assert "mutation" in UPDATE_SYSTEM_TIME_MUTATION
-        assert "$input" in UPDATE_SYSTEM_TIME_MUTATION
-        assert "updateSystemTime" in UPDATE_SYSTEM_TIME_MUTATION
-
-    def test_initiate_flash_backup_mutation(self):
-        assert "mutation" in INITIATE_FLASH_BACKUP_MUTATION
-        assert "initiateFlashBackup" in INITIATE_FLASH_BACKUP_MUTATION
+    @pytest.mark.parametrize(
+        "mutation,keywords",
+        [
+            (
+                UPDATE_SERVER_IDENTITY_MUTATION,
+                ["mutation", "$name", "$comment", "$sysModel", "updateServerIdentity"],
+            ),
+            (UPDATE_SSH_SETTINGS_MUTATION, ["mutation", "$input", "updateSshSettings"]),
+            (UPDATE_SETTINGS_MUTATION, ["mutation", "$input", "updateSettings"]),
+            (UPDATE_TEMPERATURE_CONFIG_MUTATION, ["mutation", "$input", "updateTemperatureConfig"]),
+            (UPDATE_SYSTEM_TIME_MUTATION, ["mutation", "$input", "updateSystemTime"]),
+            (INITIATE_FLASH_BACKUP_MUTATION, ["mutation", "initiateFlashBackup"]),
+        ],
+    )
+    def test_mutation_structure(self, mutation, keywords):
+        for kw in keywords:
+            assert kw in mutation
 
 
 class TestServerAdminConfirmGates:

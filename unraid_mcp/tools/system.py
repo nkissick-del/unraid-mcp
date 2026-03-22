@@ -418,5 +418,3 @@ def register_system_tools(mcp: FastMCP) -> None:
             summary["last_check_errors"] = last_check.get("errors")
 
         return {"summary": summary, "history": checks}
-
-    logger.info("System tools registered successfully")

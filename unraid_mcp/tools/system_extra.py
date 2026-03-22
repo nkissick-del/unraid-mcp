@@ -9,7 +9,6 @@ from typing import Any
 
 from fastmcp import FastMCP
 
-from ..config.logging import logger
 from ..core.client import make_graphql_request
 from ..core.decorators import tool_error_handler
 from ..core.utils import ensure_dict, ensure_list
@@ -88,5 +87,3 @@ def register_system_extra_tools(mcp: FastMCP) -> None:
             "count": len(servers),
             "servers": servers,
         }
-
-    logger.info("System-extra tools registered successfully")

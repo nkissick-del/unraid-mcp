@@ -255,5 +255,3 @@ def register_storage_tools(mcp: FastMCP) -> None:
             "partitions": partitions,
             "details": raw_disk,
         }
-
-    logger.info("Storage tools registered successfully")

@@ -41,47 +41,36 @@ class TestPluginQueries:
 
 
 class TestPluginMutations:
-    def test_add_plugin_mutation(self):
-        assert "mutation" in ADD_PLUGIN_MUTATION
-        assert "$input" in ADD_PLUGIN_MUTATION
-        assert "PluginManagementInput" in ADD_PLUGIN_MUTATION
-        assert "addPlugin" in ADD_PLUGIN_MUTATION
-
-    def test_remove_plugin_mutation(self):
-        assert "mutation" in REMOVE_PLUGIN_MUTATION
-        assert "$input" in REMOVE_PLUGIN_MUTATION
-        assert "PluginManagementInput" in REMOVE_PLUGIN_MUTATION
-        assert "removePlugin" in REMOVE_PLUGIN_MUTATION
-
-    def test_install_plugin_mutation(self):
-        assert "mutation" in INSTALL_PLUGIN_MUTATION
-        assert "$input" in INSTALL_PLUGIN_MUTATION
-        assert "PluginManagementInput" in INSTALL_PLUGIN_MUTATION
-        assert "addPlugin" in INSTALL_PLUGIN_MUTATION
+    @pytest.mark.parametrize(
+        "mutation,keywords",
+        [
+            (ADD_PLUGIN_MUTATION, ["mutation", "$input", "PluginManagementInput", "addPlugin"]),
+            (
+                REMOVE_PLUGIN_MUTATION,
+                ["mutation", "$input", "PluginManagementInput", "removePlugin"],
+            ),
+            (INSTALL_PLUGIN_MUTATION, ["mutation", "$input", "PluginManagementInput", "addPlugin"]),
+        ],
+    )
+    def test_mutation_structure(self, mutation, keywords):
+        for kw in keywords:
+            assert kw in mutation
 
 
-class TestAddPluginConfirmGate:
+class TestPluginConfirmGates:
+    @pytest.mark.parametrize(
+        "tool_name,kwargs",
+        [
+            ("add_plugin", {"url": "https://example.com/plugin.plg", "confirm": False}),
+            ("remove_plugin", {"name": "test-plugin", "confirm": False}),
+            ("install_plugin", {"url": "https://example.com/plugin.plg", "confirm": False}),
+        ],
+    )
     @pytest.mark.asyncio
-    async def test_confirm_false_raises(self):
-        tool_fn = get_tool_fn(register_plugins_tools, "add_plugin")
+    async def test_confirm_false_raises(self, tool_name, kwargs):
+        tool_fn = get_tool_fn(register_plugins_tools, tool_name)
         with pytest.raises(ToolError, match="confirm must be True"):
-            await tool_fn(url="https://example.com/plugin.plg", confirm=False)
-
-
-class TestRemovePluginConfirmGate:
-    @pytest.mark.asyncio
-    async def test_confirm_false_raises(self):
-        tool_fn = get_tool_fn(register_plugins_tools, "remove_plugin")
-        with pytest.raises(ToolError, match="confirm must be True"):
-            await tool_fn(name="test-plugin", confirm=False)
-
-
-class TestInstallPluginConfirmGate:
-    @pytest.mark.asyncio
-    async def test_confirm_false_raises(self):
-        tool_fn = get_tool_fn(register_plugins_tools, "install_plugin")
-        with pytest.raises(ToolError, match="confirm must be True"):
-            await tool_fn(url="https://example.com/plugin.plg", confirm=False)
+            await tool_fn(**kwargs)
 
 
 class TestPluginInputValidation:

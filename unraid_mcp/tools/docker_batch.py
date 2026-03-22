@@ -8,7 +8,6 @@ from typing import Any
 
 from fastmcp import FastMCP
 
-from ..config.logging import logger
 from ..core.client import get_timeout_for_operation, make_graphql_request
 from ..core.decorators import tool_error_handler
 from ..core.exceptions import ToolError
@@ -132,5 +131,3 @@ def register_docker_batch_tools(mcp: FastMCP) -> None:
             "container": result,
             "message": f"Autostart {'enabled' if autostart else 'disabled'} for container",
         }
-
-    logger.info("Docker batch tools registered successfully")

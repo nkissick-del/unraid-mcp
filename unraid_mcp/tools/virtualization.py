@@ -143,5 +143,3 @@ def register_vm_tools(mcp: FastMCP) -> None:
                 raise ToolError("No VMs available or VMs not accessible")
         else:
             raise ToolError("No VMs data returned from server")
-
-    logger.info("VM tools registered successfully")

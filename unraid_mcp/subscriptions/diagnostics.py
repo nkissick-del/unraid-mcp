@@ -232,5 +232,3 @@ def register_diagnostic_tools(mcp: FastMCP) -> None:
         except Exception as e:
             logger.error(f"[DIAGNOSTIC] Failed to generate diagnostics: {e}")
             raise ToolError(f"Failed to generate diagnostics: {str(e)}") from e
-
-    logger.info("Subscription diagnostic tools registered successfully")

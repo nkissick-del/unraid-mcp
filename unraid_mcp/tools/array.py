@@ -9,7 +9,6 @@ from typing import Any
 
 from fastmcp import FastMCP
 
-from ..config.logging import logger
 from ..core.client import make_graphql_request
 from ..core.constants import (
     ARRAY_OPERATION_SETTLE_DELAY_S,
@@ -81,5 +80,3 @@ def register_array_tools(mcp: FastMCP) -> None:
                 else f"Array {validated_state.lower()} initiated but status verification timed out"
             ),
         }
-
-    logger.info("Array tools registered successfully")

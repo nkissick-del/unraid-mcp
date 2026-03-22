@@ -12,7 +12,6 @@ from typing import Any
 from fastmcp import FastMCP
 
 from .. import __version__
-from ..config.logging import logger
 from ..config.settings import (
     UNRAID_API_URL,
     UNRAID_MCP_HOST,
@@ -199,5 +198,3 @@ def register_health_tools(mcp: FastMCP) -> None:
         }
 
         return health_info
-
-    logger.info("Health tools registered successfully")

@@ -173,5 +173,3 @@ def register_rclone_tools(mcp: FastMCP) -> None:
             return {"success": True, "message": f"RClone remote '{name}' deleted successfully"}
 
         raise ToolError(f"Failed to delete RClone remote '{name}'")
-
-    logger.info("RClone tools registered successfully")

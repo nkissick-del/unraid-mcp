@@ -8,7 +8,6 @@ from typing import Any
 
 from fastmcp import FastMCP
 
-from ..config.logging import logger
 from ..core.client import make_graphql_request
 from ..core.decorators import tool_error_handler
 from ..core.exceptions import ToolError
@@ -68,5 +67,3 @@ def register_metrics_tools(mcp: FastMCP) -> None:
         response_data = await make_graphql_request(query)
         options = ensure_list(response_data.get("timeZoneOptions", []))
         return {"count": len(options), "timezones": options}
-
-    logger.info("Metrics tools registered successfully")

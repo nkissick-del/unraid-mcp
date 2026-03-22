@@ -9,7 +9,6 @@ from typing import Any
 
 from fastmcp import FastMCP
 
-from ..config.logging import logger
 from ..core.client import make_graphql_request
 from ..core.constants import (
     PARITY_CHECK_ACTIONS,
@@ -101,5 +100,3 @@ def register_parity_tools(mcp: FastMCP) -> None:
                 else f"Parity check {validated_action.lower()} initiated but status verification timed out"
             ),
         }
-
-    logger.info("Parity tools registered successfully")

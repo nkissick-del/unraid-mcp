@@ -4,10 +4,7 @@ import pytest
 from fastmcp.exceptions import ToolError as FastMCPToolError
 
 from unraid_mcp.core.exceptions import (
-    ConfigurationError,
-    SubscriptionError,
     ToolError,
-    UnraidAPIError,
     ValidationError,
 )
 
@@ -15,18 +12,14 @@ from unraid_mcp.core.exceptions import (
 class TestExceptionInstantiation:
     @pytest.mark.parametrize(
         "exc_cls",
-        [ToolError, ConfigurationError, UnraidAPIError, SubscriptionError, ValidationError],
+        [ToolError, ValidationError],
     )
     def test_instantiable_with_message(self, exc_cls):
         exc = exc_cls("test message")
         assert str(exc) == "test message"
 
-    @pytest.mark.parametrize(
-        "exc_cls",
-        [ConfigurationError, UnraidAPIError, SubscriptionError, ValidationError],
-    )
-    def test_inherits_from_tool_error(self, exc_cls):
-        assert issubclass(exc_cls, ToolError)
+    def test_validation_error_inherits_from_tool_error(self):
+        assert issubclass(ValidationError, ToolError)
 
     def test_tool_error_inherits_from_fastmcp(self):
         assert issubclass(ToolError, FastMCPToolError)
@@ -37,4 +30,4 @@ class TestExceptionInstantiation:
 
     def test_str_preserves_message(self):
         msg = "something went wrong with the API"
-        assert str(UnraidAPIError(msg)) == msg
+        assert str(ValidationError(msg)) == msg

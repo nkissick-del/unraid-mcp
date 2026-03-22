@@ -19,24 +19,6 @@ class ToolError(FastMCPToolError):
     pass
 
 
-class ConfigurationError(ToolError):
-    """Raised when there are configuration-related errors."""
-
-    pass
-
-
-class UnraidAPIError(ToolError):
-    """Raised when the Unraid API returns an error or is unreachable."""
-
-    pass
-
-
-class SubscriptionError(ToolError):
-    """Raised when there are WebSocket subscription-related errors."""
-
-    pass
-
-
 class ValidationError(ToolError):
     """Raised when input validation fails."""
 

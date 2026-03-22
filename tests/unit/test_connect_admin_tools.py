@@ -46,29 +46,22 @@ class TestConnectAdminQueries:
 
 
 class TestConnectAdminMutations:
-    def test_update_api_settings_mutation(self):
-        assert "mutation" in UPDATE_API_SETTINGS_MUTATION
-        assert "$input" in UPDATE_API_SETTINGS_MUTATION
-        assert "updateApiSettings" in UPDATE_API_SETTINGS_MUTATION
-
-    def test_connect_sign_in_mutation(self):
-        assert "mutation" in CONNECT_SIGN_IN_MUTATION
-        assert "$input" in CONNECT_SIGN_IN_MUTATION
-        assert "connectSignIn" in CONNECT_SIGN_IN_MUTATION
-
-    def test_connect_sign_out_mutation(self):
-        assert "mutation" in CONNECT_SIGN_OUT_MUTATION
-        assert "connectSignOut" in CONNECT_SIGN_OUT_MUTATION
-
-    def test_setup_remote_access_mutation(self):
-        assert "mutation" in SETUP_REMOTE_ACCESS_MUTATION
-        assert "$input" in SETUP_REMOTE_ACCESS_MUTATION
-        assert "setupRemoteAccess" in SETUP_REMOTE_ACCESS_MUTATION
-
-    def test_enable_dynamic_remote_access_mutation(self):
-        assert "mutation" in ENABLE_DYNAMIC_REMOTE_ACCESS_MUTATION
-        assert "$input" in ENABLE_DYNAMIC_REMOTE_ACCESS_MUTATION
-        assert "enableDynamicRemoteAccess" in ENABLE_DYNAMIC_REMOTE_ACCESS_MUTATION
+    @pytest.mark.parametrize(
+        "mutation,keywords",
+        [
+            (UPDATE_API_SETTINGS_MUTATION, ["mutation", "$input", "updateApiSettings"]),
+            (CONNECT_SIGN_IN_MUTATION, ["mutation", "$input", "connectSignIn"]),
+            (CONNECT_SIGN_OUT_MUTATION, ["mutation", "connectSignOut"]),
+            (SETUP_REMOTE_ACCESS_MUTATION, ["mutation", "$input", "setupRemoteAccess"]),
+            (
+                ENABLE_DYNAMIC_REMOTE_ACCESS_MUTATION,
+                ["mutation", "$input", "enableDynamicRemoteAccess"],
+            ),
+        ],
+    )
+    def test_mutation_structure(self, mutation, keywords):
+        for kw in keywords:
+            assert kw in mutation
 
 
 class TestConnectAdminConfirmGates:

@@ -8,7 +8,6 @@ from typing import Any
 
 from fastmcp import FastMCP
 
-from ..config.logging import logger
 from ..core.client import make_graphql_request
 from ..core.decorators import tool_error_handler
 from ..core.utils import ensure_dict, ensure_list, validate_string_not_empty
@@ -44,5 +43,3 @@ def register_ups_tools(mcp: FastMCP) -> None:
         response_data = await make_graphql_request(UPS_CONFIGURATION_QUERY)
         config = response_data.get("upsConfiguration", {})
         return ensure_dict(config)
-
-    logger.info("UPS tools registered successfully")
