@@ -41,6 +41,9 @@ ENV UNRAID_MCP_LOG_DIR="/app/logs"
 ENV UNRAID_MCP_LOG_FORMAT="text"
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
-    CMD curl -f "http://localhost:${UNRAID_MCP_PORT:-6970}/mcp" || exit 1
+    CMD curl -sf -o /dev/null -X POST -H "Content-Type: application/json" \
+        -H "Accept: application/json, text/event-stream" \
+        -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"healthcheck","version":"1.0.0"}}}' \
+        "http://localhost:${UNRAID_MCP_PORT:-6970}/mcp" || exit 1
 
 CMD ["uv", "run", "unraid-mcp-server"]

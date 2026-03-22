@@ -148,4 +148,7 @@ Since `settings.py` uses module-level code, tests that validate different env va
 The dev machine (macOS) may not have Docker daemon running. Docker build verification (`docker build -t unraid-mcp-server .`) should be treated as a CI-only check when the daemon is unavailable locally. All other quality gates (black, ruff, mypy, pytest) run locally.
 
 ### Security hardening checklist for Docker Compose
-When hardening a `docker-compose.yml`, the key additions are: `security_opt: [no-new-privileges:true]`, `cap_drop: [ALL]`, `read_only: true`, `tmpfs: [/tmp]`, and resource limits (`mem_limit`, `cpus`). The `read_only: true` flag requires a `tmpfs` mount for `/tmp` and a writable volume for log directories.
+When hardening a `docker-compose.yml`, the key additions are: `security_opt: [no-new-privileges:true]`, `cap_drop: [ALL]`, and resource limits (`mem_limit`, `cpus`). Avoid `read_only: true` — `uv` needs to write to `/app/.cache/uv` at startup, and the resulting need for extra writable mounts (with correct UID 999 ownership) adds deployment friction without meaningful security gain given the other hardening measures.
+
+### Dockerfile healthcheck must use POST for streamable-http
+The MCP streamable-http transport only accepts POST requests. A `curl -f GET /mcp` healthcheck returns 406 Not Acceptable, making Docker report the container as unhealthy even though the server is running. The healthcheck must send a valid MCP `initialize` JSON-RPC POST request.
