@@ -51,10 +51,8 @@ GET_API_KEY_POSSIBLE_PERMISSIONS_QUERY = """
 GET_PERMISSIONS_FOR_ROLES_QUERY = """
     query GetPermissionsForRoles($roles: [String!]!) {
       getPermissionsForRoles(roles: $roles) {
-        id
-        name
-        description
-        category
+        resource
+        actions
       }
     }
 """
@@ -62,10 +60,8 @@ GET_PERMISSIONS_FOR_ROLES_QUERY = """
 PREVIEW_EFFECTIVE_PERMISSIONS_QUERY = """
     query PreviewEffectivePermissions($roles: [String!]!, $permissions: [String!]!) {
       previewEffectivePermissions(roles: $roles, permissions: $permissions) {
-        id
-        name
-        description
-        category
+        resource
+        actions
       }
     }
 """
