@@ -30,7 +30,7 @@ CURRENT_USER_QUERY = """
         name
         description
         roles
-        permissions
+        permissions { resource actions }
       }
     }
 """
@@ -39,7 +39,6 @@ OWNER_INFO_QUERY = """
     query GetOwnerInfo {
       owner {
         username
-        url
         avatar
       }
     }

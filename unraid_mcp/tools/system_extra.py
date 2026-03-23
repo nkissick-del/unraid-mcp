@@ -33,7 +33,7 @@ def register_system_extra_tools(mcp: FastMCP) -> None:
     async def get_flash_info() -> dict[str, Any]:
         """Retrieves information about the Unraid boot USB flash drive, including GUID, vendor, and product details."""
         query = """
-        query GetFlashInfo { flash { id guid vendor product } }
+        query GetFlashInfo { flash { id vendor product } }
         """
         response_data = await make_graphql_request(query)
         flash = response_data.get("flash", {})
@@ -77,7 +77,7 @@ def register_system_extra_tools(mcp: FastMCP) -> None:
         query GetServers {
           servers {
             id guid name comment status wanip lanip localurl remoteurl
-            owner { username url avatar }
+            owner { username avatar }
           }
         }
         """

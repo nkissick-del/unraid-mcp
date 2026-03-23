@@ -22,7 +22,7 @@ class TestCustomizationQueries:
         [
             (DISPLAY_SETTINGS_QUERY, ["query", "display", "locale", "theme", "unit", "scale"]),
             (CURRENT_USER_QUERY, ["query", "me", "name", "roles", "permissions"]),
-            (OWNER_INFO_QUERY, ["query", "owner", "username", "url", "avatar"]),
+            (OWNER_INFO_QUERY, ["query", "owner", "username", "avatar"]),
             (CUSTOMIZATION_QUERY, ["query", "customization", "activationCode", "onboarding"]),
             (
                 PUBLIC_THEME_QUERY,

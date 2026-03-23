@@ -11,8 +11,8 @@ QUERY_SPECS = [
     ),
     (
         "GetFlashInfo",
-        "query GetFlashInfo { flash { id guid vendor product } }",
-        ["guid", "vendor", "product"],
+        "query GetFlashInfo { flash { id vendor product } }",
+        ["vendor", "product"],
     ),
     (
         "GetServices",
@@ -29,7 +29,7 @@ QUERY_SPECS = [
         """query GetServers {
       servers {
         id guid name comment status wanip lanip localurl remoteurl
-        owner { username url avatar }
+        owner { username avatar }
       }
     }""",
         ["name", "status", "lanip", "owner", "username"],
