@@ -53,12 +53,10 @@ PARITY_HISTORY_QUERY = """
     query GetParityHistory {
       parityHistory {
         date
-        duration
         speed
         status
-        errors
-        progress
         correcting
+        progress
         paused
         running
       }

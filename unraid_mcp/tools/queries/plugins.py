@@ -3,29 +3,17 @@
 LIST_PLUGINS_QUERY = """
     query ListPlugins {
       plugins {
-        id
         name
         version
-        author
-        url
-        icon
-        status
-        description
+        hasApiModule
+        hasCliModule
       }
     }
 """
 
 LIST_INSTALLED_UNRAID_PLUGINS_QUERY = """
     query ListInstalledUnraidPlugins {
-      installedUnraidPlugins {
-        id
-        name
-        version
-        author
-        url
-        icon
-        status
-      }
+      installedUnraidPlugins
     }
 """
 
@@ -44,9 +32,13 @@ LIST_PLUGIN_INSTALL_OPERATIONS_QUERY = """
     query ListPluginInstallOperations {
       pluginInstallOperations {
         id
+        url
+        name
         status
-        progress
-        error
+        createdAt
+        updatedAt
+        finishedAt
+        output
       }
     }
 """

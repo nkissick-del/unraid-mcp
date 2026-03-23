@@ -24,7 +24,7 @@ class TestPluginQueries:
     def test_list_plugins_has_expected_fields(self):
         assert "name" in LIST_PLUGINS_QUERY
         assert "version" in LIST_PLUGINS_QUERY
-        assert "status" in LIST_PLUGINS_QUERY
+        assert "hasApiModule" in LIST_PLUGINS_QUERY
 
     def test_list_installed_plugins_query(self):
         assert "query" in LIST_INSTALLED_UNRAID_PLUGINS_QUERY

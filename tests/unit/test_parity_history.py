@@ -16,17 +16,11 @@ class TestParityHistoryQuery:
     def test_query_contains_date_field(self):
         assert "date" in PARITY_HISTORY_QUERY
 
-    def test_query_contains_duration_field(self):
-        assert "duration" in PARITY_HISTORY_QUERY
-
     def test_query_contains_speed_field(self):
         assert "speed" in PARITY_HISTORY_QUERY
 
     def test_query_contains_status_field(self):
         assert "status" in PARITY_HISTORY_QUERY
-
-    def test_query_contains_errors_field(self):
-        assert "errors" in PARITY_HISTORY_QUERY
 
     def test_query_contains_progress_field(self):
         assert "progress" in PARITY_HISTORY_QUERY
@@ -39,3 +33,11 @@ class TestParityHistoryQuery:
 
     def test_query_contains_paused_field(self):
         assert "paused" in PARITY_HISTORY_QUERY
+
+    def test_query_does_not_contain_errors_field(self):
+        # errors field removed to avoid Int overflow on the live API
+        assert "errors" not in PARITY_HISTORY_QUERY
+
+    def test_query_does_not_contain_duration_field(self):
+        # duration field removed to avoid Int overflow on the live API
+        assert "duration" not in PARITY_HISTORY_QUERY

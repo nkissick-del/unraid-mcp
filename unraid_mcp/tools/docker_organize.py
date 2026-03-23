@@ -238,7 +238,8 @@ def register_docker_organize_tools(mcp: FastMCP) -> None:
         response = await make_graphql_request(SYNC_DOCKER_TEMPLATE_PATHS_MUTATION)
         result = response.get("syncDockerTemplatePaths", {})
         return {
-            "success": result.get("success", False),
+            "success": True,
+            "result": result,
             "message": "Docker template paths synchronized",
         }
 
@@ -255,9 +256,9 @@ def register_docker_organize_tools(mcp: FastMCP) -> None:
         require_confirm(confirm, "reset Docker template mappings")
 
         response = await make_graphql_request(RESET_DOCKER_TEMPLATE_MAPPINGS_MUTATION)
-        result = response.get("resetDockerTemplateMappings", {})
+        result = response.get("resetDockerTemplateMappings", False)
         return {
-            "success": result.get("success", False),
+            "success": bool(result),
             "message": "Docker template mappings reset to defaults",
         }
 
@@ -266,8 +267,8 @@ def register_docker_organize_tools(mcp: FastMCP) -> None:
     async def refresh_docker_digests() -> dict[str, Any]:
         """Refreshes Docker image digests to check for available updates."""
         response = await make_graphql_request(REFRESH_DOCKER_DIGESTS_MUTATION)
-        result = response.get("refreshDockerDigests", {})
+        result = response.get("refreshDockerDigests", False)
         return {
-            "success": result.get("success", False),
+            "success": bool(result),
             "message": "Docker digests refreshed",
         }

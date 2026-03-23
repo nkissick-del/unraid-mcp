@@ -10,7 +10,9 @@ COMPLETE_ONBOARDING_MUTATION = """
     mutation CompleteOnboarding {
       onboarding {
         completeOnboarding {
-          success
+          status
+          completed
+          completedAtVersion
         }
       }
     }
@@ -20,7 +22,9 @@ RESET_ONBOARDING_MUTATION = """
     mutation ResetOnboarding {
       onboarding {
         resetOnboarding {
-          success
+          status
+          completed
+          completedAtVersion
         }
       }
     }
@@ -30,7 +34,9 @@ OPEN_ONBOARDING_MUTATION = """
     mutation OpenOnboarding {
       onboarding {
         openOnboarding {
-          success
+          status
+          completed
+          completedAtVersion
         }
       }
     }
@@ -40,7 +46,9 @@ CLOSE_ONBOARDING_MUTATION = """
     mutation CloseOnboarding {
       onboarding {
         closeOnboarding {
-          success
+          status
+          completed
+          completedAtVersion
         }
       }
     }
@@ -50,7 +58,9 @@ BYPASS_ONBOARDING_MUTATION = """
     mutation BypassOnboarding {
       onboarding {
         bypassOnboarding {
-          success
+          status
+          completed
+          completedAtVersion
         }
       }
     }
@@ -60,7 +70,9 @@ RESUME_ONBOARDING_MUTATION = """
     mutation ResumeOnboarding {
       onboarding {
         resumeOnboarding {
-          success
+          status
+          completed
+          completedAtVersion
         }
       }
     }
@@ -70,7 +82,9 @@ SET_ONBOARDING_OVERRIDE_MUTATION = """
     mutation SetOnboardingOverride($input: OnboardingOverrideInput!) {
       onboarding {
         setOnboardingOverride(input: $input) {
-          success
+          status
+          completed
+          completedAtVersion
         }
       }
     }
@@ -80,7 +94,9 @@ CLEAR_ONBOARDING_OVERRIDE_MUTATION = """
     mutation ClearOnboardingOverride {
       onboarding {
         clearOnboardingOverride {
-          success
+          status
+          completed
+          completedAtVersion
         }
       }
     }
@@ -90,7 +106,9 @@ CREATE_INTERNAL_BOOT_POOL_MUTATION = """
     mutation CreateInternalBootPool($input: CreateInternalBootPoolInput!) {
       onboarding {
         createInternalBootPool(input: $input) {
-          success
+          ok
+          code
+          output
         }
       }
     }
@@ -100,7 +118,10 @@ REFRESH_INTERNAL_BOOT_CONTEXT_MUTATION = """
     mutation RefreshInternalBootContext {
       onboarding {
         refreshInternalBootContext {
-          success
+          arrayStopped
+          bootEligible
+          bootedFromFlashWithInternalBootSetup
+          enableBootTransfer
         }
       }
     }

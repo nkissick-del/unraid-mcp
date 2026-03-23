@@ -20,11 +20,14 @@ class TestCustomizationQueries:
     @pytest.mark.parametrize(
         "query,keywords",
         [
-            (DISPLAY_SETTINGS_QUERY, ["query", "display", "locale", "theme", "dateFormat"]),
-            (CURRENT_USER_QUERY, ["query", "me", "name", "role", "permissions"]),
+            (DISPLAY_SETTINGS_QUERY, ["query", "display", "locale", "theme", "unit", "scale"]),
+            (CURRENT_USER_QUERY, ["query", "me", "name", "roles", "permissions"]),
             (OWNER_INFO_QUERY, ["query", "owner", "username", "url", "avatar"]),
-            (CUSTOMIZATION_QUERY, ["query", "customization", "theme", "locale", "banner"]),
-            (PUBLIC_THEME_QUERY, ["query", "publicTheme", "theme", "banner"]),
+            (CUSTOMIZATION_QUERY, ["query", "customization", "activationCode", "onboarding"]),
+            (
+                PUBLIC_THEME_QUERY,
+                ["query", "publicTheme", "showBannerImage", "headerBackgroundColor"],
+            ),
         ],
     )
     def test_query_structure(self, query, keywords):

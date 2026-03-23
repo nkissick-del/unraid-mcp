@@ -4,13 +4,15 @@ LIST_ASSIGNABLE_DISKS_QUERY = """
     query ListAssignableDisks {
       assignableDisks {
         id
-        name
         device
-        size
-        serial
+        type
+        name
         vendor
-        model
-        status
+        size
+        serialNum
+        interfaceType
+        smartStatus
+        temperature
       }
     }
 """

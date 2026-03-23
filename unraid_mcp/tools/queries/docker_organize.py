@@ -72,23 +72,22 @@ UPDATE_DOCKER_VIEW_PREFERENCES_MUTATION = """
 SYNC_DOCKER_TEMPLATE_PATHS_MUTATION = """
     mutation SyncDockerTemplatePaths {
       syncDockerTemplatePaths {
-        success
+        scanned
+        matched
+        skipped
+        errors
       }
     }
 """
 
 RESET_DOCKER_TEMPLATE_MAPPINGS_MUTATION = """
     mutation ResetDockerTemplateMappings {
-      resetDockerTemplateMappings {
-        success
-      }
+      resetDockerTemplateMappings
     }
 """
 
 REFRESH_DOCKER_DIGESTS_MUTATION = """
     mutation RefreshDockerDigests {
-      refreshDockerDigests {
-        success
-      }
+      refreshDockerDigests
     }
 """

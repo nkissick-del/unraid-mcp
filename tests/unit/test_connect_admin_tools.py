@@ -23,17 +23,17 @@ class TestConnectAdminQueries:
         assert "connect" in GET_CONNECT_INFO_QUERY
 
     def test_connect_info_has_expected_fields(self):
-        assert "status" in GET_CONNECT_INFO_QUERY
-        assert "signedIn" in GET_CONNECT_INFO_QUERY
-        assert "username" in GET_CONNECT_INFO_QUERY
+        assert "dynamicRemoteAccess" in GET_CONNECT_INFO_QUERY
+        assert "settings" in GET_CONNECT_INFO_QUERY
+        assert "dataSchema" in GET_CONNECT_INFO_QUERY
 
     def test_get_remote_access_query(self):
         assert "query" in GET_REMOTE_ACCESS_QUERY
         assert "remoteAccess" in GET_REMOTE_ACCESS_QUERY
 
     def test_remote_access_has_expected_fields(self):
-        assert "enabled" in GET_REMOTE_ACCESS_QUERY
-        assert "url" in GET_REMOTE_ACCESS_QUERY
+        assert "accessType" in GET_REMOTE_ACCESS_QUERY
+        assert "forwardType" in GET_REMOTE_ACCESS_QUERY
         assert "port" in GET_REMOTE_ACCESS_QUERY
 
     def test_get_cloud_info_query(self):
@@ -41,8 +41,9 @@ class TestConnectAdminQueries:
         assert "cloud" in GET_CLOUD_INFO_QUERY
 
     def test_cloud_info_has_expected_fields(self):
-        assert "status" in GET_CLOUD_INFO_QUERY
+        assert "error" in GET_CLOUD_INFO_QUERY
         assert "apiKey" in GET_CLOUD_INFO_QUERY
+        assert "relay" in GET_CLOUD_INFO_QUERY
 
 
 class TestConnectAdminMutations:

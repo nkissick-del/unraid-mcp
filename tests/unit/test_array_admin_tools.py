@@ -24,7 +24,7 @@ class TestArrayAdminQueries:
         assert "name" in LIST_ASSIGNABLE_DISKS_QUERY
         assert "device" in LIST_ASSIGNABLE_DISKS_QUERY
         assert "size" in LIST_ASSIGNABLE_DISKS_QUERY
-        assert "serial" in LIST_ASSIGNABLE_DISKS_QUERY
+        assert "serialNum" in LIST_ASSIGNABLE_DISKS_QUERY
 
 
 class TestArrayAdminMutations:

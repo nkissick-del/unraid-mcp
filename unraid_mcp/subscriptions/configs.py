@@ -103,7 +103,7 @@ SUBSCRIPTION_CONFIGS: dict[str, dict[str, Any]] = {
     },
     "parityHistorySubscription": {
         "query": """subscription ParityHistorySubscription {
-                    parityHistorySubscription { date duration speed status errors elapsed correcting progress }
+                    parityHistorySubscription { date speed status correcting progress paused running }
                 }""",
         "resource": "unraid://parity/status",
         "description": "Real-time parity check status and history",

@@ -29,7 +29,7 @@ QUERY_SPECS = [
         """query GetServers {
       servers {
         id guid name comment status wanip lanip localurl remoteurl
-        owner { id username url avatar }
+        owner { username url avatar }
       }
     }""",
         ["name", "status", "lanip", "owner", "username"],

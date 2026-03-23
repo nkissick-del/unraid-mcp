@@ -4,11 +4,8 @@ GET_CONNECT_INFO_QUERY = """
     query GetConnectInfo {
       connect {
         id
-        status
-        signedIn
-        username
-        email
-        serverName
+        dynamicRemoteAccess { enabledType runningType error }
+        settings { id dataSchema uiSchema }
       }
     }
 """
@@ -16,12 +13,9 @@ GET_CONNECT_INFO_QUERY = """
 GET_REMOTE_ACCESS_QUERY = """
     query GetRemoteAccess {
       remoteAccess {
-        id
-        enabled
-        url
-        type
+        accessType
+        forwardType
         port
-        status
       }
     }
 """
@@ -29,10 +23,11 @@ GET_REMOTE_ACCESS_QUERY = """
 GET_CLOUD_INFO_QUERY = """
     query GetCloudInfo {
       cloud {
-        id
-        status
         error
-        apiKey
+        apiKey { valid error }
+        relay { status timeout error }
+        minigraphql { status timeout error }
+        cloud { status ip error }
         allowedOrigins
       }
     }

@@ -4,12 +4,21 @@ DISPLAY_SETTINGS_QUERY = """
     query GetDisplaySettings {
       display {
         id
-        locale
+        case { id url icon error }
         theme
-        dateFormat
-        timeFormat
-        numberFormat
-        startPage
+        unit
+        scale
+        tabs
+        resize
+        wwn
+        total
+        usage
+        text
+        warning
+        critical
+        hot
+        max
+        locale
       }
     }
 """
@@ -20,7 +29,7 @@ CURRENT_USER_QUERY = """
         id
         name
         description
-        role
+        roles
         permissions
       }
     }
@@ -29,7 +38,6 @@ CURRENT_USER_QUERY = """
 OWNER_INFO_QUERY = """
     query GetOwnerInfo {
       owner {
-        id
         username
         url
         avatar
@@ -40,13 +48,8 @@ OWNER_INFO_QUERY = """
 CUSTOMIZATION_QUERY = """
     query GetCustomization {
       customization {
-        id
-        theme
-        locale
-        dateFormat
-        timeFormat
-        banner
-        usage
+        activationCode { code }
+        onboarding { status completed completedAtVersion }
       }
     }
 """
@@ -54,9 +57,13 @@ CUSTOMIZATION_QUERY = """
 PUBLIC_THEME_QUERY = """
     query GetPublicTheme {
       publicTheme {
-        id
-        theme
-        banner
+        name
+        showBannerImage
+        showBannerGradient
+        showHeaderDescription
+        headerBackgroundColor
+        headerPrimaryTextColor
+        headerSecondaryTextColor
       }
     }
 """

@@ -41,7 +41,7 @@ def register_onboarding_tools(mcp: FastMCP) -> None:
         """Marks the onboarding process as complete. Idempotent."""
         response = await make_graphql_request(COMPLETE_ONBOARDING_MUTATION)
         result = response.get("onboarding", {}).get("completeOnboarding", {})
-        return {"success": result.get("success", False), "action": "complete"}
+        return {"action": "complete", "onboarding": result}
 
     @mcp.tool()
     @tool_error_handler("reset onboarding")
@@ -49,7 +49,7 @@ def register_onboarding_tools(mcp: FastMCP) -> None:
         """Resets the onboarding process to start over. Idempotent."""
         response = await make_graphql_request(RESET_ONBOARDING_MUTATION)
         result = response.get("onboarding", {}).get("resetOnboarding", {})
-        return {"success": result.get("success", False), "action": "reset"}
+        return {"action": "reset", "onboarding": result}
 
     @mcp.tool()
     @tool_error_handler("open onboarding")
@@ -57,7 +57,7 @@ def register_onboarding_tools(mcp: FastMCP) -> None:
         """Opens the onboarding wizard. Idempotent."""
         response = await make_graphql_request(OPEN_ONBOARDING_MUTATION)
         result = response.get("onboarding", {}).get("openOnboarding", {})
-        return {"success": result.get("success", False), "action": "open"}
+        return {"action": "open", "onboarding": result}
 
     @mcp.tool()
     @tool_error_handler("close onboarding")
@@ -65,7 +65,7 @@ def register_onboarding_tools(mcp: FastMCP) -> None:
         """Closes the onboarding wizard. Idempotent."""
         response = await make_graphql_request(CLOSE_ONBOARDING_MUTATION)
         result = response.get("onboarding", {}).get("closeOnboarding", {})
-        return {"success": result.get("success", False), "action": "close"}
+        return {"action": "close", "onboarding": result}
 
     @mcp.tool()
     @tool_error_handler("bypass onboarding")
@@ -73,7 +73,7 @@ def register_onboarding_tools(mcp: FastMCP) -> None:
         """Bypasses the onboarding process entirely. Idempotent."""
         response = await make_graphql_request(BYPASS_ONBOARDING_MUTATION)
         result = response.get("onboarding", {}).get("bypassOnboarding", {})
-        return {"success": result.get("success", False), "action": "bypass"}
+        return {"action": "bypass", "onboarding": result}
 
     @mcp.tool()
     @tool_error_handler("resume onboarding")
@@ -81,7 +81,7 @@ def register_onboarding_tools(mcp: FastMCP) -> None:
         """Resumes a previously paused onboarding process. Idempotent."""
         response = await make_graphql_request(RESUME_ONBOARDING_MUTATION)
         result = response.get("onboarding", {}).get("resumeOnboarding", {})
-        return {"success": result.get("success", False), "action": "resume"}
+        return {"action": "resume", "onboarding": result}
 
     @mcp.tool()
     @tool_error_handler("set onboarding override")
@@ -96,7 +96,7 @@ def register_onboarding_tools(mcp: FastMCP) -> None:
         variables: dict[str, Any] = {"input": input_config}
         response = await make_graphql_request(SET_ONBOARDING_OVERRIDE_MUTATION, variables)
         result = response.get("onboarding", {}).get("setOnboardingOverride", {})
-        return {"success": result.get("success", False), "action": "setOverride"}
+        return {"action": "setOverride", "onboarding": result}
 
     @mcp.tool()
     @tool_error_handler("clear onboarding override")
@@ -104,7 +104,7 @@ def register_onboarding_tools(mcp: FastMCP) -> None:
         """Clears any onboarding override configuration. Idempotent."""
         response = await make_graphql_request(CLEAR_ONBOARDING_OVERRIDE_MUTATION)
         result = response.get("onboarding", {}).get("clearOnboardingOverride", {})
-        return {"success": result.get("success", False), "action": "clearOverride"}
+        return {"action": "clearOverride", "onboarding": result}
 
     @mcp.tool()
     @tool_error_handler("create internal boot pool")
@@ -124,8 +124,9 @@ def register_onboarding_tools(mcp: FastMCP) -> None:
         response = await make_graphql_request(CREATE_INTERNAL_BOOT_POOL_MUTATION)
         result = response.get("onboarding", {}).get("createInternalBootPool", {})
         return {
-            "success": result.get("success", False),
+            "success": result.get("ok", False),
             "action": "createInternalBootPool",
+            "result": result,
         }
 
     @mcp.tool()
@@ -135,6 +136,6 @@ def register_onboarding_tools(mcp: FastMCP) -> None:
         response = await make_graphql_request(REFRESH_INTERNAL_BOOT_CONTEXT_MUTATION)
         result = response.get("onboarding", {}).get("refreshInternalBootContext", {})
         return {
-            "success": result.get("success", False),
             "action": "refreshInternalBootContext",
+            "bootContext": result,
         }

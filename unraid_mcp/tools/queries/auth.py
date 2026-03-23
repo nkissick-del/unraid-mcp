@@ -27,21 +27,15 @@ GET_API_KEY_QUERY = """
 
 GET_API_KEY_POSSIBLE_ROLES_QUERY = """
     query GetApiKeyPossibleRoles {
-      apiKeyPossibleRoles {
-        id
-        name
-        description
-      }
+      apiKeyPossibleRoles
     }
 """
 
 GET_API_KEY_POSSIBLE_PERMISSIONS_QUERY = """
     query GetApiKeyPossiblePermissions {
       apiKeyPossiblePermissions {
-        id
-        name
-        description
-        category
+        resource
+        actions
       }
     }
 """
@@ -66,19 +60,17 @@ PREVIEW_EFFECTIVE_PERMISSIONS_QUERY = """
 
 GET_AVAILABLE_AUTH_ACTIONS_QUERY = """
     query GetAvailableAuthActions {
-      getAvailableAuthActions {
-        id
-        name
-        description
-      }
+      getAvailableAuthActions
     }
 """
 
 GET_API_KEY_CREATION_FORM_SCHEMA_QUERY = """
     query GetApiKeyCreationFormSchema {
       getApiKeyCreationFormSchema {
-        fields
-        validation
+        id
+        dataSchema
+        uiSchema
+        values
       }
     }
 """

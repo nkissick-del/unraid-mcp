@@ -41,7 +41,7 @@ class TestOnboardingMutations:
     def test_idempotent_mutation_is_valid(self, mutation_name, mutation_str, keyword):
         assert "mutation" in mutation_str
         assert keyword in mutation_str.lower()
-        assert "success" in mutation_str
+        assert "status" in mutation_str
 
     @pytest.mark.parametrize(
         "mutation,keywords",
