@@ -11,7 +11,7 @@ FROM python:3.11-slim
 
 # hadolint ignore=DL3008
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
+    && apt-get install -y --no-install-recommends curl gosu \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -25,7 +25,9 @@ RUN pip uninstall -y wheel setuptools pip 2>/dev/null; true
 RUN groupadd -r mcp && useradd -r -g mcp -d /app -s /sbin/nologin mcp \
     && mkdir -p /app/logs \
     && chown -R mcp:mcp /app
-USER mcp
+
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
 EXPOSE 6970
 
@@ -45,4 +47,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
         -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"healthcheck","version":"1.0.0"}}}' \
         "http://localhost:${UNRAID_MCP_PORT:-6970}/mcp" || exit 1
 
-CMD ["uv", "run", "unraid-mcp-server"]
+ENTRYPOINT ["entrypoint.sh"]
