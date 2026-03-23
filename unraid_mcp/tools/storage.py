@@ -239,7 +239,7 @@ def register_storage_tools(mcp: FastMCP) -> None:
             interfaceType
             smartStatus
             isSpinning
-            partitions { name size type fsType }
+            partitions { name size }
           }
         }
         """
