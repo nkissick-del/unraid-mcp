@@ -8,7 +8,6 @@ LIST_API_KEYS_QUERY = """
         roles
         description
         createdAt
-        lastUsedAt
       }
     }
 """
@@ -22,7 +21,6 @@ GET_API_KEY_QUERY = """
         description
         permissions
         createdAt
-        lastUsedAt
       }
     }
 """

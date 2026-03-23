@@ -27,7 +27,7 @@ class TestAuthQueries:
         "query,keywords",
         [
             (LIST_API_KEYS_QUERY, ["query", "apiKeys", "name", "roles", "createdAt"]),
-            (GET_API_KEY_QUERY, ["query", "$keyId", "apiKey", "permissions", "lastUsedAt"]),
+            (GET_API_KEY_QUERY, ["query", "$keyId", "apiKey", "permissions", "createdAt"]),
             (GET_API_KEY_POSSIBLE_ROLES_QUERY, ["query", "apiKeyPossibleRoles"]),
             (GET_API_KEY_POSSIBLE_PERMISSIONS_QUERY, ["query", "apiKeyPossiblePermissions"]),
             (
