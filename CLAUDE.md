@@ -148,7 +148,7 @@ Since `settings.py` uses module-level code, tests that validate different env va
 The dev machine (macOS) may not have Docker daemon running. Docker build verification (`docker build -t unraid-mcp-server .`) should be treated as a CI-only check when the daemon is unavailable locally. All other quality gates (black, ruff, mypy, pytest) run locally.
 
 ### Security hardening checklist for Docker Compose
-When hardening a `docker-compose.yml`, the key additions are: `security_opt: [no-new-privileges:true]`, `cap_drop: [ALL]`, and resource limits (`mem_limit`, `cpus`). Avoid `read_only: true` — `uv` needs to write to `/app/.cache/uv` at startup. The container runs as root (default) because `cap_drop: [ALL]` removes capabilities including `SETUID`/`SETGID`, which prevents runtime user switching (gosu/su-exec). Running as root with `cap_drop: [ALL]` + `no-new-privileges` is standard on Unraid and avoids bind-mount permission issues on fresh installs.
+When hardening a `docker-compose.yml`, use `security_opt: [no-new-privileges:true]` and resource limits (`mem_limit`, `cpus`). Do NOT use `cap_drop: [ALL]` — it drops `DAC_OVERRIDE` which prevents root from writing to bind-mounted directories owned by `nobody:users` (Unraid's default). Do NOT use `read_only: true` — `uv` needs `/app/.cache/uv` at startup.
 
 ### Dockerfile healthcheck must use POST for streamable-http
 The MCP streamable-http transport only accepts POST requests. A `curl -f GET /mcp` healthcheck returns 406 Not Acceptable, making Docker report the container as unhealthy even though the server is running. The healthcheck must send a valid MCP `initialize` JSON-RPC POST request.

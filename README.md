@@ -25,7 +25,6 @@ docker run -d \
   -e UNRAID_API_KEY=YOUR-API-KEY \
   -e UNRAID_VERIFY_SSL=false \
   --security-opt no-new-privileges:true \
-  --cap-drop ALL \
   -v /mnt/user/appdata/unraid-mcp/logs:/app/logs \
   ghcr.io/nkissick-del/unraid-mcp:latest
 ```
@@ -51,8 +50,6 @@ services:
       - UNRAID_MCP_ENABLED_MODULES=default
     security_opt:
       - no-new-privileges:true
-    cap_drop:
-      - ALL
     volumes:
       - /mnt/user/appdata/unraid-mcp/logs:/app/logs
 ```

@@ -36,8 +36,6 @@ services:
       - UNRAID_AUTOSTART_LOG_PATH=${UNRAID_AUTOSTART_LOG_PATH}
     security_opt:
       - no-new-privileges:true
-    cap_drop:
-      - ALL
     mem_limit: 512m
     cpus: 1.0
     volumes:

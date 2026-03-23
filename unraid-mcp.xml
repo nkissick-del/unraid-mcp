@@ -15,7 +15,7 @@
   <Overview>MCP (Model Context Protocol) server that provides AI assistants with tools to interact with your Unraid server via its GraphQL API. Enables system monitoring, Docker and VM management, storage management, and more through a standardized protocol. Supports streamable-http, SSE, and stdio transports.</Overview>
   <Category>Tools: Productivity: Other:</Category>
   <Icon>https://raw.githubusercontent.com/nkissick-del/unraid-mcp/main/.github/icon.png</Icon>
-  <ExtraParams>--security-opt no-new-privileges:true --cap-drop ALL</ExtraParams>
+  <ExtraParams>--security-opt no-new-privileges:true</ExtraParams>
   <PostArgs/>
   <CPUset/>
   <DonateText/>
