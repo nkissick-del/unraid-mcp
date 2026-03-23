@@ -21,7 +21,7 @@ COPY --from=builder /app /app
 
 # Upgrade base image packages flagged by Trivy CVEs
 # hadolint ignore=DL3013
-RUN pip install --no-cache-dir "wheel>=0.46.2" "pip>=25.1" "jaraco.context>=6.1.0" \
+RUN pip install --no-cache-dir "wheel>=0.46.2" "pip>=25.1" \
     && pip cache purge 2>/dev/null; true
 
 RUN groupadd -r mcp && useradd -r -g mcp -d /app -s /sbin/nologin mcp \
