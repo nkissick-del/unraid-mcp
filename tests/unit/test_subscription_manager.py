@@ -7,25 +7,9 @@ import pytest
 from unraid_mcp.core.exceptions import ValidationError
 from unraid_mcp.subscriptions.manager import (
     SubscriptionManager,
-    _build_ws_auth_payload,
     _build_ws_url,
     _validate_subscription_query,
 )
-
-
-class TestBuildWsAuthPayload:
-    def test_returns_dict_with_api_key(self):
-        with patch("unraid_mcp.subscriptions.manager.UNRAID_API_KEY", "test-key-123"):
-            payload = _build_ws_auth_payload()
-            assert len(payload) == 2
-            assert payload["Authorization"] == "Bearer test-key-123"
-            assert payload["x-api-key"] == "test-key-123"
-
-    def test_no_duplicate_or_nested_keys(self):
-        with patch("unraid_mcp.subscriptions.manager.UNRAID_API_KEY", "test-key-123"):
-            payload = _build_ws_auth_payload()
-            assert "headers" not in payload
-            assert len(payload) == 2
 
 
 class TestBuildWsUrl:
@@ -147,12 +131,10 @@ class TestStartSubscription:
     async def test_creates_task(self):
         with patch("unraid_mcp.subscriptions.manager.UNRAID_API_KEY", "key"):
             mgr = SubscriptionManager()
-            # Mock the subscription loop to avoid real websocket
             mgr._subscription_loop = AsyncMock()
 
             await mgr.start_subscription("test_sub", "subscription { test }")
             assert "test_sub" in mgr.active_subscriptions
-            # Clean up
             await mgr.stop_subscription("test_sub")
 
     @pytest.mark.asyncio
@@ -162,7 +144,6 @@ class TestStartSubscription:
             mgr._subscription_loop = AsyncMock()
 
             await mgr.start_subscription("test_sub", "subscription { test }")
-            # Second call should skip
             await mgr.start_subscription("test_sub", "subscription { test }")
             assert "test_sub" in mgr.active_subscriptions
             await mgr.stop_subscription("test_sub")

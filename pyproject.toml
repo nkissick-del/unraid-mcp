@@ -52,6 +52,7 @@ dev = [
     "black>=25.1.0",
     "ruff>=0.12.8",
     "mypy>=1.17.1",
+    "pydantic>=2.0.0",
 ]
 
 [project.urls]

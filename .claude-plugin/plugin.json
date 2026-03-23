@@ -1,0 +1,16 @@
+{
+  "name": "unraid",
+  "description": "Monitor and manage Unraid servers — array, Docker, disks, UPS, logs, notifications",
+  "version": "0.6.0",
+  "author": {"name": "nkissick-del"},
+  "homepage": "https://github.com/nkissick-del/unraid-mcp",
+  "repository": "https://github.com/nkissick-del/unraid-mcp",
+  "mcpServers": {
+    "unraid": {
+      "type": "stdio",
+      "command": "uv",
+      "args": ["run", "--directory", "${CLAUDE_PLUGIN_ROOT}", "unraid-mcp-server"],
+      "env": {"UNRAID_MCP_TRANSPORT": "stdio"}
+    }
+  }
+}

@@ -35,14 +35,6 @@ from ..core.types import SubscriptionData
 from .configs import SUBSCRIPTION_CONFIGS
 
 
-def _build_ws_auth_payload() -> dict[str, Any]:
-    """Build WebSocket authentication payload for GraphQL-WS connection_init."""
-    return {
-        "Authorization": f"Bearer {UNRAID_API_KEY}",
-        "x-api-key": UNRAID_API_KEY,
-    }
-
-
 def _build_ws_url(api_url: str) -> str:
     """Convert an HTTP(S) API URL to a WebSocket URL ending in /graphql."""
     parsed = urlparse(api_url)
@@ -431,7 +423,7 @@ class SubscriptionManager:
 
                     if UNRAID_API_KEY:
                         logger.debug(f"[AUTH:{subscription_name}] Adding authentication payload")
-                        init_payload["payload"] = _build_ws_auth_payload()
+                        init_payload["payload"] = {"x-api-key": UNRAID_API_KEY}
                     else:
                         logger.warning(
                             f"[AUTH:{subscription_name}] No API key available for authentication"

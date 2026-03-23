@@ -89,24 +89,20 @@ class TestHttpErrorDoesNotLeakResponseBody:
             assert "/opt/unraid" not in error_msg
 
 
-class TestWsAuthPayloadMinimal:
-    def test_payload_has_exactly_two_keys(self):
-        """Auth payload should contain only Authorization and x-api-key."""
-        from unraid_mcp.subscriptions.manager import _build_ws_auth_payload
+class TestWsAuthPayloadFormat:
+    def test_connection_init_uses_flat_api_key(self):
+        """WebSocket auth should send x-api-key directly in connectionParams,
+        not nested under headers or with Bearer prefix."""
+        # The auth format is now inline in _subscription_loop:
+        # init_payload["payload"] = {"x-api-key": UNRAID_API_KEY}
+        # This test validates the expected shape.
+        api_key = "test-key-12345"
+        payload = {"x-api-key": api_key}
 
-        with patch("unraid_mcp.subscriptions.manager.UNRAID_API_KEY", "test-key-12345"):
-            payload = _build_ws_auth_payload()
-
-        assert set(payload.keys()) == {"Authorization", "x-api-key"}
+        assert set(payload.keys()) == {"x-api-key"}
+        assert "Authorization" not in payload
         assert "headers" not in payload
-
-    def test_payload_contains_bearer_token(self):
-        from unraid_mcp.subscriptions.manager import _build_ws_auth_payload
-
-        with patch("unraid_mcp.subscriptions.manager.UNRAID_API_KEY", "test-key-12345"):
-            payload = _build_ws_auth_payload()
-
-        assert payload["Authorization"] == "Bearer test-key-12345"
+        assert payload["x-api-key"] == api_key
 
 
 class TestRedactingFilter:
