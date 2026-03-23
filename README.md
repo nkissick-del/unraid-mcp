@@ -50,6 +50,8 @@ services:
       - UNRAID_MCP_ENABLED_MODULES=default
     security_opt:
       - no-new-privileges:true
+    cap_drop:
+      - ALL
     volumes:
       - /mnt/user/appdata/unraid-mcp/logs:/app/logs
 ```
