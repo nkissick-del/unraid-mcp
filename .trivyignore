@@ -1,7 +1,19 @@
-# jaraco.context pinned to >=6.1.0 in pyproject.toml and verified 6.1.1 in uv.lock.
-# Trivy false positive: reports 5.3.0 but build logs confirm 6.1.1 is installed.
+# === Docker layer scanning false positives ===
+#
+# Root cause: python:3.11-slim base image ships wheel==0.45.1 and
+# jaraco.context (via keyring dependency chain) in the system Python.
+# Our Dockerfile upgrades these in a later layer, but Trivy scans ALL
+# layers and finds the old METADATA files from the base image layer.
+#
+# Verified: `docker run --entrypoint sh <image> -c 'pip list | grep wheel'`
+# shows 0.46.3 (upgraded), and the uv venv has jaraco.context==6.1.1.
+# The vulnerable versions are shadowed and not reachable at runtime.
+#
+# To fully eliminate: switch to a base image without pip/wheel pre-installed,
+# or use Docker BuildKit --squash to flatten layers.
+
+# jaraco.context: base image has 5.3.0, our venv has 6.1.1 (pinned in pyproject.toml)
 CVE-2026-23949
 
-# wheel upgraded to >=0.46.2 in Dockerfile runtime stage.
-# Trivy false positive: scans stale METADATA from uv venv's transitive copy.
+# wheel: base image has 0.45.1, our pip install upgrades to >=0.46.2
 CVE-2026-24049
