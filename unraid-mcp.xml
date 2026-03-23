@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Container version="2">
+  <Name>unraid-mcp</Name>
+  <Repository>ghcr.io/nkissick-del/unraid-mcp:latest</Repository>
+  <Registry>https://ghcr.io/nkissick-del/unraid-mcp</Registry>
+  <Branch>
+    <Tag>latest</Tag>
+    <TagDescription>Latest stable release</TagDescription>
+  </Branch>
+  <Network>bridge</Network>
+  <Shell>bash</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/nkissick-del/unraid-mcp/issues</Support>
+  <Project>https://github.com/nkissick-del/unraid-mcp</Project>
+  <Overview>MCP (Model Context Protocol) server that provides AI assistants with tools to interact with your Unraid server via its GraphQL API. Enables system monitoring, Docker and VM management, storage management, and more through a standardized protocol. Supports streamable-http, SSE, and stdio transports.</Overview>
+  <Category>Tools: Productivity: Other:</Category>
+  <Icon>https://raw.githubusercontent.com/nkissick-del/unraid-mcp/main/.github/icon.png</Icon>
+  <ExtraParams>--security-opt no-new-privileges:true --cap-drop ALL</ExtraParams>
+  <PostArgs/>
+  <CPUset/>
+  <DonateText/>
+  <DonateLink/>
+  <Requires>Requires a valid Unraid API key. Navigate to Settings &gt; Management Access &gt; API in your Unraid webGUI to generate one.</Requires>
+  <Config Name="MCP Port" Target="6970" Default="6970" Mode="tcp" Description="Port for the MCP server. Must match the UNRAID_MCP_PORT environment variable." Type="Port" Display="always" Required="true" Mask="false">6970</Config>
+  <Config Name="Unraid API URL" Target="UNRAID_API_URL" Default="" Mode="" Description="Your Unraid GraphQL API endpoint URL (e.g., https://your-unraid-ip/graphql)" Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="Unraid API Key" Target="UNRAID_API_KEY" Default="" Mode="" Description="Your Unraid API key for authentication. Generate one from Settings &gt; Management Access &gt; API in the Unraid webGUI." Type="Variable" Display="always" Required="true" Mask="true"/>
+  <Config Name="MCP Transport" Target="UNRAID_MCP_TRANSPORT" Default="streamable-http" Mode="" Description="Transport protocol for the MCP server. Options: streamable-http (recommended), sse (deprecated), stdio." Type="Variable" Display="always" Required="false" Mask="false">streamable-http</Config>
+  <Config Name="MCP Host" Target="UNRAID_MCP_HOST" Default="0.0.0.0" Mode="" Description="Host address the MCP server listens on." Type="Variable" Display="advanced" Required="false" Mask="false">0.0.0.0</Config>
+  <Config Name="MCP Port Variable" Target="UNRAID_MCP_PORT" Default="6970" Mode="" Description="Port number the MCP server listens on internally. Must match the mapped port above." Type="Variable" Display="advanced" Required="false" Mask="false">6970</Config>
+  <Config Name="Log Level" Target="UNRAID_MCP_LOG_LEVEL" Default="INFO" Mode="" Description="Logging level for the MCP server. Options: DEBUG, INFO, WARNING, ERROR, CRITICAL." Type="Variable" Display="advanced" Required="false" Mask="false">INFO</Config>
+  <Config Name="Verify SSL" Target="UNRAID_VERIFY_SSL" Default="false" Mode="" Description="Whether to verify SSL certificates when connecting to the Unraid API. Set to true if using a valid SSL certificate." Type="Variable" Display="advanced" Required="false" Mask="false">false</Config>
+  <Config Name="Enabled Modules" Target="UNRAID_MCP_ENABLED_MODULES" Default="default" Mode="" Description="Tool preset: 'default' (~32 tools), 'extended' (~78 tools), or 'all' (~129 tools). Add individual modules with commas: 'default,plugins,auth'." Type="Variable" Display="advanced" Required="false" Mask="false">default</Config>
+  <Config Name="Log Directory" Target="/app/logs" Default="/mnt/user/appdata/unraid-mcp/logs" Mode="rw" Description="Path for MCP server log files." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/unraid-mcp/logs</Config>
+</Container>
