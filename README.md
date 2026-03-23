@@ -1,363 +1,210 @@
-# 🚀 Unraid MCP Server
+# Unraid MCP Server
 
-[![Python Version](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![FastMCP](https://img.shields.io/badge/FastMCP-2.11.2+-green.svg)](https://github.com/jlowin/fastmcp)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![CI](https://github.com/nkissick-del/unraid-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/nkissick-del/unraid-mcp/actions/workflows/ci.yml)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**A powerful MCP (Model Context Protocol) server that provides comprehensive tools to interact with an Unraid server's GraphQL API.**
+An MCP (Model Context Protocol) server that gives AI assistants full visibility and control over an Unraid server via its GraphQL API. Connect it to Claude Code, Claude Desktop, or any MCP-compatible client.
 
-## ✨ Features
+## What it does
 
-- 🔧 **26 Tools**: Complete Unraid management through MCP protocol
-- 🏗️ **Modular Architecture**: Clean, maintainable, and extensible codebase  
-- ⚡ **High Performance**: Async/concurrent operations with optimized timeouts
-- 🔄 **Real-time Data**: WebSocket subscriptions for live log streaming
-- 📊 **Health Monitoring**: Comprehensive system diagnostics and status
-- 🐳 **Docker Ready**: Full containerization support with Docker Compose
-- 🔒 **Secure**: Proper SSL/TLS configuration and API key management
-- 📝 **Rich Logging**: Structured logging with rotation and multiple levels
+- **Monitor** — system info, CPU/RAM/temps, array health, disk SMART data, UPS status, Docker containers, notifications, logs
+- **Manage** — start/stop containers, update images, manage plugins, control parity checks, array operations
+- **Query** — raw GraphQL escape hatch for anything not covered by dedicated tools
+- **129 tools** across 26 modules, organized into three tiers
 
----
+## Quick Start
 
-## 📋 Table of Contents
-
-- [Quick Start](#-quick-start)
-- [Installation](#-installation)
-- [Configuration](#-configuration)
-- [Available Tools & Resources](#-available-tools--resources)
-- [Development](#-development)
-- [Architecture](#-architecture)
-- [Troubleshooting](#-troubleshooting)
-
----
-
-## 🚀 Quick Start
-
-### Prerequisites
-- Docker and Docker Compose (recommended)
-- OR Python 3.10+ with [uv](https://github.com/astral-sh/uv) for development
-- Unraid server with GraphQL API enabled
-
-### 1. Clone Repository
-```bash
-git clone https://github.com/jmagar/unraid-mcp
-cd unraid-mcp
-```
-
-### 2. Configure Environment
-```bash
-cp .env.example .env
-# Edit .env with your Unraid API details
-```
-
-### 3. Deploy with Docker (Recommended)
-```bash
-# Start with Docker Compose
-docker compose up -d
-
-# View logs
-docker compose logs -f unraid-mcp
-```
-
-### OR 3. Run for Development
-```bash
-# Install dependencies
-uv sync
-
-# Run development server
-./scripts/dev.sh
-```
-
----
-
-## 📦 Installation
-
-### 🐳 Docker Deployment (Recommended)
-
-The easiest way to run the Unraid MCP Server is with Docker:
+### Pull and run (recommended)
 
 ```bash
-# Clone repository
-git clone https://github.com/jmagar/unraid-mcp
-cd unraid-mcp
-
-# Set required environment variables
-export UNRAID_API_URL="http://your-unraid-server/graphql"
-export UNRAID_API_KEY="your_api_key_here"
-
-# Deploy with Docker Compose
-docker compose up -d
-
-# View logs
-docker compose logs -f unraid-mcp
-```
-
-#### Manual Docker Build
-```bash
-# Build and run manually
-docker build -t unraid-mcp-server .
-docker run -d --name unraid-mcp \
-  --restart unless-stopped \
+docker run -d \
+  --name unraid-mcp \
   -p 6970:6970 \
-  -e UNRAID_API_URL="http://your-unraid-server/graphql" \
-  -e UNRAID_API_KEY="your_api_key_here" \
-  unraid-mcp-server
+  -e UNRAID_API_URL=https://YOUR-UNRAID-IP/graphql \
+  -e UNRAID_API_KEY=YOUR-API-KEY \
+  -e UNRAID_VERIFY_SSL=false \
+  --security-opt no-new-privileges:true \
+  --cap-drop ALL \
+  -v /mnt/user/appdata/unraid-mcp/logs:/app/logs \
+  ghcr.io/nkissick-del/unraid-mcp:latest
 ```
 
-### 🔧 Development Installation
+### Unraid Community Applications
 
-For development and testing:
+Copy `unraid-mcp.xml` to `/boot/config/plugins/dockerMan/templates-user/` on your Unraid server, then add the container through the Docker UI.
+
+### Docker Compose
+
+```yaml
+services:
+  unraid-mcp:
+    image: ghcr.io/nkissick-del/unraid-mcp:latest
+    container_name: unraid-mcp
+    restart: unless-stopped
+    ports:
+      - "6970:6970"
+    environment:
+      - UNRAID_API_URL=https://YOUR-UNRAID-IP/graphql
+      - UNRAID_API_KEY=YOUR-API-KEY
+      - UNRAID_VERIFY_SSL=false
+      - UNRAID_MCP_ENABLED_MODULES=default
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    volumes:
+      - /mnt/user/appdata/unraid-mcp/logs:/app/logs
+```
+
+## Connecting to Claude
+
+### Claude Code
 
 ```bash
-# Clone repository
-git clone https://github.com/jmagar/unraid-mcp
+claude mcp add --transport http unraid http://YOUR-UNRAID-IP:6970/mcp --scope user
+```
+
+### Claude Desktop
+
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "unraid": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "http://YOUR-UNRAID-IP:6970/mcp", "--allow-http"]
+    }
+  }
+}
+```
+
+## Module Tiers
+
+Control which tools are loaded via `UNRAID_MCP_ENABLED_MODULES`:
+
+| Tier | Tools | Modules | Best for |
+|------|-------|---------|----------|
+| `default` | 32 | system, docker, storage, health, api, system-extra, metrics, ups | Daily monitoring, low token overhead |
+| `extended` | 78 | default + notifications, plugins, parity, customization, connect, docker-admin, docker-batch, array, rclone, diagnostics | Full management |
+| `all` | 129 | extended + auth, server-admin, array-admin, vms, onboarding, docker-organize, ups-admin, subscriptions | Everything including admin operations |
+
+Mix presets with individual modules:
+
+```bash
+UNRAID_MCP_ENABLED_MODULES=default,plugins,auth
+UNRAID_MCP_ENABLED_MODULES=extended,server-admin
+```
+
+## Tools
+
+### Default Tier (32 tools)
+
+**System** — `get_system_info`, `get_array_status`, `get_network_config`, `get_registration_info`, `get_connect_settings`, `get_unraid_variables`, `manage_docker_container`
+
+**Docker** — `list_docker_containers`, `get_docker_container_details`, `get_docker_container_logs`
+
+**Storage** — `get_shares_info`, `list_physical_disks`, `get_disk_details`, `list_available_log_files`, `get_logs`, `get_notifications_overview`, `list_notifications`
+
+**Monitoring** — `get_system_metrics`, `get_system_time`, `get_timezone_options`, `get_parity_history`, `health_check`, `is_server_online`, `get_config_status`, `get_flash_info`, `get_services`, `get_servers`
+
+**UPS** — `list_ups_devices`, `get_ups_device`, `get_ups_configuration`
+
+**API** — `query_unraid_api`, `introspect_schema`
+
+### Extended Tier (adds 46 tools)
+
+**Docker Admin** — `remove_docker_container`, `update_docker_container`, `update_docker_containers`, `update_all_docker_containers`, `update_docker_autostart`
+
+**Notifications** — `archive_notification`, `archive_all_notifications`, `delete_notification`, `delete_archived_notifications`, `create_notification`, `archive_notifications`, `notify_if_unique`, `unread_notification`, `unarchive_notifications`, `unarchive_all_notifications`, `recalculate_notification_overview`
+
+**Plugins** — `list_plugins`, `list_installed_unraid_plugins`, `get_plugin_install_operation`, `list_plugin_install_operations`, `add_plugin`, `remove_plugin`, `install_plugin`
+
+**Customization** — `get_display_settings`, `get_current_user`, `get_owner_info`, `get_customization`, `get_public_theme`, `set_theme`, `set_locale`
+
+**Connect** — `get_connect_info`, `get_remote_access`, `get_cloud_info`, `update_api_settings`, `connect_sign_in`, `connect_sign_out`, `setup_remote_access`, `enable_dynamic_remote_access`
+
+**Array & Parity** — `manage_array`, `manage_parity_check`
+
+**RClone** — `list_rclone_remotes`, `get_rclone_config_form`, `create_rclone_remote`, `delete_rclone_remote`
+
+**Diagnostics** — `diagnose_subscriptions`, `test_subscription_query`
+
+### All Tier (adds 51 tools)
+
+Auth (13), Server Admin (6), Array Admin (6), Onboarding (11), Docker Organize (11), VMs (3), UPS Admin (1)
+
+## Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `UNRAID_API_URL` | *(required)* | Unraid GraphQL endpoint (e.g. `https://192.168.1.101/graphql`) |
+| `UNRAID_API_KEY` | *(required)* | API key from Settings > Management Access > API |
+| `UNRAID_MCP_ENABLED_MODULES` | `default` | Module tier: `default`, `extended`, `all`, or comma-separated list |
+| `UNRAID_MCP_TRANSPORT` | `streamable-http` | Transport: `streamable-http`, `sse`, `stdio` |
+| `UNRAID_MCP_PORT` | `6970` | Server port |
+| `UNRAID_MCP_HOST` | `0.0.0.0` | Bind address |
+| `UNRAID_MCP_LOG_LEVEL` | `INFO` | Log level: `DEBUG`, `INFO`, `WARNING`, `ERROR` |
+| `UNRAID_VERIFY_SSL` | `true` | SSL verification: `true`, `false`, or CA bundle path |
+
+## Development
+
+```bash
+# Setup
+git clone https://github.com/nkissick-del/unraid-mcp
 cd unraid-mcp
+uv sync --extra dev
 
-# Install dependencies with uv
-uv sync
-
-# Install development dependencies  
-uv sync --group dev
-
-# Configure environment
-cp .env.example .env
-# Edit .env with your settings
-
-# Run development server
-./scripts/dev.sh
-```
-
----
-
-## ⚙️ Configuration
-
-### Environment Variables
-
-Create `.env` file in the project root:
-
-```bash
-# Core API Configuration (Required)
-UNRAID_API_URL=https://your-unraid-server-url/graphql
-UNRAID_API_KEY=your_unraid_api_key
-
-# MCP Server Settings
-UNRAID_MCP_TRANSPORT=streamable-http  # streamable-http (recommended), sse (deprecated), stdio
-UNRAID_MCP_HOST=0.0.0.0
-UNRAID_MCP_PORT=6970
-
-# Logging Configuration
-UNRAID_MCP_LOG_LEVEL=INFO  # DEBUG, INFO, WARNING, ERROR
-UNRAID_MCP_LOG_FILE=unraid-mcp.log
-
-# SSL/TLS Configuration  
-UNRAID_VERIFY_SSL=true  # true, false, or path to CA bundle
-
-# Optional: Log Stream Configuration
-# UNRAID_AUTOSTART_LOG_PATH=/var/log/syslog  # Path for log streaming resource
-```
-
-### Transport Options
-
-| Transport | Description | Use Case |
-|-----------|-------------|----------|
-| `streamable-http` | HTTP-based (recommended) | Most compatible, best performance |
-| `sse` | Server-Sent Events (deprecated) | Legacy support only |
-| `stdio` | Standard I/O | Direct integration scenarios |
-
----
-
-## 🛠️ Available Tools & Resources
-
-### System Information & Status
-- `get_system_info()` - Comprehensive system, OS, CPU, memory, hardware info
-- `get_array_status()` - Storage array status, capacity, and disk details  
-- `get_unraid_variables()` - System variables and settings
-- `get_network_config()` - Network configuration and access URLs
-- `get_registration_info()` - Unraid registration details
-- `get_connect_settings()` - Unraid Connect configuration
-
-### Docker Container Management  
-- `list_docker_containers()` - List all containers with caching options
-- `manage_docker_container(id, action)` - Start/stop containers (idempotent)
-- `get_docker_container_details(identifier)` - Detailed container information
-
-### Virtual Machine Management
-- `list_vms()` - List all VMs and their states  
-- `manage_vm(id, action)` - VM lifecycle (start/stop/pause/resume/reboot)
-- `get_vm_details(identifier)` - Detailed VM information
-
-### Storage & File Systems
-- `get_shares_info()` - User shares information
-- `list_physical_disks()` - Physical disk discovery
-- `get_disk_details(disk_id)` - SMART data and detailed disk info
-
-### Monitoring & Diagnostics
-- `health_check()` - Comprehensive system health assessment
-- `get_notifications_overview()` - Notification counts by severity
-- `list_notifications(notification_type, offset, limit)` - Filtered notification listing
-- `list_available_log_files()` - Available system logs
-- `get_logs(path, tail_lines)` - Log file content retrieval
-
-### Cloud Storage (RClone)
-- `list_rclone_remotes()` - List configured remotes
-- `get_rclone_config_form(provider)` - Configuration schemas
-- `create_rclone_remote(name, type, config)` - Create new remote
-- `delete_rclone_remote(name)` - Remove existing remote
-
-### Real-time Subscriptions & Resources
-- `test_subscription_query(query)` - Test GraphQL subscriptions
-- `diagnose_subscriptions()` - Subscription system diagnostics
-
-### MCP Resources (Real-time Data)
-- `unraid://logs/stream` - Live log streaming from `/var/log/syslog` with WebSocket subscriptions
-
-> **Note**: MCP Resources provide real-time data streams that can be accessed via MCP clients. The log stream resource automatically connects to your Unraid system logs and provides live updates.
-
----
-
-
-## 🔧 Development
-
-### Project Structure
-```
-unraid-mcp/
-├── unraid_mcp/               # Main package
-│   ├── main.py               # Entry point
-│   ├── config/               # Configuration management
-│   │   ├── settings.py       # Environment & settings
-│   │   └── logging.py        # Logging setup
-│   ├── core/                 # Core infrastructure  
-│   │   ├── client.py         # GraphQL client
-│   │   ├── exceptions.py     # Custom exceptions
-│   │   └── types.py          # Shared data types
-│   ├── subscriptions/        # Real-time subscriptions
-│   │   ├── manager.py        # WebSocket management
-│   │   ├── resources.py      # MCP resources
-│   │   └── diagnostics.py    # Diagnostic tools
-│   ├── tools/                # MCP tool categories
-│   │   ├── docker.py         # Container management
-│   │   ├── system.py         # System information
-│   │   ├── storage.py        # Storage & monitoring
-│   │   ├── health.py         # Health checks
-│   │   ├── virtualization.py # VM management
-│   │   └── rclone.py         # Cloud storage
-│   └── server.py             # FastMCP server setup
-├── scripts/                  # Utility scripts
-│   └── dev.sh                # Development script
-├── tests/                    # Test suite
-│   ├── integration/          # Integration & compliance tests
-│   └── unit/                 # Unit tests
-├── logs/                     # Log files (auto-created)
-└── docker-compose.yml        # Docker Compose deployment
-```
-
-### Code Quality Commands
-```bash
-# Format code
-uv run black unraid_mcp/
-
-# Lint code  
-uv run ruff check unraid_mcp/
-
-# Type checking
+# Quality gates
+uv run black unraid_mcp/ tests/
+uv run ruff check unraid_mcp/ tests/
 uv run mypy unraid_mcp/
-
-# Run tests
 uv run pytest
-```
 
-### Development Workflow
-```bash
-# Start development server (kills existing processes safely)
-./scripts/dev.sh
-
-# Stop server only
-./scripts/dev.sh --kill
-```
-
----
-
-## 🏗️ Architecture
-
-### Core Principles
-- **Modular Design**: Separate concerns across focused modules
-- **Async First**: All operations are non-blocking and concurrent-safe  
-- **Error Resilience**: Comprehensive error handling with graceful degradation
-- **Configuration Driven**: Environment-based configuration with validation
-- **Observability**: Structured logging and health monitoring
-
-### Key Components
-
-| Component | Purpose |
-|-----------|---------|
-| **FastMCP Server** | MCP protocol implementation and tool registration |
-| **GraphQL Client** | Async HTTP client with timeout management |
-| **Subscription Manager** | WebSocket connections for real-time data |
-| **Tool Modules** | Domain-specific business logic (Docker, VMs, etc.) |
-| **Configuration System** | Environment loading and validation |
-| **Logging Framework** | Structured logging with file rotation |
-
----
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**🔥 Port Already in Use**
-```bash
-./scripts/dev.sh  # Automatically kills existing processes
-```
-
-**🔧 Connection Refused**
-```bash
-# Check Unraid API configuration
-curl -k "${UNRAID_API_URL}" -H "X-API-Key: ${UNRAID_API_KEY}"
-```
-
-**📝 Import Errors**  
-```bash
-# Reinstall dependencies
-uv sync --reinstall
-```
-
-**🔍 Debug Mode**
-```bash
-# Enable debug logging
-export UNRAID_MCP_LOG_LEVEL=DEBUG
+# Run locally
 uv run unraid-mcp-server
 ```
 
-### Health Check
-```bash
-# Use the built-in health check tool via MCP client
-# or check logs at: logs/unraid-mcp.log
+### Project Structure
+
+```
+unraid_mcp/
+├── main.py                  # Entry point
+├── server.py                # FastMCP server setup
+├── registry.py              # Module registry
+├── config/
+│   ├── settings.py          # Environment & module gating
+│   ├── logging.py           # Structured logging
+│   └── logging_handlers.py  # File handlers & filters
+├── core/
+│   ├── client.py            # GraphQL HTTP client
+│   ├── constants.py         # Shared constants
+│   ├── decorators.py        # Tool error handler
+│   ├── exceptions.py        # ToolError, ValidationError
+│   ├── types.py             # SubscriptionData
+│   ├── utils.py             # Helpers (confirm gates, formatting)
+│   └── validation.py        # Input validators
+├── subscriptions/
+│   ├── configs.py           # 16 subscription definitions
+│   ├── manager.py           # WebSocket lifecycle
+│   ├── resources.py         # MCP resource providers
+│   └── diagnostics.py       # Subscription testing tools
+└── tools/
+    ├── queries/             # GraphQL query definitions (14 files)
+    ├── system.py            # System info (7 tools)
+    ├── docker.py            # Docker containers (4 tools)
+    ├── storage.py           # Shares, disks, logs (7 tools)
+    ├── health.py            # Health check (1 tool)
+    ├── api.py               # Raw GraphQL + introspection (2 tools)
+    ├── system_extra.py      # Config, flash, services (5 tools)
+    ├── metrics_tools.py     # CPU/RAM/temp metrics (3 tools)
+    ├── ups_tools.py         # UPS monitoring (3 tools)
+    └── ... (17 more modules)
 ```
 
----
+### 501 unit tests, CI with lint + type check + security scan + container scan.
 
-## 📄 License
+## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`  
-3. Run tests: `uv run pytest`
-4. Commit changes: `git commit -m 'Add amazing feature'`
-5. Push to branch: `git push origin feature/amazing-feature`
-6. Open a Pull Request
-
----
-
-## 📞 Support
-
-- 📚 Documentation: Check inline code documentation
-- 🐛 Issues: [GitHub Issues](https://github.com/jmagar/unraid-mcp/issues)
-- 💬 Discussions: Use GitHub Discussions for questions
-
----
-
-*Built with ❤️ for the Unraid community*
+MIT — see [LICENSE](LICENSE).
