@@ -19,9 +19,9 @@ WORKDIR /app
 COPY --from=ghcr.io/astral-sh/uv:0.5.24 /uv /uvx /bin/
 COPY --from=builder /app /app
 
-# Remove base image packages flagged by Trivy (not needed at runtime)
+# Upgrade base image packages flagged by Trivy CVEs
 # hadolint ignore=DL3013
-RUN pip install --no-cache-dir "wheel>=0.46.2" "pip>=25.1" \
+RUN pip install --no-cache-dir "wheel>=0.46.2" "pip>=25.1" "jaraco.context>=6.1.0" \
     && pip cache purge 2>/dev/null; true
 
 RUN groupadd -r mcp && useradd -r -g mcp -d /app -s /sbin/nologin mcp \
