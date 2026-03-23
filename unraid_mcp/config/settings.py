@@ -94,48 +94,66 @@ TIMEOUT_CONFIG = {
 }
 
 # Module Gating Configuration
+#
+# "default"  — Essential ~40 tools: monitoring, containers, disks, logs, health.
+#              Optimized for Claude Desktop where tool count affects quality.
+# "extended" — ~78 tools: default + management (notifications, plugins, parity,
+#              customization, connect, docker-admin, docker-batch, array).
+# "all"      — All ~129 tools including admin, auth, VMs, onboarding, etc.
+#
+# Individual modules can be added to any preset: "default,plugins,auth"
 _DEFAULT_MODULES = frozenset(
     {
         "system",
         "docker",
-        "vms",
         "storage",
         "health",
-        "rclone",
         "api",
-        "diagnostics",
         "system-extra",
         "metrics",
         "ups",
     }
 )
-_ALL_MODULES = _DEFAULT_MODULES | frozenset(
+_EXTENDED_MODULES = _DEFAULT_MODULES | frozenset(
     {
         "docker-admin",
-        "notifications",
-        "array",
-        "subscriptions",
-        "parity",
         "docker-batch",
+        "notifications",
         "notifications-extra",
-        "ups-admin",
-        "subscriptions-extra",
+        "array",
+        "parity",
+        "plugins",
         "customization",
+        "connect",
+        "rclone",
+        "diagnostics",
+    }
+)
+_ALL_MODULES = _EXTENDED_MODULES | frozenset(
+    {
+        "vms",
+        "subscriptions",
+        "subscriptions-extra",
+        "ups-admin",
         "onboarding",
         "docker-organize",
-        "plugins",
         "server-admin",
-        "connect",
         "auth",
         "array-admin",
     }
 )
 
 _raw_modules = os.getenv("UNRAID_MCP_ENABLED_MODULES", "default")
-if _raw_modules.strip().lower() == "all":
+_raw_lower = _raw_modules.strip().lower()
+if _raw_lower == "all":
     ENABLED_MODULES: frozenset[str] = _ALL_MODULES
+elif _raw_lower == "extended":
+    ENABLED_MODULES = _EXTENDED_MODULES
 else:
     _parts = {m.strip().lower() for m in _raw_modules.split(",")}
+    if "extended" in _parts:
+        _parts.discard("extended")
+        _parts |= _EXTENDED_MODULES
     if "default" in _parts:
         _parts.discard("default")
         _parts |= _DEFAULT_MODULES
