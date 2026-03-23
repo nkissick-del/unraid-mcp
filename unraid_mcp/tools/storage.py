@@ -195,9 +195,38 @@ def register_storage_tools(mcp: FastMCP) -> None:
     @mcp.tool()
     @tool_error_handler("retrieve disk details")
     async def get_disk_details(disk_id: str) -> dict[str, Any]:
-        """Retrieves detailed SMART information and partition data for a specific physical disk."""
+        """Retrieves detailed SMART information and partition data for a specific physical disk.
+
+        Args:
+            disk_id: Disk identifier — accepts a PrefixedID, serial number, device path
+                     (e.g. /dev/sdb), or disk name. If the value is not a PrefixedID,
+                     the tool resolves it by searching the disk list.
+        """
         validate_string_not_empty(disk_id, "disk_id")
-        # Enhanced query with more comprehensive disk information
+
+        # Resolve friendly identifiers to PrefixedID
+        actual_id = disk_id
+        if ":" not in disk_id:
+            list_query = """
+            query ListDisksForResolve {
+              disks { id name device serialNum }
+            }
+            """
+            list_resp = await make_graphql_request(list_query)
+            disks = list_resp.get("disks", [])
+            search = disk_id.lower()
+            for d in disks:
+                if search in [
+                    (d.get("serialNum") or "").lower(),
+                    (d.get("device") or "").lower(),
+                    (d.get("name") or "").lower(),
+                ]:
+                    actual_id = d["id"]
+                    break
+            else:
+                available = [f"{d.get('name')} ({d.get('device')})" for d in disks[:10]]
+                raise ToolError(f"Disk '{disk_id}' not found. Available: {', '.join(available)}")
+
         query = """
         query GetDiskDetails($id: PrefixedID!) {
           disk(id: $id) {
@@ -214,7 +243,7 @@ def register_storage_tools(mcp: FastMCP) -> None:
           }
         }
         """
-        variables = {"id": disk_id}
+        variables = {"id": actual_id}
         response_data = await make_graphql_request(query, variables)
         raw_disk = response_data.get("disk", {})
 
