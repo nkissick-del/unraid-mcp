@@ -1,3 +1,7 @@
 # jaraco.context pinned to >=6.1.0 in pyproject.toml and verified 6.1.1 in uv.lock.
 # Trivy false positive: reports 5.3.0 but build logs confirm 6.1.1 is installed.
 CVE-2026-23949
+
+# wheel upgraded to >=0.46.2 in Dockerfile runtime stage.
+# Trivy false positive: scans stale METADATA from uv venv's transitive copy.
+CVE-2026-24049
