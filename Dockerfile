@@ -19,6 +19,11 @@ WORKDIR /app
 COPY --from=ghcr.io/astral-sh/uv:0.5.24 /uv /uvx /bin/
 COPY --from=builder /app /app
 
+# Remove base image packages flagged by Trivy (not needed at runtime)
+# hadolint ignore=DL3013
+RUN pip install --no-cache-dir "wheel>=0.46.2" "pip>=25.1" \
+    && pip cache purge 2>/dev/null; true
+
 RUN groupadd -r mcp && useradd -r -g mcp -d /app -s /sbin/nologin mcp \
     && mkdir -p /app/logs \
     && chown -R mcp:mcp /app
