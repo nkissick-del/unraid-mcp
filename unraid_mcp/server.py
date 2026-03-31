@@ -80,6 +80,18 @@ mcp = FastMCP(
 )
 
 
+def _get_tool_names(mcp: FastMCP) -> set[str]:
+    """Extract registered tool names from the FastMCP provider."""
+    if not mcp.providers:
+        return set()
+    provider = mcp.providers[0]
+    return {
+        k.split(":")[1].split("@")[0]
+        for k in provider._components  # type: ignore[attr-defined]
+        if k.startswith("tool:")
+    }
+
+
 def register_all_modules() -> None:
     """Register tools and resources based on ENABLED_MODULES configuration."""
     try:
@@ -95,13 +107,13 @@ def register_all_modules() -> None:
                 continue
 
             entry = MODULE_REGISTRY[module_name]
-            tools_before = set(mcp._tool_manager._tools.keys())  # type: ignore[attr-defined]
+            tools_before = _get_tool_names(mcp)
 
             mod = importlib.import_module(entry["import"])
             getattr(mod, entry["register"])(mcp)
 
             if not entry["cacheable"]:
-                tools_after = set(mcp._tool_manager._tools.keys())  # type: ignore[attr-defined]
+                tools_after = _get_tool_names(mcp)
                 new_tools = tools_after - tools_before
                 non_cacheable_tools.extend(new_tools)
 
