@@ -51,9 +51,9 @@ class TestModuleRegistry:
     def test_non_cacheable_modules_classified_correctly(self):
         for name in EXPECTED_NON_CACHEABLE:
             if name in MODULE_REGISTRY:
-                assert (
-                    MODULE_REGISTRY[name]["cacheable"] is False
-                ), f"'{name}' should NOT be cacheable"
+                assert MODULE_REGISTRY[name]["cacheable"] is False, (
+                    f"'{name}' should NOT be cacheable"
+                )
 
     def test_all_modules_classified(self):
         classified = EXPECTED_CACHEABLE | EXPECTED_NON_CACHEABLE

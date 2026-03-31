@@ -49,9 +49,9 @@ class TestSubscriptionConfigs:
 
     def test_queries_contain_subscription_keyword(self):
         for name, config in self.configs.items():
-            assert (
-                "subscription" in config["query"].lower()
-            ), f"{name} query missing 'subscription' keyword"
+            assert "subscription" in config["query"].lower(), (
+                f"{name} query missing 'subscription' keyword"
+            )
 
     def test_total_subscription_count(self):
         """Should have 16 subscription configs total (5 original + 11 new)."""

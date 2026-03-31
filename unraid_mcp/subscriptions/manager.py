@@ -403,7 +403,6 @@ class SubscriptionManager:
                     ping_timeout=WS_PING_TIMEOUT_S,
                     close_timeout=WS_CLOSE_TIMEOUT_S,
                 ) as websocket:
-
                     selected_proto = websocket.subprotocol or "none"
                     logger.info(
                         f"[WEBSOCKET:{subscription_name}] Connected! Protocol: {selected_proto}"

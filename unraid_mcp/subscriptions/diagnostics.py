@@ -73,7 +73,6 @@ def register_diagnostic_tools(mcp: FastMCP) -> None:
                 ping_interval=30,
                 ping_timeout=10,
             ) as websocket:
-
                 # Send connection init
                 await websocket.send(
                     json.dumps(

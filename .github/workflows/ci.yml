@@ -27,8 +27,8 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen --extra dev
 
-      - name: Check formatting with black
-        run: uv run black --check unraid_mcp/ tests/
+      - name: Check formatting with ruff
+        run: uv run ruff format --check unraid_mcp/ tests/
 
       - name: Lint with ruff
         run: uv run ruff check unraid_mcp/ tests/
