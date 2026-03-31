@@ -4,6 +4,7 @@ import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 from typing import Any, TypeVar
+from urllib.parse import urlparse
 
 # Re-export validation functions for backward compatibility
 from .validation import (
@@ -28,6 +29,7 @@ __all__ = [
     "format_kb",
     "poll_with_backoff",
     "require_confirm",
+    "safe_display_url",
     "truncate_for_error",
     "validate_enum",
     "validate_input_dict",
@@ -36,6 +38,18 @@ __all__ = [
     "validate_rclone_remote_name",
     "validate_string_not_empty",
 ]
+
+
+def safe_display_url(url: str) -> str:
+    """Redact URL to scheme://host:port only (CWE-200 mitigation)."""
+    try:
+        parsed = urlparse(url)
+        if not parsed.scheme or not parsed.hostname:
+            return "<invalid-url>"
+        port_suffix = f":{parsed.port}" if parsed.port else ""
+        return f"{parsed.scheme}://{parsed.hostname}{port_suffix}"
+    except Exception:
+        return "<invalid-url>"
 
 
 def ensure_dict(value: Any) -> dict[str, Any]:

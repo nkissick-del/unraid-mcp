@@ -33,6 +33,7 @@ from .config.settings import (
     UNRAID_MCP_TRANSPORT,
 )
 from .core.client import close_http_client
+from .core.utils import safe_display_url
 from .registry import MODULE_REGISTRY
 from .subscriptions.manager import subscription_manager
 from .subscriptions.resources import register_subscription_resources
@@ -140,7 +141,7 @@ def run_server() -> None:
     """Run the MCP server with the configured transport."""
     # Log configuration
     if UNRAID_API_URL:
-        logger.info(f"UNRAID_API_URL loaded: {UNRAID_API_URL[:20]}...")
+        logger.info(f"UNRAID_API_URL loaded: {safe_display_url(UNRAID_API_URL)}")
     else:
         logger.warning("UNRAID_API_URL not found in environment or .env file.")
 
