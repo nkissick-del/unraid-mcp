@@ -170,30 +170,39 @@ class TestPollWithBackoff:
 class TestSafeDisplayUrl:
     def test_strips_path(self):
         from unraid_mcp.core.utils import safe_display_url
-        assert safe_display_url("https://192.168.1.101:8443/graphql") == "https://192.168.1.101:8443"
+
+        assert (
+            safe_display_url("https://192.168.1.101:8443/graphql") == "https://192.168.1.101:8443"
+        )
 
     def test_strips_query(self):
         from unraid_mcp.core.utils import safe_display_url
+
         assert safe_display_url("https://host:443/path?key=secret") == "https://host:443"
 
     def test_strips_credentials(self):
         from unraid_mcp.core.utils import safe_display_url
+
         assert safe_display_url("https://user:pass@host:443/path") == "https://host:443"
 
     def test_preserves_scheme_and_host(self):
         from unraid_mcp.core.utils import safe_display_url
+
         assert safe_display_url("http://myserver:6970") == "http://myserver:6970"
 
     def test_no_port(self):
         from unraid_mcp.core.utils import safe_display_url
+
         assert safe_display_url("https://myserver/graphql") == "https://myserver"
 
     def test_invalid_url_returns_placeholder(self):
         from unraid_mcp.core.utils import safe_display_url
+
         assert safe_display_url("not a url at all") == "<invalid-url>"
 
     def test_empty_string(self):
         from unraid_mcp.core.utils import safe_display_url
+
         assert safe_display_url("") == "<invalid-url>"
 
 

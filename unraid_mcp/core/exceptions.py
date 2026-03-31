@@ -48,6 +48,4 @@ def tool_error_handler(tool_name: str, action: str, logger: Logger) -> Generator
         ) from None
     except Exception as e:
         logger.error(f"{tool_name}: {action} failed: {e}", exc_info=True)
-        raise ToolError(
-            f"{tool_name}: {action} failed — check server logs for details"
-        ) from e
+        raise ToolError(f"{tool_name}: {action} failed — check server logs for details") from e

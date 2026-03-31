@@ -16,13 +16,7 @@ MAX_VALUE_LENGTH = 4096
 
 # Rejects path traversal, shell metacharacters, HTML/XML chars, control chars.
 DANGEROUS_KEY_PATTERN = re.compile(
-    r"\.\."
-    r"|[/\\]"
-    r"|[|;$`]"
-    r"|[&<>\"'#]"
-    r"|[\x00-\x1f]"
-    r"|[\x7f]"
-    r"|[ ]"
+    r"\.\." r"|[/\\]" r"|[|;$`]" r"|[&<>\"'#]" r"|[\x00-\x1f]" r"|[\x7f]" r"|[ ]"
 )
 
 
@@ -109,9 +103,7 @@ def validate_path(path: str, allowed_prefixes: list[str], param_name: str) -> st
     if ".." in parts:
         raise ValidationError(f"{param_name} contains path traversal components (..)")
     if not any(normalized.startswith(prefix) for prefix in allowed_prefixes):
-        raise ValidationError(
-            f"{param_name} must start with one of: {', '.join(allowed_prefixes)}"
-        )
+        raise ValidationError(f"{param_name} must start with one of: {', '.join(allowed_prefixes)}")
     return normalized
 
 
