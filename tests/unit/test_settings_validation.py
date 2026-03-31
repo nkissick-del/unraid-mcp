@@ -1,6 +1,7 @@
 """Tests for log directory and log file name validation in settings.py."""
 
 import importlib
+import os
 import warnings
 from unittest.mock import patch
 
@@ -59,3 +60,25 @@ class TestLogDirValidation:
             file_warnings = [x for x in w if "UNRAID_MCP_LOG_FILE" in str(x.message)]
             assert len(file_warnings) == 1
             assert settings_mod.LOG_FILE_NAME == "unraid-mcp.log"
+
+
+def test_auth_token_loaded_from_env(monkeypatch):
+    """MCP_AUTH_TOKEN should be read from UNRAID_MCP_AUTH_TOKEN env var."""
+    monkeypatch.setenv("UNRAID_MCP_AUTH_TOKEN", "test-secret-token")
+    monkeypatch.setenv("UNRAID_API_URL", "https://fake:8443/graphql")
+    monkeypatch.setenv("UNRAID_API_KEY", "fake-key")
+    import unraid_mcp.config.settings as settings_mod
+
+    importlib.reload(settings_mod)
+    assert settings_mod.MCP_AUTH_TOKEN == "test-secret-token"
+
+
+def test_auth_token_empty_when_unset(monkeypatch):
+    """MCP_AUTH_TOKEN should be empty string when env var is not set."""
+    monkeypatch.delenv("UNRAID_MCP_AUTH_TOKEN", raising=False)
+    monkeypatch.setenv("UNRAID_API_URL", "https://fake:8443/graphql")
+    monkeypatch.setenv("UNRAID_API_KEY", "fake-key")
+    import unraid_mcp.config.settings as settings_mod
+
+    importlib.reload(settings_mod)
+    assert settings_mod.MCP_AUTH_TOKEN == ""

@@ -167,3 +167,6 @@ MCP_MAX_RESPONSE_KB = int(os.getenv("UNRAID_MCP_MAX_RESPONSE_KB", "512"))
 MCP_CACHE_TTL = int(os.getenv("UNRAID_MCP_CACHE_TTL", "30"))
 _raw_cache_enabled = os.getenv("UNRAID_MCP_CACHE_ENABLED", "true").lower()
 MCP_CACHE_ENABLED = _raw_cache_enabled not in ("false", "0", "no")
+
+# Authentication
+MCP_AUTH_TOKEN: str = os.environ.get("UNRAID_MCP_AUTH_TOKEN", "")
