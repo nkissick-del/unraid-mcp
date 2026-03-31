@@ -4,6 +4,7 @@ This module defines custom exception classes for consistent error handling
 throughout the application, with proper integration to FastMCP's error system.
 """
 
+from collections.abc import Generator
 from contextlib import contextmanager
 from logging import Logger
 
@@ -29,7 +30,7 @@ class ValidationError(ToolError):
 
 
 @contextmanager
-def tool_error_handler(tool_name: str, action: str, logger: Logger):
+def tool_error_handler(tool_name: str, action: str, logger: Logger) -> Generator[None, None, None]:
     """Context manager that normalises exceptions into ToolError.
 
     - ToolError passes through unchanged.
