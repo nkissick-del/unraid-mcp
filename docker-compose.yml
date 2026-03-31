@@ -19,6 +19,9 @@ services:
       - UNRAID_MCP_HOST=${UNRAID_MCP_HOST:-0.0.0.0}
       - UNRAID_MCP_TRANSPORT=${UNRAID_MCP_TRANSPORT:-streamable-http}
 
+      # Authentication (optional — if unset, HTTP auth is disabled)
+      - UNRAID_MCP_AUTH_TOKEN=${UNRAID_MCP_AUTH_TOKEN:-}
+
       # SSL Configuration
       - UNRAID_VERIFY_SSL=${UNRAID_VERIFY_SSL:-true}
 

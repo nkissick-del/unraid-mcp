@@ -36,4 +36,5 @@
   <Config Name="Max Response Size (KB)" Target="UNRAID_MCP_MAX_RESPONSE_KB" Default="512" Mode="" Description="Maximum tool response size in KB. Larger responses are truncated to protect the LLM context window." Type="Variable" Display="advanced" Required="false" Mask="false">512</Config>
   <Config Name="Cache TTL (seconds)" Target="UNRAID_MCP_CACHE_TTL" Default="30" Mode="" Description="How long read-only tool responses are cached, in seconds. Mutation tools are never cached." Type="Variable" Display="advanced" Required="false" Mask="false">30</Config>
   <Config Name="Cache Enabled" Target="UNRAID_MCP_CACHE_ENABLED" Default="true" Mode="" Description="Master toggle for response caching. Set to false to disable all caching." Type="Variable" Display="advanced" Required="false" Mask="false">true</Config>
+  <Config Name="Auth Token" Target="UNRAID_MCP_AUTH_TOKEN" Default="" Mode="" Description="Bearer token for HTTP authentication. If empty, authentication is disabled. Set a strong random token to secure the MCP endpoint." Type="Variable" Display="advanced" Required="false" Mask="true"/>
 </Container>
