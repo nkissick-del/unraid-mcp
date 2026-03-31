@@ -4,6 +4,8 @@ import pytest
 
 from unraid_mcp.core.exceptions import ValidationError
 from unraid_mcp.core.validation import (
+    DANGEROUS_KEY_PATTERN,
+    MAX_VALUE_LENGTH,
     truncate_for_error,
     validate_enum,
     validate_log_file_path,
@@ -193,3 +195,44 @@ class TestTruncateForError:
         text = "x" * 20
         result = truncate_for_error(text, max_length=10)
         assert "truncated" in result
+
+
+class TestDangerousKeyPattern:
+    def test_rejects_path_traversal(self):
+        assert DANGEROUS_KEY_PATTERN.search("..") is not None
+
+    def test_rejects_forward_slash(self):
+        assert DANGEROUS_KEY_PATTERN.search("foo/bar") is not None
+
+    def test_rejects_backslash(self):
+        assert DANGEROUS_KEY_PATTERN.search("foo\\bar") is not None
+
+    def test_rejects_shell_pipe(self):
+        assert DANGEROUS_KEY_PATTERN.search("foo|bar") is not None
+
+    def test_rejects_semicolon(self):
+        assert DANGEROUS_KEY_PATTERN.search("foo;bar") is not None
+
+    def test_rejects_dollar(self):
+        assert DANGEROUS_KEY_PATTERN.search("foo$bar") is not None
+
+    def test_rejects_backtick(self):
+        assert DANGEROUS_KEY_PATTERN.search("foo`bar") is not None
+
+    def test_rejects_null_byte(self):
+        assert DANGEROUS_KEY_PATTERN.search("foo\x00bar") is not None
+
+    def test_rejects_control_char(self):
+        assert DANGEROUS_KEY_PATTERN.search("foo\x01bar") is not None
+
+    def test_rejects_space(self):
+        assert DANGEROUS_KEY_PATTERN.search("foo bar") is not None
+
+    def test_allows_clean_key(self):
+        assert DANGEROUS_KEY_PATTERN.search("my_remote_name") is None
+
+    def test_allows_hyphen_underscore(self):
+        assert DANGEROUS_KEY_PATTERN.search("my-remote_name-123") is None
+
+    def test_max_value_length(self):
+        assert MAX_VALUE_LENGTH == 4096

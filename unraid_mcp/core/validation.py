@@ -11,6 +11,20 @@ from ..core.constants import (
 )
 from ..core.exceptions import ToolError, ValidationError
 
+# Maximum length for user-supplied values (prevents resource exhaustion)
+MAX_VALUE_LENGTH = 4096
+
+# Rejects path traversal, shell metacharacters, HTML/XML chars, control chars.
+DANGEROUS_KEY_PATTERN = re.compile(
+    r"\.\."
+    r"|[/\\]"
+    r"|[|;$`]"
+    r"|[&<>\"'#]"
+    r"|[\x00-\x1f]"
+    r"|[\x7f]"
+    r"|[ ]"
+)
+
 
 def require_confirm(confirm: bool, action: str, reason: str = "") -> None:
     """Raise ToolError if confirm is not True.
@@ -66,6 +80,8 @@ def validate_rclone_remote_name(name: str) -> str:
             f"Invalid remote name '{name}'. Must start with alphanumeric, "
             "contain only alphanumeric/hyphen/underscore, max 64 characters."
         )
+    if DANGEROUS_KEY_PATTERN.search(name):
+        raise ValidationError("Remote name contains disallowed characters")
     return name
 
 
