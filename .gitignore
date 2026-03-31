@@ -26,3 +26,11 @@ web-ui/frontend/node_modules
 web-ui/backend/.venv-backend/
 .pnpm-store/
 scripts/publish_dev_image.sh
+
+# Coverage reports
+coverage.xml
+htmlcov/
+
+# Claude Code
+.claude/worktrees/
+.claude/settings.local.json
