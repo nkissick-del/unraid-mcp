@@ -7,12 +7,13 @@ development and debugging purposes.
 
 import asyncio
 import json
+import ssl
 from datetime import datetime
 from typing import Any
 
 import websockets
 from fastmcp import FastMCP
-from websockets.legacy.protocol import Subprotocol
+from websockets.typing import Subprotocol
 
 from ..config.logging import logger
 from ..config.settings import UNRAID_API_KEY, UNRAID_API_URL, UNRAID_VERIFY_SSL
@@ -51,11 +52,24 @@ def register_diagnostic_tools(mcp: FastMCP) -> None:
                 raise ToolError("UNRAID_API_URL is not configured")
             ws_url = _build_ws_url(UNRAID_API_URL)
 
+            # Build SSL context
+            ssl_context: ssl.SSLContext | bool | None = None
+            if isinstance(UNRAID_VERIFY_SSL, str):
+                # Path to CA bundle
+                ssl_context = ssl.create_default_context(cafile=UNRAID_VERIFY_SSL)
+            elif isinstance(UNRAID_VERIFY_SSL, bool):
+                if not UNRAID_VERIFY_SSL:
+                    ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+                    ssl_context.check_hostname = False
+                    ssl_context.verify_mode = ssl.CERT_NONE
+                else:
+                    ssl_context = True
+
             # Test connection
             async with websockets.connect(
                 ws_url,
                 subprotocols=[Subprotocol("graphql-transport-ws"), Subprotocol("graphql-ws")],
-                ssl=UNRAID_VERIFY_SSL,
+                ssl=ssl_context,
                 ping_interval=30,
                 ping_timeout=10,
             ) as websocket:
@@ -65,7 +79,7 @@ def register_diagnostic_tools(mcp: FastMCP) -> None:
                     json.dumps(
                         {
                             "type": "connection_init",
-                            "payload": {"Authorization": f"Bearer {UNRAID_API_KEY}"},
+                            "payload": {"x-api-key": UNRAID_API_KEY},
                         }
                     )
                 )

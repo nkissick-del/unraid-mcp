@@ -68,7 +68,7 @@ class TestPluginConfirmGates:
     )
     @pytest.mark.asyncio
     async def test_confirm_false_raises(self, tool_name, kwargs):
-        tool_fn = get_tool_fn(register_plugins_tools, tool_name)
+        tool_fn = await get_tool_fn(register_plugins_tools, tool_name)
         with pytest.raises(ToolError, match="confirm must be True"):
             await tool_fn(**kwargs)
 
@@ -76,14 +76,14 @@ class TestPluginConfirmGates:
 class TestPluginInputValidation:
     @pytest.mark.asyncio
     async def test_get_operation_empty_id_raises(self):
-        tool_fn = get_tool_fn(register_plugins_tools, "get_plugin_install_operation")
+        tool_fn = await get_tool_fn(register_plugins_tools, "get_plugin_install_operation")
         with pytest.raises(ToolError, match="non-empty string"):
             await tool_fn(operation_id="")
 
 
 class TestPluginToolRegistration:
-    def test_all_tools_registered(self):
-        tool_names = get_registered_tool_names(register_plugins_tools)
+    async def test_all_tools_registered(self):
+        tool_names = await get_registered_tool_names(register_plugins_tools)
         expected = {
             "list_plugins",
             "list_installed_unraid_plugins",

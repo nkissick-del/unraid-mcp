@@ -1,11 +1,12 @@
 """Shared test helpers to eliminate tool-lookup boilerplate."""
 
 from collections.abc import Callable
+from typing import Any
 
 from fastmcp import FastMCP
 
 
-def get_tool_fn(register_fn: Callable, tool_name: str):
+async def get_tool_fn(register_fn: Callable[..., Any], tool_name: str) -> Any:
     """Register tools and return the named tool's function.
 
     Args:
@@ -20,13 +21,13 @@ def get_tool_fn(register_fn: Callable, tool_name: str):
     """
     mcp = FastMCP("test")
     register_fn(mcp)
-    for tool in mcp._tool_manager._tools.values():
-        if tool.name == tool_name:
-            return tool.fn
+    tool = await mcp._get_tool(tool_name)
+    if tool is not None:
+        return tool.fn
     raise AssertionError(f"Tool '{tool_name}' not found")
 
 
-def get_registered_tool_names(register_fn: Callable) -> set[str]:
+async def get_registered_tool_names(register_fn: Callable[..., Any]) -> set[str]:
     """Register tools and return all registered tool names.
 
     Args:
@@ -37,4 +38,5 @@ def get_registered_tool_names(register_fn: Callable) -> set[str]:
     """
     mcp = FastMCP("test")
     register_fn(mcp)
-    return set(mcp._tool_manager._tools.keys())
+    tools = await mcp._list_tools()
+    return {t.name for t in tools}

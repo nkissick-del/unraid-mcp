@@ -49,7 +49,7 @@ class TestServerAdminConfirmGates:
     )
     @pytest.mark.asyncio
     async def test_confirm_false_raises(self, tool_name):
-        tool_fn = get_tool_fn(register_server_admin_tools, tool_name)
+        tool_fn = await get_tool_fn(register_server_admin_tools, tool_name)
 
         if tool_name == "initiate_flash_backup":
             with pytest.raises(ToolError, match="confirm must be True"):
@@ -72,14 +72,14 @@ class TestServerAdminInputValidation:
     )
     @pytest.mark.asyncio
     async def test_empty_config_raises(self, tool_name):
-        tool_fn = get_tool_fn(register_server_admin_tools, tool_name)
+        tool_fn = await get_tool_fn(register_server_admin_tools, tool_name)
         with pytest.raises(ToolError, match="non-empty dictionary"):
             await tool_fn(input_config={}, confirm=True)
 
 
 class TestServerAdminToolRegistration:
-    def test_all_tools_registered(self):
-        tool_names = get_registered_tool_names(register_server_admin_tools)
+    async def test_all_tools_registered(self):
+        tool_names = await get_registered_tool_names(register_server_admin_tools)
         expected = {
             "update_server_identity",
             "update_ssh_settings",

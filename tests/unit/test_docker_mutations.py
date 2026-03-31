@@ -79,6 +79,6 @@ class TestRemoveContainerConfirmGate:
     @pytest.mark.asyncio
     async def test_confirm_false_raises(self):
         """remove_docker_container must raise when confirm is False."""
-        tool_fn = get_tool_fn(register_docker_admin_tools, "remove_docker_container")
+        tool_fn = await get_tool_fn(register_docker_admin_tools, "remove_docker_container")
         with pytest.raises(ToolError, match="confirm must be True"):
             await tool_fn("test-container", with_image=False, confirm=False)

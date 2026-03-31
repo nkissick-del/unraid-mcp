@@ -435,7 +435,7 @@ class TestSystemInfoContract:
             "unraid_mcp.tools.system.make_graphql_request",
             lambda *a, **kw: _async_return(MOCK_SYSTEM_INFO_RESPONSE),
         )
-        fn = get_tool_fn(register_system_tools, "get_system_info")
+        fn = await get_tool_fn(register_system_tools, "get_system_info")
         result = await fn()
         validated = SystemInfoResponse.model_validate(result)
         assert validated.summary is not None
@@ -452,7 +452,7 @@ class TestSystemInfoContract:
             "unraid_mcp.tools.system.make_graphql_request",
             lambda *a, **kw: _async_return(MOCK_ARRAY_STATUS_RESPONSE),
         )
-        fn = get_tool_fn(register_system_tools, "get_array_status")
+        fn = await get_tool_fn(register_system_tools, "get_array_status")
         result = await fn()
         validated = ArrayStatusResponse.model_validate(result)
         assert validated.summary is not None
@@ -471,7 +471,7 @@ class TestDockerContainerContract:
             "unraid_mcp.tools.docker.make_graphql_request",
             lambda *a, **kw: _async_return(MOCK_DOCKER_LIST_RESPONSE),
         )
-        fn = get_tool_fn(register_docker_tools, "list_docker_containers")
+        fn = await get_tool_fn(register_docker_tools, "list_docker_containers")
         result = await fn()
         assert isinstance(result, list)
         assert len(result) == 2
@@ -486,7 +486,7 @@ class TestDockerContainerContract:
             "unraid_mcp.tools.docker.make_graphql_request",
             lambda *a, **kw: _async_return(MOCK_DOCKER_DETAILS_RESPONSE),
         )
-        fn = get_tool_fn(register_docker_tools, "get_docker_container_details")
+        fn = await get_tool_fn(register_docker_tools, "get_docker_container_details")
         result = await fn(container_identifier="plex")
         validated = DockerContainerDetails.model_validate(result)
         assert validated.id == "sha256:abc123def456"
@@ -502,7 +502,7 @@ class TestStorageContract:
             "unraid_mcp.tools.storage.make_graphql_request",
             lambda *a, **kw: _async_return(MOCK_SHARES_RESPONSE),
         )
-        fn = get_tool_fn(register_storage_tools, "get_shares_info")
+        fn = await get_tool_fn(register_storage_tools, "get_shares_info")
         result = await fn()
         assert isinstance(result, list)
         assert len(result) == 2
@@ -515,7 +515,7 @@ class TestStorageContract:
             "unraid_mcp.tools.storage.make_graphql_request",
             lambda *a, **kw: _async_return(MOCK_PHYSICAL_DISKS_RESPONSE),
         )
-        fn = get_tool_fn(register_storage_tools, "list_physical_disks")
+        fn = await get_tool_fn(register_storage_tools, "list_physical_disks")
         result = await fn()
         assert isinstance(result, list)
         assert len(result) == 3
@@ -530,7 +530,7 @@ class TestHealthCheckContract:
             "unraid_mcp.tools.health.make_graphql_request",
             lambda *a, **kw: _async_return(MOCK_HEALTH_CHECK_RESPONSE),
         )
-        fn = get_tool_fn(register_health_tools, "health_check")
+        fn = await get_tool_fn(register_health_tools, "health_check")
         result = await fn()
         validated = HealthCheckResponse.model_validate(result)
         assert validated.status in ("healthy", "warning", "degraded", "unhealthy")
@@ -546,7 +546,7 @@ class TestUpsDevicesContract:
             "unraid_mcp.tools.ups_tools.make_graphql_request",
             lambda *a, **kw: _async_return(MOCK_UPS_DEVICES_RESPONSE),
         )
-        fn = get_tool_fn(register_ups_tools, "list_ups_devices")
+        fn = await get_tool_fn(register_ups_tools, "list_ups_devices")
         result = await fn()
         validated = UpsDevicesResponse.model_validate(result)
         assert validated.count == 1

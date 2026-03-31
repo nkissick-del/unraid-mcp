@@ -65,8 +65,9 @@ def format_bytes(value: int | None) -> str:
 
 
 def format_kb(k: Any) -> str:
-    """Format a kilobyte count into a human-readable string (KB/MB/GB/TB).
+    """Format a kilobyte count into a human-readable string.
 
+    Delegates to format_bytes after converting KB to bytes.
     Handles edge cases: None -> "N/A", float("inf") -> "inf", non-numeric -> str(value).
     """
     if k is None:
@@ -76,13 +77,7 @@ def format_kb(k: Any) -> str:
     except (ValueError, TypeError, OverflowError):
         return str(k)
 
-    if k >= 1024 * 1024 * 1024:
-        return f"{k / (1024 * 1024 * 1024):.2f} TB"
-    if k >= 1024 * 1024:
-        return f"{k / (1024 * 1024):.2f} GB"
-    if k >= 1024:
-        return f"{k / 1024:.2f} MB"
-    return f"{k} KB"
+    return format_bytes(k * 1024)
 
 
 async def poll_with_backoff(

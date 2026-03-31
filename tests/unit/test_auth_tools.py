@@ -88,7 +88,7 @@ class TestAuthConfirmGates:
     )
     @pytest.mark.asyncio
     async def test_confirm_false_raises(self, tool_name):
-        tool_fn = get_tool_fn(register_auth_tools, tool_name)
+        tool_fn = await get_tool_fn(register_auth_tools, tool_name)
 
         if tool_name == "delete_api_key":
             with pytest.raises(ToolError, match="confirm must be True"):
@@ -101,32 +101,32 @@ class TestAuthConfirmGates:
 class TestAuthInputValidation:
     @pytest.mark.asyncio
     async def test_get_api_key_empty_id_raises(self):
-        tool_fn = get_tool_fn(register_auth_tools, "get_api_key")
+        tool_fn = await get_tool_fn(register_auth_tools, "get_api_key")
         with pytest.raises(ToolError, match="non-empty string"):
             await tool_fn(key_id="")
 
     @pytest.mark.asyncio
     async def test_get_permissions_for_roles_empty_raises(self):
-        tool_fn = get_tool_fn(register_auth_tools, "get_permissions_for_roles")
+        tool_fn = await get_tool_fn(register_auth_tools, "get_permissions_for_roles")
         with pytest.raises(ToolError, match="non-empty list"):
             await tool_fn(roles=[])
 
     @pytest.mark.asyncio
     async def test_preview_permissions_empty_config_raises(self):
-        tool_fn = get_tool_fn(register_auth_tools, "preview_effective_permissions")
+        tool_fn = await get_tool_fn(register_auth_tools, "preview_effective_permissions")
         with pytest.raises(ToolError, match="non-empty dictionary"):
             await tool_fn(input_config={})
 
     @pytest.mark.asyncio
     async def test_delete_api_key_empty_id_raises(self):
-        tool_fn = get_tool_fn(register_auth_tools, "delete_api_key")
+        tool_fn = await get_tool_fn(register_auth_tools, "delete_api_key")
         with pytest.raises(ToolError, match="non-empty string"):
             await tool_fn(key_id="", confirm=True)
 
 
 class TestAuthToolRegistration:
-    def test_all_tools_registered(self):
-        tool_names = get_registered_tool_names(register_auth_tools)
+    async def test_all_tools_registered(self):
+        tool_names = await get_registered_tool_names(register_auth_tools)
         expected = {
             "list_api_keys",
             "get_api_key",

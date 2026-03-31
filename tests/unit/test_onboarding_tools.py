@@ -60,13 +60,13 @@ class TestOnboardingMutations:
 class TestCreateBootPoolConfirmGate:
     @pytest.mark.asyncio
     async def test_confirm_false_raises(self):
-        tool_fn = get_tool_fn(register_onboarding_tools, "create_internal_boot_pool")
+        tool_fn = await get_tool_fn(register_onboarding_tools, "create_internal_boot_pool")
         with pytest.raises(ToolError, match="confirm must be True"):
             await tool_fn(confirm=False)
 
     @pytest.mark.asyncio
     async def test_confirm_default_raises(self):
-        tool_fn = get_tool_fn(register_onboarding_tools, "create_internal_boot_pool")
+        tool_fn = await get_tool_fn(register_onboarding_tools, "create_internal_boot_pool")
         with pytest.raises(ToolError, match="confirm must be True"):
             await tool_fn()
 
@@ -74,14 +74,14 @@ class TestCreateBootPoolConfirmGate:
 class TestSetOverrideValidation:
     @pytest.mark.asyncio
     async def test_empty_config_raises(self):
-        tool_fn = get_tool_fn(register_onboarding_tools, "set_onboarding_override")
+        tool_fn = await get_tool_fn(register_onboarding_tools, "set_onboarding_override")
         with pytest.raises(ToolError, match="non-empty dictionary"):
             await tool_fn({})
 
 
 class TestOnboardingToolRegistration:
-    def test_all_tools_registered(self):
-        tool_names = get_registered_tool_names(register_onboarding_tools)
+    async def test_all_tools_registered(self):
+        tool_names = await get_registered_tool_names(register_onboarding_tools)
         expected = {
             "is_fresh_install",
             "complete_onboarding",

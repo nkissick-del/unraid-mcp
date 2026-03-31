@@ -75,7 +75,7 @@ class TestArrayAdminConfirmGates:
     )
     @pytest.mark.asyncio
     async def test_confirm_false_raises(self, tool_name):
-        tool_fn = get_tool_fn(register_array_admin_tools, tool_name)
+        tool_fn = await get_tool_fn(register_array_admin_tools, tool_name)
         with pytest.raises(ToolError, match="confirm must be True"):
             await tool_fn(input_config={"id": "test-disk"}, confirm=False)
 
@@ -83,13 +83,13 @@ class TestArrayAdminConfirmGates:
 class TestArrayAdminExtraStrongWarnings:
     @pytest.mark.asyncio
     async def test_add_disk_warns_extremely_destructive(self):
-        tool_fn = get_tool_fn(register_array_admin_tools, "add_disk_to_array")
+        tool_fn = await get_tool_fn(register_array_admin_tools, "add_disk_to_array")
         with pytest.raises(ToolError, match="EXTREMELY DESTRUCTIVE"):
             await tool_fn(input_config={"id": "test-disk"}, confirm=False)
 
     @pytest.mark.asyncio
     async def test_remove_disk_warns_extremely_destructive(self):
-        tool_fn = get_tool_fn(register_array_admin_tools, "remove_disk_from_array")
+        tool_fn = await get_tool_fn(register_array_admin_tools, "remove_disk_from_array")
         with pytest.raises(ToolError, match="EXTREMELY DESTRUCTIVE"):
             await tool_fn(input_config={"id": "test-disk"}, confirm=False)
 
@@ -107,14 +107,14 @@ class TestArrayAdminInputValidation:
     )
     @pytest.mark.asyncio
     async def test_empty_config_raises(self, tool_name):
-        tool_fn = get_tool_fn(register_array_admin_tools, tool_name)
+        tool_fn = await get_tool_fn(register_array_admin_tools, tool_name)
         with pytest.raises(ToolError, match="non-empty dictionary"):
             await tool_fn(input_config={}, confirm=True)
 
 
 class TestArrayAdminToolRegistration:
-    def test_all_tools_registered(self):
-        tool_names = get_registered_tool_names(register_array_admin_tools)
+    async def test_all_tools_registered(self):
+        tool_names = await get_registered_tool_names(register_array_admin_tools)
         expected = {
             "list_assignable_disks",
             "add_disk_to_array",

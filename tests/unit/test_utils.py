@@ -49,7 +49,7 @@ class TestUtils(unittest.TestCase):
         # Test formatting
         self.assertEqual(format_kb(1024), "1.00 MB")
         self.assertEqual(format_kb(1024 * 1024), "1.00 GB")
-        self.assertEqual(format_kb(512), "512 KB")
+        self.assertEqual(format_kb(512), "512.00 KB")
 
     def test_ensure_dict(self):
         self.assertEqual(ensure_dict({"a": 1}), {"a": 1})

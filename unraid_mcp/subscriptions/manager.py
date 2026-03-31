@@ -17,7 +17,7 @@ from graphql import OperationType
 from graphql import parse as gql_parse
 from graphql.error import GraphQLSyntaxError
 from graphql.language.ast import OperationDefinitionNode
-from websockets.legacy.protocol import Subprotocol
+from websockets.typing import Subprotocol
 
 from ..config.logging import logger
 from ..config.settings import UNRAID_API_KEY, UNRAID_API_URL

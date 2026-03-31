@@ -78,7 +78,7 @@ class TestConnectAdminConfirmGates:
     )
     @pytest.mark.asyncio
     async def test_confirm_false_raises(self, tool_name):
-        tool_fn = get_tool_fn(register_connect_admin_tools, tool_name)
+        tool_fn = await get_tool_fn(register_connect_admin_tools, tool_name)
 
         if tool_name == "connect_sign_out":
             with pytest.raises(ToolError, match="confirm must be True"):
@@ -100,14 +100,14 @@ class TestConnectAdminInputValidation:
     )
     @pytest.mark.asyncio
     async def test_empty_config_raises(self, tool_name):
-        tool_fn = get_tool_fn(register_connect_admin_tools, tool_name)
+        tool_fn = await get_tool_fn(register_connect_admin_tools, tool_name)
         with pytest.raises(ToolError, match="non-empty dictionary"):
             await tool_fn(input_config={}, confirm=True)
 
 
 class TestConnectAdminToolRegistration:
-    def test_all_tools_registered(self):
-        tool_names = get_registered_tool_names(register_connect_admin_tools)
+    async def test_all_tools_registered(self):
+        tool_names = await get_registered_tool_names(register_connect_admin_tools)
         expected = {
             "get_connect_info",
             "get_remote_access",
