@@ -141,11 +141,16 @@ Auth (13), Server Admin (6), Array Admin (6), Onboarding (11), Docker Organize (
 | `UNRAID_API_URL` | *(required)* | Unraid GraphQL endpoint (e.g. `https://192.168.1.101/graphql`) |
 | `UNRAID_API_KEY` | *(required)* | API key from Settings > Management Access > API |
 | `UNRAID_MCP_ENABLED_MODULES` | `default` | Module tier: `default`, `extended`, `all`, or comma-separated list |
-| `UNRAID_MCP_TRANSPORT` | `streamable-http` | Transport: `streamable-http`, `sse`, `stdio` |
+| `UNRAID_MCP_TRANSPORT` | `streamable-http` | Transport: `streamable-http` (recommended), `sse` (deprecated), `stdio` |
 | `UNRAID_MCP_PORT` | `6970` | Server port |
 | `UNRAID_MCP_HOST` | `0.0.0.0` | Bind address |
 | `UNRAID_MCP_LOG_LEVEL` | `INFO` | Log level: `DEBUG`, `INFO`, `WARNING`, `ERROR` |
 | `UNRAID_VERIFY_SSL` | `true` | SSL verification: `true`, `false`, or CA bundle path |
+| `UNRAID_MCP_RATE_LIMIT` | `540` | Max requests per rate-limit window |
+| `UNRAID_MCP_RATE_WINDOW_MINUTES` | `1` | Sliding window duration in minutes |
+| `UNRAID_MCP_MAX_RESPONSE_KB` | `512` | Max tool response size in KB (larger responses truncated) |
+| `UNRAID_MCP_CACHE_TTL` | `30` | Response cache TTL in seconds (mutation tools never cached) |
+| `UNRAID_MCP_CACHE_ENABLED` | `true` | Master toggle for response caching |
 
 ## Development
 
@@ -202,7 +207,7 @@ unraid_mcp/
     └── ... (17 more modules)
 ```
 
-### 501 unit tests, CI with lint + type check + security scan + container scan.
+### 521 unit tests, CI with lint + type check + security scan + container scan.
 
 ## License
 

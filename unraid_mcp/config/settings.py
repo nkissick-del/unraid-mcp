@@ -95,7 +95,7 @@ TIMEOUT_CONFIG = {
 
 # Module Gating Configuration
 #
-# "default"  — Essential ~40 tools: monitoring, containers, disks, logs, health.
+# "default"  — Essential ~32 tools: monitoring, containers, disks, logs, health.
 #              Optimized for Claude Desktop where tool count affects quality.
 # "extended" — ~78 tools: default + management (notifications, plugins, parity,
 #              customization, connect, docker-admin, docker-batch, array).

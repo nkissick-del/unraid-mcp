@@ -86,14 +86,17 @@ docker-compose down
 - **Health Monitoring**: Comprehensive health check tool for system monitoring
 - **Real-time Subscriptions**: WebSocket-based live data streaming
 
-### Tool Categories (26 Tools Total)
-1. **System Information** (6 tools): `get_system_info()`, `get_array_status()`, `get_network_config()`, `get_registration_info()`, `get_connect_settings()`, `get_unraid_variables()`
-2. **Storage Management** (7 tools): `get_shares_info()`, `list_physical_disks()`, `get_disk_details()`, `list_available_log_files()`, `get_logs()`, `get_notifications_overview()`, `list_notifications()`
-3. **Docker Management** (3 tools): `list_docker_containers()`, `manage_docker_container()`, `get_docker_container_details()`
-4. **VM Management** (3 tools): `list_vms()`, `manage_vm()`, `get_vm_details()`
-5. **Cloud Storage (RClone)** (4 tools): `list_rclone_remotes()`, `get_rclone_config_form()`, `create_rclone_remote()`, `delete_rclone_remote()`
-6. **Health Monitoring** (1 tool): `health_check()`
-7. **Subscription Diagnostics** (2 tools): `test_subscription_query()`, `diagnose_subscriptions()`
+### Default Module Preset (32 Tools)
+1. **System** (7 tools): `get_system_info`, `get_array_status`, `get_network_config`, `get_registration_info`, `get_connect_settings`, `get_unraid_variables`, `manage_docker_container`
+2. **Docker** (4 tools): `list_docker_containers`, `get_docker_container_details`, `get_docker_container_logs`, `manage_docker_container`
+3. **Storage** (7 tools): `get_shares_info`, `list_physical_disks`, `get_disk_details`, `list_available_log_files`, `get_logs`, `get_notifications_overview`, `list_notifications`
+4. **Health** (1 tool): `health_check`
+5. **API** (2 tools): `query_unraid_api`, `introspect_schema`
+6. **System Extra** (5 tools): `is_server_online`, `get_config_status`, `get_flash_info`, `get_services`, `get_servers`
+7. **Metrics** (3 tools): `get_system_metrics`, `get_system_time`, `get_timezone_options`
+8. **UPS** (3 tools): `list_ups_devices`, `get_ups_device`, `get_ups_configuration`
+
+Extended adds ~46 tools (notifications, plugins, parity, customization, connect, docker-admin, docker-batch, array, rclone, diagnostics). All adds ~51 more (auth, server-admin, array-admin, vms, onboarding, docker-organize, ups-admin, subscriptions).
 
 ### Environment Variable Hierarchy
 The server loads environment variables from multiple locations in order:
@@ -113,10 +116,18 @@ The server loads environment variables from multiple locations in order:
 - Network errors are caught and wrapped with connection context
 - All errors are logged with full context for debugging
 
+### Middleware Stack (server.py)
+The server uses a FastMCP middleware chain (outermost → innermost):
+1. **LoggingMiddleware** — logs `tools/call` and `resources/read` requests
+2. **ErrorHandlingMiddleware** — catches exceptions, includes tracebacks only at DEBUG level
+3. **SlidingWindowRateLimitingMiddleware** — configurable via `UNRAID_MCP_RATE_LIMIT` / `UNRAID_MCP_RATE_WINDOW_MINUTES`
+4. **ResponseLimitingMiddleware** — caps response size via `UNRAID_MCP_MAX_RESPONSE_KB`
+5. **ResponseCachingMiddleware** — added after module registration with per-tool exclusions for mutation tools
+
 ### Performance Considerations
 - Increased timeouts for disk operations (90s read timeout)
 - Selective queries to avoid GraphQL type overflow issues
-- Optional caching controls for Docker container queries
+- Per-tool response caching with configurable TTL (mutation tools excluded)
 - Rotating log files to prevent disk space issues
 
 ## Workflow Rules
@@ -152,3 +163,6 @@ The dev machine (macOS) may not have Docker daemon running. Docker build verific
 
 ### Dockerfile healthcheck must use POST for streamable-http
 The MCP streamable-http transport only accepts POST requests. A `curl -f GET /mcp` healthcheck returns 406 Not Acceptable, making Docker report the container as unhealthy even though the server is running. The healthcheck must send a valid MCP `initialize` JSON-RPC POST request.
+
+### FastMCP 3.x removed `_tool_manager` (v3.2.0 upgrade)
+FastMCP 2.x exposed `mcp._tool_manager._tools` for enumerating registered tools. This was removed in 3.x. The replacement is `mcp.providers[0]._components` — a dict with keys like `tool:name@`. The helper `_get_tool_names()` in `server.py` encapsulates this. Both `_components` and `providers` are internal APIs, so guard defensively and expect this to break again on major upgrades. `list_tools()` exists but is async-only, which doesn't work in the synchronous `register_all_modules()` flow.
