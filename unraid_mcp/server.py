@@ -21,6 +21,7 @@ from .config.logging import logger
 from .config.settings import (
     ENABLED_MODULES,
     LOG_LEVEL_STR,
+    MCP_AUTH_TOKEN,
     MCP_CACHE_ENABLED,
     MCP_CACHE_TTL,
     MCP_MAX_RESPONSE_KB,
@@ -32,6 +33,7 @@ from .config.settings import (
     UNRAID_MCP_PORT,
     UNRAID_MCP_TRANSPORT,
 )
+from .core.auth import BearerAuthMiddleware, HealthMiddleware
 from .core.client import close_http_client
 from .core.utils import safe_display_url
 from .registry import MODULE_REGISTRY
@@ -150,6 +152,14 @@ def run_server() -> None:
     else:
         logger.warning("UNRAID_API_KEY not found in environment or .env file.")
 
+    if MCP_AUTH_TOKEN:
+        logger.info("Bearer auth enabled")
+    else:
+        logger.warning(
+            "UNRAID_MCP_AUTH_TOKEN not set — HTTP auth disabled. "
+            "Set this variable to require bearer token authentication."
+        )
+
     logger.info(f"UNRAID_MCP_PORT set to: {UNRAID_MCP_PORT}")
     logger.info(f"UNRAID_MCP_HOST set to: {UNRAID_MCP_HOST}")
     logger.info(f"UNRAID_MCP_TRANSPORT set to: {UNRAID_MCP_TRANSPORT}")
@@ -158,39 +168,51 @@ def run_server() -> None:
     register_all_modules()
 
     logger.info(
-        f"🚀 Starting Unraid MCP Server on {UNRAID_MCP_HOST}:{UNRAID_MCP_PORT} using {UNRAID_MCP_TRANSPORT} transport..."
+        f"Starting Unraid MCP Server on {UNRAID_MCP_HOST}:{UNRAID_MCP_PORT} "
+        f"using {UNRAID_MCP_TRANSPORT} transport..."
     )
 
     try:
-        # Auto-start subscriptions on first async operation
         if UNRAID_MCP_TRANSPORT == "streamable-http":
-            # Use the recommended Streamable HTTP transport
-            mcp.run(
+            import uvicorn
+
+            app = mcp.http_app(
                 transport="streamable-http",
+                path="/mcp",
+            )
+            # Wrap with ASGI middleware (outermost added last)
+            app = BearerAuthMiddleware(
+                app,
+                token=MCP_AUTH_TOKEN,
+                disabled=not MCP_AUTH_TOKEN,
+            )
+            app = HealthMiddleware(app)
+            uvicorn.run(
+                app,
                 host=UNRAID_MCP_HOST,
                 port=UNRAID_MCP_PORT,
-                path="/mcp",  # Standard path for MCP
             )
         elif UNRAID_MCP_TRANSPORT == "sse":
-            # Deprecated SSE transport - log warning
             logger.warning(
-                "SSE transport is deprecated and may be removed in a future version. Consider switching to 'streamable-http'."
+                "SSE transport is deprecated. Bearer auth is not available on SSE. "
+                "Consider switching to 'streamable-http'."
             )
             mcp.run(
                 transport="sse",
                 host=UNRAID_MCP_HOST,
                 port=UNRAID_MCP_PORT,
-                path="/mcp",  # Keep custom path for SSE
+                path="/mcp",
             )
         elif UNRAID_MCP_TRANSPORT == "stdio":
-            mcp.run()  # Defaults to stdio
+            mcp.run()
         else:
             logger.error(
-                f"Unsupported MCP_TRANSPORT: {UNRAID_MCP_TRANSPORT}. Choose 'streamable-http' (recommended), 'sse' (deprecated), or 'stdio'."
+                f"Unsupported MCP_TRANSPORT: {UNRAID_MCP_TRANSPORT}. "
+                "Choose 'streamable-http' (recommended), 'sse' (deprecated), or 'stdio'."
             )
             sys.exit(1)
     except Exception as e:
-        logger.critical(f"❌ Failed to start Unraid MCP server: {e}", exc_info=True)
+        logger.critical(f"Failed to start Unraid MCP server: {e}", exc_info=True)
         sys.exit(1)
 
 
