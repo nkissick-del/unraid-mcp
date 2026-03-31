@@ -10,11 +10,19 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastmcp import FastMCP
+from fastmcp.server.middleware.error_handling import ErrorHandlingMiddleware
+from fastmcp.server.middleware.logging import LoggingMiddleware
+from fastmcp.server.middleware.rate_limiting import SlidingWindowRateLimitingMiddleware
+from fastmcp.server.middleware.response_limiting import ResponseLimitingMiddleware
 
 from . import __version__
 from .config.logging import logger
 from .config.settings import (
     ENABLED_MODULES,
+    LOG_LEVEL_STR,
+    MCP_MAX_RESPONSE_KB,
+    MCP_RATE_LIMIT,
+    MCP_RATE_WINDOW_MINUTES,
     UNRAID_API_KEY,
     UNRAID_API_URL,
     UNRAID_MCP_HOST,
@@ -38,12 +46,34 @@ async def app_lifespan(app: FastMCP) -> AsyncIterator[None]:
     logger.info("Shutdown complete.")
 
 
+# --- Middleware chain (outermost -> innermost) ---
+_logging_middleware = LoggingMiddleware(
+    logger=logger,
+    methods=["tools/call", "resources/read"],
+)
+_error_middleware = ErrorHandlingMiddleware(
+    logger=logger,
+    include_traceback=LOG_LEVEL_STR == "DEBUG",
+)
+_rate_limiter = SlidingWindowRateLimitingMiddleware(
+    max_requests=MCP_RATE_LIMIT,
+    window_minutes=MCP_RATE_WINDOW_MINUTES,
+)
+_response_limiter = ResponseLimitingMiddleware(max_size=MCP_MAX_RESPONSE_KB * 1024)
+_middleware_stack = [
+    _logging_middleware,
+    _error_middleware,
+    _rate_limiter,
+    _response_limiter,
+]
+
 # Initialize FastMCP instance
 mcp = FastMCP(
     name="Unraid MCP Server",
     instructions="Provides tools to interact with an Unraid server's GraphQL API.",
     version=__version__,
     lifespan=app_lifespan,
+    middleware=_middleware_stack,
 )
 
 

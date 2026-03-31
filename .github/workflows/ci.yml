@@ -72,7 +72,8 @@ jobs:
         run: |
           uv export --frozen --no-dev --no-emit-project > /tmp/requirements.txt
           # Ignore CVE-2025-69872 (diskcache): no fix available, transitive dep of fastmcp
-          uvx pip-audit --require-hashes -r /tmp/requirements.txt --ignore-vuln CVE-2025-69872
+          # Ignore CVE-2026-4539 (pygments): no fix available yet, transitive dep
+          uvx pip-audit --require-hashes -r /tmp/requirements.txt --ignore-vuln CVE-2025-69872 --ignore-vuln CVE-2026-4539
 
   unit-tests:
     runs-on: ubuntu-latest

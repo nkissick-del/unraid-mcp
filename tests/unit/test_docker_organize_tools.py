@@ -90,7 +90,9 @@ class TestDeleteDockerEntriesConfirmGate:
 class TestResetTemplateMappingsConfirmGate:
     @pytest.mark.asyncio
     async def test_confirm_false_raises(self):
-        tool_fn = await get_tool_fn(register_docker_organize_tools, "reset_docker_template_mappings")
+        tool_fn = await get_tool_fn(
+            register_docker_organize_tools, "reset_docker_template_mappings"
+        )
         with pytest.raises(ToolError, match="confirm must be True"):
             await tool_fn(confirm=False)
 
@@ -110,7 +112,9 @@ class TestDockerOrganizeInputValidation:
 
     @pytest.mark.asyncio
     async def test_view_preferences_empty_config_raises(self):
-        tool_fn = await get_tool_fn(register_docker_organize_tools, "update_docker_view_preferences")
+        tool_fn = await get_tool_fn(
+            register_docker_organize_tools, "update_docker_view_preferences"
+        )
         with pytest.raises(ToolError, match="non-empty dictionary"):
             await tool_fn(input_config={})
 

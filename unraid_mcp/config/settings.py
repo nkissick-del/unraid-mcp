@@ -158,3 +158,12 @@ else:
         _parts.discard("default")
         _parts |= _DEFAULT_MODULES
     ENABLED_MODULES = frozenset(_parts) & _ALL_MODULES
+
+# Middleware Configuration
+# -----------------------
+MCP_RATE_LIMIT = int(os.getenv("UNRAID_MCP_RATE_LIMIT", "540"))
+MCP_RATE_WINDOW_MINUTES = int(os.getenv("UNRAID_MCP_RATE_WINDOW_MINUTES", "1"))
+MCP_MAX_RESPONSE_KB = int(os.getenv("UNRAID_MCP_MAX_RESPONSE_KB", "512"))
+MCP_CACHE_TTL = int(os.getenv("UNRAID_MCP_CACHE_TTL", "30"))
+_raw_cache_enabled = os.getenv("UNRAID_MCP_CACHE_ENABLED", "true").lower()
+MCP_CACHE_ENABLED = _raw_cache_enabled not in ("false", "0", "no")
