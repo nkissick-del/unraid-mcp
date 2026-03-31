@@ -4,25 +4,27 @@ WORKDIR /app
 COPY --from=ghcr.io/astral-sh/uv:0.5.24 /uv /uvx /bin/
 COPY pyproject.toml uv.lock README.md ./
 COPY unraid_mcp/ ./unraid_mcp/
-RUN uv sync --frozen
+RUN uv sync --frozen --no-dev
 
 # Stage 2: Runtime
 FROM python:3.11-slim
 
 # hadolint ignore=DL3008
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
+    && apt-get install -y --no-install-recommends curl gosu \
     && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN groupadd -g 1000 mcp && useradd -u 1000 -g mcp -m mcp
 
 WORKDIR /app
 
 COPY --from=ghcr.io/astral-sh/uv:0.5.24 /uv /uvx /bin/
 COPY --from=builder /app /app
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
-# Remove base image packages not needed at runtime (uv manages its own venv)
-RUN pip uninstall -y wheel setuptools pip 2>/dev/null; true
-
-RUN mkdir -p /app/logs
+RUN mkdir -p /app/logs && chown -R mcp:mcp /app/logs
 
 EXPOSE 6970
 
@@ -39,4 +41,5 @@ ENV UNRAID_MCP_LOG_FORMAT="text"
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     CMD curl -sf http://localhost:${UNRAID_MCP_PORT:-6970}/health || exit 1
 
+ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["uv", "run", "unraid-mcp-server"]

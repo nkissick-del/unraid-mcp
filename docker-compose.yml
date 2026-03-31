@@ -39,8 +39,9 @@ services:
       - UNRAID_AUTOSTART_LOG_PATH=${UNRAID_AUTOSTART_LOG_PATH}
     security_opt:
       - no-new-privileges:true
-    cap_drop:
-      - ALL
+    # Note: cap_drop ALL is NOT used because the entrypoint needs root
+    # briefly to chown bind-mounted directories before dropping to the
+    # mcp user via gosu. no-new-privileges prevents re-escalation.
     mem_limit: 512m
     cpus: 1.0
     volumes:
