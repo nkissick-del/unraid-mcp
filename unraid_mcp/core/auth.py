@@ -90,16 +90,12 @@ class BearerAuthMiddleware:
 
         # Check rate limit
         if self._is_rate_limited(client_ip):
-            await self._send_error(
-                send, 429, "Too many failed authentication attempts"
-            )
+            await self._send_error(send, 429, "Too many failed authentication attempts")
             return
 
         # Extract and validate bearer token
         token = self._extract_token(scope)
-        if token is None or not hmac.compare_digest(
-            token.encode(), self.token.encode()
-        ):
+        if token is None or not hmac.compare_digest(token.encode(), self.token.encode()):
             self._record_failure(client_ip)
             self._throttled_log(client_ip)
             await self._send_error(
