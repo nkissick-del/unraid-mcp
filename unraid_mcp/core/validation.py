@@ -1,5 +1,6 @@
 """Centralized input validation functions for Unraid MCP tools."""
 
+import posixpath
 import re
 from typing import Any
 
@@ -68,21 +69,39 @@ def validate_rclone_remote_name(name: str) -> str:
     return name
 
 
-def validate_log_file_path(path: str) -> str:
-    """Validate a log file path for obvious traversal or injection attempts."""
+def validate_path(path: str, allowed_prefixes: list[str], param_name: str) -> str:
+    """Validate a file path against allowed prefixes, rejecting traversal attempts.
+
+    Args:
+        path: The path to validate.
+        allowed_prefixes: List of allowed path prefixes.
+        param_name: Parameter name for error messages.
+
+    Returns:
+        The normalized (posixpath.normpath) path on success.
+
+    Raises:
+        ValidationError: If the path is empty, contains null bytes, contains '..'
+            components after normalization, or does not start with an allowed prefix.
+    """
     if not path or not path.strip():
-        raise ValidationError("log_file_path must not be empty")
+        raise ValidationError(f"{param_name} must not be empty")
     if "\x00" in path:
-        raise ValidationError("log_file_path must not contain null bytes")
-    if ".." in path:
-        raise ValidationError("log_file_path must not contain '..'")
-    if not path.startswith("/"):
-        raise ValidationError("log_file_path must be an absolute path")
-    if not any(path.startswith(prefix) for prefix in ALLOWED_LOG_PREFIXES):
+        raise ValidationError(f"{param_name} must not contain null bytes")
+    normalized = posixpath.normpath(path)
+    parts = normalized.split("/")
+    if ".." in parts:
+        raise ValidationError(f"{param_name} contains path traversal components (..)")
+    if not any(normalized.startswith(prefix) for prefix in allowed_prefixes):
         raise ValidationError(
-            f"log_file_path must start with one of: {', '.join(ALLOWED_LOG_PREFIXES)}"
+            f"{param_name} must start with one of: {', '.join(allowed_prefixes)}"
         )
-    return path
+    return normalized
+
+
+def validate_log_file_path(path: str) -> str:
+    """Validate log file path — delegates to validate_path with log prefixes."""
+    return validate_path(path, list(ALLOWED_LOG_PREFIXES), "log_file_path")
 
 
 def truncate_for_error(text: str, max_length: int = ERROR_TRUNCATION_LENGTH) -> str:

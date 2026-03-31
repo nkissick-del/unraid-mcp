@@ -7,6 +7,7 @@ from unraid_mcp.core.validation import (
     truncate_for_error,
     validate_enum,
     validate_log_file_path,
+    validate_path,
     validate_positive_int,
     validate_rclone_remote_name,
     validate_string_not_empty,
@@ -67,11 +68,11 @@ class TestValidateLogFilePath:
             validate_log_file_path("/var/log/\x00evil")
 
     def test_traversal_raises(self):
-        with pytest.raises(ValidationError, match="must not contain"):
+        with pytest.raises(ValidationError, match="traversal|must start with"):
             validate_log_file_path("/var/log/../etc/passwd")
 
     def test_relative_path_raises(self):
-        with pytest.raises(ValidationError, match="absolute path"):
+        with pytest.raises(ValidationError, match="absolute path|must start with"):
             validate_log_file_path("relative/path")
 
     @pytest.mark.parametrize(
@@ -133,6 +134,44 @@ class TestValidateRcloneRemoteName:
     def test_path_traversal_raises(self):
         with pytest.raises(ValidationError, match="Invalid remote name"):
             validate_rclone_remote_name("../etc/passwd")
+
+
+class TestValidatePath:
+    def test_valid_path_passes(self):
+        result = validate_path("/var/log/syslog", ["/var/log"], "my_path")
+        assert result == "/var/log/syslog"
+
+    def test_valid_nested_path_passes(self):
+        result = validate_path("/var/log/app/server.log", ["/var/log"], "my_path")
+        assert result == "/var/log/app/server.log"
+
+    def test_rejects_null_bytes(self):
+        with pytest.raises(ValidationError, match="null bytes"):
+            validate_path("/var/log/\x00evil", ["/var/log"], "my_path")
+
+    def test_rejects_traversal(self):
+        with pytest.raises(ValidationError, match="traversal"):
+            validate_path("../../etc/shadow", ["/var/log"], "my_path")
+
+    def test_rejects_encoded_traversal(self):
+        with pytest.raises(ValidationError, match="traversal|allowed|must start with"):
+            validate_path("/var/log/foo/../../../etc/passwd", ["/var/log"], "my_path")
+
+    def test_rejects_path_outside_allowed_prefixes(self):
+        with pytest.raises(ValidationError, match="must start with one of"):
+            validate_path("/etc/passwd", ["/var/log"], "my_path")
+
+    def test_multiple_allowed_prefixes(self):
+        result = validate_path("/boot/logs/mylog.txt", ["/var/log", "/boot/logs"], "my_path")
+        assert result == "/boot/logs/mylog.txt"
+
+    def test_normpath_resolves_dot_components(self):
+        result = validate_path("/var/log/./app/server.log", ["/var/log"], "my_path")
+        assert result == "/var/log/app/server.log"
+
+    def test_empty_path_raises(self):
+        with pytest.raises(ValidationError):
+            validate_path("", ["/var/log"], "my_path")
 
 
 class TestTruncateForError:
