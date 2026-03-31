@@ -10,6 +10,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastmcp import FastMCP
+from fastmcp.server.middleware.caching import ResponseCachingMiddleware
 from fastmcp.server.middleware.error_handling import ErrorHandlingMiddleware
 from fastmcp.server.middleware.logging import LoggingMiddleware
 from fastmcp.server.middleware.rate_limiting import SlidingWindowRateLimitingMiddleware
@@ -20,6 +21,8 @@ from .config.logging import logger
 from .config.settings import (
     ENABLED_MODULES,
     LOG_LEVEL_STR,
+    MCP_CACHE_ENABLED,
+    MCP_CACHE_TTL,
     MCP_MAX_RESPONSE_KB,
     MCP_RATE_LIMIT,
     MCP_RATE_WINDOW_MINUTES,
@@ -83,15 +86,37 @@ def register_all_modules() -> None:
         # Always register base subscription resources (lightweight log stream endpoint)
         register_subscription_resources(mcp)
 
+        non_cacheable_tools: list[str] = []
+
         # Conditionally register tool modules via registry
         for module_name in ENABLED_MODULES:
             if module_name not in MODULE_REGISTRY:
                 logger.warning(f"Unknown module '{module_name}' in ENABLED_MODULES, skipping")
                 continue
-            import_path, func_name = MODULE_REGISTRY[module_name]
-            mod = importlib.import_module(import_path)
-            getattr(mod, func_name)(mcp)
 
+            entry = MODULE_REGISTRY[module_name]
+            tools_before = set(mcp._tool_manager._tools.keys())  # type: ignore[attr-defined]
+
+            mod = importlib.import_module(entry["import"])
+            getattr(mod, entry["register"])(mcp)
+
+            if not entry["cacheable"]:
+                tools_after = set(mcp._tool_manager._tools.keys())  # type: ignore[attr-defined]
+                new_tools = tools_after - tools_before
+                non_cacheable_tools.extend(new_tools)
+
+        # Add response caching middleware with per-tool exclusions
+        cache_mw = ResponseCachingMiddleware(
+            call_tool_settings={
+                "enabled": MCP_CACHE_ENABLED,
+                "ttl": MCP_CACHE_TTL,
+                "excluded_tools": non_cacheable_tools,
+            },
+        )
+        mcp.add_middleware(cache_mw)
+
+        if non_cacheable_tools:
+            logger.info(f"Cache configured: {len(non_cacheable_tools)} mutation tools excluded")
         logger.info(f"Modules registered: {sorted(ENABLED_MODULES)}")
 
     except Exception as e:

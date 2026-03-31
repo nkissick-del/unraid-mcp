@@ -12,7 +12,9 @@ from pathlib import Path
 from fastmcp import FastMCP
 
 from ..config.logging import logger
+from .configs import SUBSCRIPTION_CONFIGS
 from .manager import subscription_manager
+from .snapshot import subscribe_once
 
 # Async-safe subscription startup guard
 _subscriptions_lock = asyncio.Lock()
@@ -91,6 +93,40 @@ async def autostart_subscriptions() -> None:
         logger.info("[AUTOSTART] No log file path configured for auto-start")
 
 
+async def _live_subscription_fallback(action: str) -> str:
+    """Fetch a one-shot snapshot from any configured subscription by name.
+
+    This is a fallback — explicit resources (unraid://system/cpu, etc.) use
+    persistent subscriptions and are faster. This opens a fresh WebSocket per call.
+    """
+    if action not in SUBSCRIPTION_CONFIGS:
+        available = sorted(SUBSCRIPTION_CONFIGS.keys())
+        return json.dumps(
+            {
+                "error": "Unknown subscription action",
+                "requested": action,
+                "available": available,
+            },
+            indent=2,
+        )
+
+    config = SUBSCRIPTION_CONFIGS[action]
+    query = config["query"]
+
+    try:
+        data = await subscribe_once(query, timeout=10.0)
+        return json.dumps(data, indent=2)
+    except Exception as e:
+        return json.dumps(
+            {
+                "error": str(e),
+                "action": action,
+                "message": "Failed to fetch subscription snapshot. Check server logs.",
+            },
+            indent=2,
+        )
+
+
 def register_subscription_resources(mcp: FastMCP) -> None:
     """Register all subscription resources with the FastMCP instance.
 
@@ -118,6 +154,11 @@ def register_subscription_resources(mcp: FastMCP) -> None:
                 "message": "Subscriptions auto-start on server boot. If this persists, check server logs for WebSocket/auth issues.",
             }
         )
+
+    @mcp.resource("unraid://live/{action}")
+    async def live_fallback(action: str) -> str:
+        """Dynamic fallback: fetch a one-shot snapshot from any configured subscription by name."""
+        return await _live_subscription_fallback(action)
 
     logger.info("Subscription resources registered successfully")
 
