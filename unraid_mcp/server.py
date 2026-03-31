@@ -176,19 +176,19 @@ def run_server() -> None:
         if UNRAID_MCP_TRANSPORT == "streamable-http":
             import uvicorn
 
-            app = mcp.http_app(
+            asgi_app = mcp.http_app(
                 transport="streamable-http",
                 path="/mcp",
             )
             # Wrap with ASGI middleware (outermost added last)
-            app = BearerAuthMiddleware(
-                app,
+            wrapped = BearerAuthMiddleware(
+                asgi_app,
                 token=MCP_AUTH_TOKEN,
                 disabled=not MCP_AUTH_TOKEN,
             )
-            app = HealthMiddleware(app)
+            final_app = HealthMiddleware(wrapped)
             uvicorn.run(
-                app,
+                final_app,
                 host=UNRAID_MCP_HOST,
                 port=UNRAID_MCP_PORT,
             )

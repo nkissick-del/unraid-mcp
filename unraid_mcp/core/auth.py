@@ -1,9 +1,12 @@
 """ASGI middleware for bearer token authentication and health endpoint."""
 
+from __future__ import annotations
+
 import hmac
 import json
 import logging
 import time
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -14,10 +17,10 @@ class HealthMiddleware:
     Placed outermost so Docker healthchecks work without a bearer token.
     """
 
-    def __init__(self, app):
+    def __init__(self, app: Any) -> None:
         self.app = app
 
-    async def __call__(self, scope, receive, send):
+    async def __call__(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
         if (
             scope["type"] == "http"
             and scope.get("method") == "GET"
@@ -52,13 +55,13 @@ class BearerAuthMiddleware:
 
     def __init__(
         self,
-        app,
+        app: Any,
         token: str,
         disabled: bool = False,
         max_failures: int = 60,
         window_seconds: int = 60,
         log_throttle_seconds: int = 30,
-    ):
+    ) -> None:
         self.app = app
         self.token = token
         self.disabled = disabled
@@ -70,7 +73,7 @@ class BearerAuthMiddleware:
         # Per-IP log throttle: {ip: last_log_timestamp}
         self._last_log: dict[str, float] = {}
 
-    async def __call__(self, scope, receive, send):
+    async def __call__(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
         # Pass through non-HTTP scopes (lifespan, websocket)
         if scope["type"] != "http":
             await self.app(scope, receive, send)
@@ -109,11 +112,11 @@ class BearerAuthMiddleware:
 
         await self.app(scope, receive, send)
 
-    def _extract_token(self, scope) -> str | None:
+    def _extract_token(self, scope: dict[str, Any]) -> str | None:
         """Extract bearer token from Authorization header."""
         for key, value in scope.get("headers", []):
             if key == b"authorization":
-                decoded = value.decode()
+                decoded: str = value.decode()
                 if decoded.startswith("Bearer "):
                     return decoded[7:]
         return None
@@ -143,7 +146,11 @@ class BearerAuthMiddleware:
             self._last_log[ip] = now
 
     async def _send_error(
-        self, send, status: int, message: str, extra_headers=None
+        self,
+        send: Any,
+        status: int,
+        message: str,
+        extra_headers: list[list[bytes]] | None = None,
     ) -> None:
         """Send a JSON error response."""
         body = json.dumps({"error": message}).encode()
