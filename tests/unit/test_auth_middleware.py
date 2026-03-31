@@ -1,11 +1,10 @@
 """Tests for ASGI auth and health middleware."""
 
-import hmac
 import inspect
 import json
+from unittest.mock import AsyncMock
 
 import pytest
-from unittest.mock import AsyncMock
 
 
 async def _receive():

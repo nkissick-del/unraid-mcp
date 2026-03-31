@@ -1,7 +1,6 @@
 """Tests for log directory and log file name validation in settings.py."""
 
 import importlib
-import os
 import warnings
 from unittest.mock import patch
 
