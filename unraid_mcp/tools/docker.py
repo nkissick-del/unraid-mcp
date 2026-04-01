@@ -355,7 +355,9 @@ def register_docker_tools(mcp: FastMCP) -> None:
 
         error_msg = f"Container '{container_identifier}' not found."
         if available_names:
-            error_msg += f" Available containers: {', '.join(available_names[:CONTAINER_DISPLAY_LIMIT])}"
+            error_msg += (
+                f" Available containers: {', '.join(available_names[:CONTAINER_DISPLAY_LIMIT])}"
+            )
             if len(available_names) > CONTAINER_DISPLAY_LIMIT:
                 error_msg += f" (and {len(available_names) - CONTAINER_DISPLAY_LIMIT} more)"
         else:
