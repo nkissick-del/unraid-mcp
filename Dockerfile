@@ -24,6 +24,10 @@ COPY --from=builder /app /app
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
+# Remove base image packages not needed at runtime (uv manages its own venv)
+# Also removes wheel/setuptools which may have known vulnerabilities
+RUN pip uninstall -y wheel setuptools pip 2>/dev/null; true
+
 RUN mkdir -p /app/logs && chown -R mcp:mcp /app/logs
 
 EXPOSE 6970
