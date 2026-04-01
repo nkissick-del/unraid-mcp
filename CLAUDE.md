@@ -30,8 +30,8 @@ uv run -m unraid_mcp.main
 
 ### Code Quality
 ```bash
-# Format code with black
-uv run black unraid_mcp/
+# Format code with ruff
+uv run ruff format unraid_mcp/ tests/
 
 # Lint with ruff
 uv run ruff check unraid_mcp/
@@ -72,7 +72,9 @@ docker-compose down
 - **Main Server**: `unraid_mcp/server.py` - Modular MCP server with FastMCP integration
 - **Entry Point**: `unraid_mcp/main.py` - Application entry point and startup logic
 - **Configuration**: `unraid_mcp/config/` - Settings management and logging configuration
-- **Core Infrastructure**: `unraid_mcp/core/` - GraphQL client, exceptions, and shared types
+- **Core Infrastructure**: `unraid_mcp/core/` - GraphQL client, exceptions, shared types, auth middleware, and guards
+- **Auth Middleware**: `unraid_mcp/core/auth.py` - ASGI middleware for bearer token auth and health endpoint
+- **Guards**: `unraid_mcp/core/guards.py` - Destructive action confirmation gating
 - **Subscriptions**: `unraid_mcp/subscriptions/` - Real-time WebSocket subscriptions and diagnostics
 - **Tools**: `unraid_mcp/tools/` - Domain-specific tool implementations
 - **GraphQL Client**: Uses httpx for async HTTP requests to Unraid API
@@ -85,6 +87,8 @@ docker-compose down
 - **Data Processing**: Tools return both human-readable summaries and detailed raw data
 - **Health Monitoring**: Comprehensive health check tool for system monitoring
 - **Real-time Subscriptions**: WebSocket-based live data streaming
+- **ASGI Middleware**: HealthMiddleware and BearerAuthMiddleware wrap the HTTP layer outside FastMCP's protocol middleware
+- **Destructive Action Gating**: `confirm=True` required for stop/restart/kill operations
 
 ### Default Module Preset (32 Tools)
 1. **System** (7 tools): `get_system_info`, `get_array_status`, `get_network_config`, `get_registration_info`, `get_connect_settings`, `get_unraid_variables`, `manage_docker_container`
@@ -156,13 +160,16 @@ When changing a `ToolError` message string, grep tests for `pytest.raises(ToolEr
 Since `settings.py` uses module-level code, tests that validate different env var combinations must `importlib.reload()` the module within each test. Use `warnings.catch_warnings(record=True)` to capture and assert on warnings emitted during reload. Each test should be self-contained — prior reloads in the same process can leave stale state.
 
 ### Docker daemon not available in dev environment
-The dev machine (macOS) may not have Docker daemon running. Docker build verification (`docker build -t unraid-mcp-server .`) should be treated as a CI-only check when the daemon is unavailable locally. All other quality gates (black, ruff, mypy, pytest) run locally.
+The dev machine (macOS) may not have Docker daemon running. Docker build verification (`docker build -t unraid-mcp-server .`) should be treated as a CI-only check when the daemon is unavailable locally. All other quality gates (ruff, mypy, pytest) run locally.
 
-### Security hardening — cap_drop ALL differs between compose and XML template
-`cap_drop: [ALL]` works in `docker-compose.yml` because Docker Compose creates bind-mount directories as `root:root`. However, the Unraid Docker UI (XML template) creates them as `nobody:users`. With `cap_drop ALL`, root loses `DAC_OVERRIDE` and can't write to `nobody`-owned directories. Therefore: use `cap_drop: [ALL]` in compose, but NOT in the XML template's `<ExtraParams>`. Do NOT use `read_only: true` anywhere — `uv` needs `/app/.cache/uv` at startup.
+### Entrypoint-chown requires root — no cap_drop ALL
+The entrypoint starts as root to chown bind-mounted directories, then drops to the `mcp` user via gosu. `cap_drop: [ALL]` drops `DAC_OVERRIDE` at container start, preventing the entrypoint from fixing bind-mount ownership. Use `security_opt: [no-new-privileges:true]` instead in both compose and XML template. Do NOT use `read_only: true` anywhere — `uv` needs `/app/.cache/uv` at startup.
 
-### Dockerfile healthcheck must use POST for streamable-http
-The MCP streamable-http transport only accepts POST requests. A `curl -f GET /mcp` healthcheck returns 406 Not Acceptable, making Docker report the container as unhealthy even though the server is running. The healthcheck must send a valid MCP `initialize` JSON-RPC POST request.
+### Dockerfile healthcheck uses GET /health
+The HealthMiddleware ASGI layer responds to `GET /health` before auth, returning `{"status":"ok"}`. This replaces the old JSON-RPC POST healthcheck which was complex and broke when auth was added. The healthcheck endpoint is always available, even when bearer auth is enabled.
+
+### ASGI vs FastMCP middleware
+HealthMiddleware and BearerAuthMiddleware are pure ASGI middleware wrapping the Starlette app via `mcp.http_app()`. FastMCP middleware (Logging, RateLimit, etc.) wraps the MCP protocol layer inside. They are configured differently: ASGI middleware via app wrapping in `run_server()`, FastMCP middleware via `mcp.add_middleware()`.
 
 ### FastMCP 3.x removed `_tool_manager` (v3.2.0 upgrade)
 FastMCP 2.x exposed `mcp._tool_manager._tools` for enumerating registered tools. This was removed in 3.x. The replacement is `mcp.providers[0]._components` — a dict with keys like `tool:name@`. The helper `_get_tool_names()` in `server.py` encapsulates this. Both `_components` and `providers` are internal APIs, so guard defensively and expect this to break again on major upgrades. `list_tools()` exists but is async-only, which doesn't work in the synchronous `register_all_modules()` flow.

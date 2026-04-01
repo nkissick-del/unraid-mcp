@@ -48,10 +48,11 @@ services:
       - UNRAID_API_KEY=YOUR-API-KEY
       - UNRAID_VERIFY_SSL=false
       - UNRAID_MCP_ENABLED_MODULES=default
+      - UNRAID_MCP_AUTH_TOKEN=  # optional: set to require bearer token auth
     security_opt:
       - no-new-privileges:true
-    cap_drop:
-      - ALL
+    # cap_drop ALL is intentionally omitted: Unraid creates bind-mount dirs as
+    # nobody:users and dropping ALL removes DAC_OVERRIDE, breaking writes.
     volumes:
       - /mnt/user/appdata/unraid-mcp/logs:/app/logs
 ```
@@ -151,6 +152,7 @@ Auth (13), Server Admin (6), Array Admin (6), Onboarding (11), Docker Organize (
 | `UNRAID_MCP_MAX_RESPONSE_KB` | `512` | Max tool response size in KB (larger responses truncated) |
 | `UNRAID_MCP_CACHE_TTL` | `30` | Response cache TTL in seconds (mutation tools never cached) |
 | `UNRAID_MCP_CACHE_ENABLED` | `true` | Master toggle for response caching |
+| `UNRAID_MCP_AUTH_TOKEN` | *(unset)* | If set, requires `Authorization: Bearer <token>` on all requests |
 
 ## Development
 
@@ -161,7 +163,7 @@ cd unraid-mcp
 uv sync --extra dev
 
 # Quality gates
-uv run black unraid_mcp/ tests/
+uv run ruff format unraid_mcp/ tests/
 uv run ruff check unraid_mcp/ tests/
 uv run mypy unraid_mcp/
 uv run pytest
