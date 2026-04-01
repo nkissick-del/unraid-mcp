@@ -1,7 +1,5 @@
-"""Unraid MCP Server Package.
+"""Unraid MCP Server — MCP tools for Unraid via GraphQL."""
 
-A modular MCP (Model Context Protocol) server that provides tools to interact
-with an Unraid server's GraphQL API.
-"""
+from .version import VERSION
 
-__version__ = "0.1.0"
+__version__ = VERSION

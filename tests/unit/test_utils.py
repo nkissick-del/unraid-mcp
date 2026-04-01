@@ -206,5 +206,19 @@ class TestSafeDisplayUrl:
         assert safe_display_url("") == "<invalid-url>"
 
 
+def test_version_is_string():
+    from unraid_mcp.version import VERSION
+
+    assert isinstance(VERSION, str)
+    assert VERSION != ""
+
+
+def test_version_matches_init():
+    from unraid_mcp import __version__
+    from unraid_mcp.version import VERSION
+
+    assert __version__ == VERSION
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -16,7 +16,7 @@ from fastmcp.server.middleware.logging import LoggingMiddleware
 from fastmcp.server.middleware.rate_limiting import SlidingWindowRateLimitingMiddleware
 from fastmcp.server.middleware.response_limiting import ResponseLimitingMiddleware
 
-from . import __version__
+from .version import VERSION as __version__
 from .config.logging import logger
 from .config.settings import (
     ENABLED_MODULES,
