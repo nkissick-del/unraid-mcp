@@ -26,6 +26,7 @@ from ..core.constants import (
 )
 from ..core.decorators import tool_error_handler
 from ..core.exceptions import ToolError
+from ..core.guards import gate_destructive_action
 from ..core.utils import (
     ensure_list,
     poll_with_backoff,
@@ -138,18 +139,30 @@ def register_docker_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     @tool_error_handler("manage Docker container")
-    async def manage_docker_container(container_id: str, action: str) -> dict[str, Any]:
+    async def manage_docker_container(
+        container_id: str, action: str, confirm: bool = False
+    ) -> dict[str, Any]:
         """Manages a Docker container lifecycle. Action must be 'start', 'stop', 'pause', or 'unpause'.
+
+        Destructive actions (stop, restart, kill) require confirm=True.
 
         Args:
             container_id: Container ID or name to manage
             action: Action to perform - 'start', 'stop', 'pause', or 'unpause'
+            confirm: Must be True for destructive actions (stop, restart, kill)
 
         Returns:
             Dict containing operation result and container information
         """
         validate_string_not_empty(container_id, "container_id")
         mutation_name = validate_enum(action.lower(), list(DOCKER_ACTION_MUTATIONS), "action")
+
+        await gate_destructive_action(
+            ctx=None,
+            action=mutation_name,
+            destructive_actions={"stop", "restart", "kill"},
+            confirm=confirm,
+        )
         operation_query = DOCKER_ACTION_MUTATIONS[mutation_name]
 
         variables = {"id": container_id}
