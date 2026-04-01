@@ -236,9 +236,11 @@ class TestGraphQLErrorDedup:
         """At count 10, a WARNING reminder should be logged."""
         with patch("unraid_mcp.subscriptions.manager.UNRAID_API_KEY", "key"):
             manager = SubscriptionManager()
-            for i in range(10):
+            for _i in range(10):
                 manager._handle_graphql_error("array_state", "repeated error")
         warnings = [
-            r for r in log_capture.records if r.levelno == logging.WARNING and "10" in r.getMessage()
+            r
+            for r in log_capture.records
+            if r.levelno == logging.WARNING and "10" in r.getMessage()
         ]
         assert len(warnings) >= 1

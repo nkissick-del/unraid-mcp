@@ -16,7 +16,6 @@ from fastmcp.server.middleware.logging import LoggingMiddleware
 from fastmcp.server.middleware.rate_limiting import SlidingWindowRateLimitingMiddleware
 from fastmcp.server.middleware.response_limiting import ResponseLimitingMiddleware
 
-from .version import VERSION as __version__
 from .config.logging import logger
 from .config.settings import (
     ENABLED_MODULES,
@@ -39,6 +38,7 @@ from .core.utils import safe_display_url
 from .registry import MODULE_REGISTRY
 from .subscriptions.manager import subscription_manager
 from .subscriptions.resources import register_subscription_resources
+from .version import VERSION as __version__
 
 
 @asynccontextmanager

@@ -242,14 +242,10 @@ class SubscriptionManager:
         """
         last = self._last_graphql_error.get(sub_name)
         if last == error_msg:
-            self._graphql_error_count[sub_name] = (
-                self._graphql_error_count.get(sub_name, 1) + 1
-            )
+            self._graphql_error_count[sub_name] = self._graphql_error_count.get(sub_name, 1) + 1
             count = self._graphql_error_count[sub_name]
             if count in (10, 100, 1000):
-                logger.warning(
-                    f"[{sub_name}] GraphQL error repeated {count} times: {error_msg}"
-                )
+                logger.warning(f"[{sub_name}] GraphQL error repeated {count} times: {error_msg}")
             else:
                 logger.debug(f"[{sub_name}] GraphQL error (repeat #{count}): {error_msg}")
         else:
