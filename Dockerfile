@@ -28,7 +28,7 @@ RUN chmod +x /app/entrypoint.sh
 # Also removes wheel/setuptools which may have known vulnerabilities
 RUN pip uninstall -y wheel setuptools pip 2>/dev/null; true
 
-RUN mkdir -p /app/logs && chown -R mcp:mcp /app/logs
+RUN mkdir -p /app/logs && chown -R mcp:mcp /app
 
 EXPOSE 6970
 
