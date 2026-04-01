@@ -1,5 +1,6 @@
 """Tests for the SubscriptionManager class."""
 
+import logging
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -173,3 +174,71 @@ class TestStopAllSubscriptions:
             await mgr.start_subscription("sub2", "subscription { b }")
             await mgr.stop_all_subscriptions()
             assert mgr.active_subscriptions == {}
+
+
+class _LogCapture(logging.Handler):
+    """Simple handler that captures LogRecords."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.records: list[logging.LogRecord] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.records.append(record)
+
+
+class TestGraphQLErrorDedup:
+    """Tests for repeated GraphQL error log deduplication."""
+
+    @pytest.fixture()
+    def log_capture(self):
+        """Attach a capture handler directly to the app logger."""
+        from unraid_mcp.config.logging import logger as app_logger
+
+        handler = _LogCapture()
+        handler.setLevel(logging.DEBUG)
+        app_logger.addHandler(handler)
+        old_level = app_logger.level
+        app_logger.setLevel(logging.DEBUG)
+        yield handler
+        app_logger.removeHandler(handler)
+        app_logger.setLevel(old_level)
+
+    def test_first_error_logs_warning(self, log_capture):
+        """First occurrence of a GraphQL error should log at WARNING."""
+        with patch("unraid_mcp.subscriptions.manager.UNRAID_API_KEY", "key"):
+            manager = SubscriptionManager()
+            manager._handle_graphql_error("array_state", "some error message")
+        records = [r for r in log_capture.records if "some error message" in r.getMessage()]
+        assert len(records) >= 1
+        assert records[-1].levelno == logging.WARNING
+
+    def test_repeat_error_logs_debug(self, log_capture):
+        """Repeated identical errors should downgrade to DEBUG."""
+        with patch("unraid_mcp.subscriptions.manager.UNRAID_API_KEY", "key"):
+            manager = SubscriptionManager()
+            manager._handle_graphql_error("array_state", "same error")
+            manager._handle_graphql_error("array_state", "same error")
+        error_records = [r for r in log_capture.records if "same error" in r.getMessage()]
+        assert error_records[-1].levelno == logging.DEBUG
+
+    def test_different_error_resets_counter(self, log_capture):
+        """A different error message should reset and log at WARNING."""
+        with patch("unraid_mcp.subscriptions.manager.UNRAID_API_KEY", "key"):
+            manager = SubscriptionManager()
+            manager._handle_graphql_error("array_state", "error A")
+            manager._handle_graphql_error("array_state", "error B")
+        b_records = [r for r in log_capture.records if "error B" in r.getMessage()]
+        assert len(b_records) >= 1
+        assert b_records[-1].levelno == logging.WARNING
+
+    def test_periodic_reminder_at_10(self, log_capture):
+        """At count 10, a WARNING reminder should be logged."""
+        with patch("unraid_mcp.subscriptions.manager.UNRAID_API_KEY", "key"):
+            manager = SubscriptionManager()
+            for i in range(10):
+                manager._handle_graphql_error("array_state", "repeated error")
+        warnings = [
+            r for r in log_capture.records if r.levelno == logging.WARNING and "10" in r.getMessage()
+        ]
+        assert len(warnings) >= 1

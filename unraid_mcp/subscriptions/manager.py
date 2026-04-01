@@ -93,6 +93,10 @@ class SubscriptionManager:
         self.connection_states: dict[str, str] = {}  # Track connection state per subscription
         self.last_error: dict[str, str] = {}  # Track last error per subscription
 
+        # GraphQL error deduplication
+        self._last_graphql_error: dict[str, str] = {}
+        self._graphql_error_count: dict[str, int] = {}
+
         # Shallow copy so runtime mutations don't affect the module constant
         self.subscription_configs = dict(SUBSCRIPTION_CONFIGS)
 
@@ -230,6 +234,29 @@ class SubscriptionManager:
         logger.info(f"[SUBSCRIPTION:{subscription_name}] Subscription started successfully")
         self.connection_states[subscription_name] = "subscribed"
 
+    def _handle_graphql_error(self, sub_name: str, error_msg: str) -> None:
+        """Handle a GraphQL error with deduplication.
+
+        First occurrence: WARNING. Repeats: DEBUG.
+        Periodic reminders at 10, 100, 1000.
+        """
+        last = self._last_graphql_error.get(sub_name)
+        if last == error_msg:
+            self._graphql_error_count[sub_name] = (
+                self._graphql_error_count.get(sub_name, 1) + 1
+            )
+            count = self._graphql_error_count[sub_name]
+            if count in (10, 100, 1000):
+                logger.warning(
+                    f"[{sub_name}] GraphQL error repeated {count} times: {error_msg}"
+                )
+            else:
+                logger.debug(f"[{sub_name}] GraphQL error (repeat #{count}): {error_msg}")
+        else:
+            self._last_graphql_error[sub_name] = error_msg
+            self._graphql_error_count[sub_name] = 1
+            logger.warning(f"[{sub_name}] GraphQL error: {error_msg}")
+
     async def _process_ws_message(
         self, subscription_name: str, message: Any, selected_proto: str
     ) -> bool:
@@ -267,10 +294,9 @@ class SubscriptionManager:
                         f"[RESOURCE:{subscription_name}] Resource data updated successfully"
                     )
                 elif payload.get("errors"):
-                    logger.error(
-                        f"[DATA:{subscription_name}] GraphQL errors in response: {payload['errors']}"
-                    )
-                    self.last_error[subscription_name] = f"GraphQL errors: {payload['errors']}"
+                    error_msg = str(payload["errors"])
+                    self._handle_graphql_error(subscription_name, error_msg)
+                    self.last_error[subscription_name] = f"GraphQL errors: {error_msg}"
                 else:
                     logger.warning(
                         f"[DATA:{subscription_name}] Empty or invalid data payload: {payload}"
