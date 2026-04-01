@@ -106,6 +106,50 @@ def get_available_container_names(containers: list[dict[str, Any]]) -> list[str]
     return names
 
 
+_container_cache: list[dict[str, Any]] = []
+_container_cache_time: float = 0.0
+_CONTAINER_CACHE_TTL_S: float = 30.0
+
+
+async def _fetch_containers(skip_cache: bool = False) -> list[dict[str, Any]]:
+    """Fetch container list with application-level caching.
+
+    The Unraid API can be slow (~28s) to enumerate containers. This cache
+    ensures that back-to-back tool calls (e.g. list_docker_containers followed
+    by get_docker_container_details) share a single API round-trip.
+    """
+    global _container_cache, _container_cache_time
+
+    import time
+
+    now = time.monotonic()
+    if (
+        not skip_cache
+        and _container_cache
+        and (now - _container_cache_time) < _CONTAINER_CACHE_TTL_S
+    ):
+        logger.debug("Using cached container list")
+        return _container_cache
+
+    query = f"""
+    query ListDockerContainers {{
+      docker {{
+        containers(skipCache: false) {{
+          {CONTAINER_LIST_FIELDS}
+        }}
+      }}
+    }}
+    """
+    response_data = await make_graphql_request(query)
+    if response_data.get("docker"):
+        containers = ensure_list(response_data["docker"].get("containers", []))
+        _container_cache = containers
+        _container_cache_time = now
+        return containers
+    logger.warning("GraphQL response missing 'docker' field — returning empty list")
+    return []
+
+
 def register_docker_tools(mcp: FastMCP) -> None:
     """Register all Docker tools with the FastMCP instance.
 
@@ -121,21 +165,7 @@ def register_docker_tools(mcp: FastMCP) -> None:
         Returns:
             List of Docker container information dictionaries
         """
-        query = f"""
-        query ListDockerContainers {{
-          docker {{
-            containers(skipCache: false) {{
-              {CONTAINER_LIST_FIELDS}
-            }}
-          }}
-        }}
-        """
-        response_data = await make_graphql_request(query)
-        if response_data.get("docker"):
-            containers = response_data["docker"].get("containers", [])
-            return ensure_list(containers)
-        logger.warning("GraphQL response missing 'docker' field — returning empty list")
-        return []
+        return await _fetch_containers()
 
     @mcp.tool()
     @tool_error_handler("manage Docker container")
@@ -323,25 +353,9 @@ def register_docker_tools(mcp: FastMCP) -> None:
         """
         validate_string_not_empty(container_identifier, "container_identifier")
 
-        # Single query using the same cached container list as list_docker_containers.
-        # The Unraid API doesn't support single-container queries, so we fetch the
-        # full list with the standard fields and filter client-side. Heavy JSON blobs
-        # (networkSettings, mounts, labels) are intentionally excluded — use
-        # query_unraid_api for those on a specific container if needed.
-        list_query = f"""
-        query GetContainerDetails {{
-          docker {{
-            containers(skipCache: false) {{
-              {CONTAINER_LIST_FIELDS}
-            }}
-          }}
-        }}
-        """
-        response_data = await make_graphql_request(list_query)
-
-        containers = []
-        if response_data.get("docker"):
-            containers = response_data["docker"].get("containers", [])
+        # Reuses the shared container cache so back-to-back calls with
+        # list_docker_containers don't re-query the slow Unraid API.
+        containers = await _fetch_containers()
 
         container = find_container_by_identifier(container_identifier, containers)
         if container:
