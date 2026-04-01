@@ -322,9 +322,51 @@ def register_docker_tools(mcp: FastMCP) -> None:
             Dict containing detailed container information
         """
         validate_string_not_empty(container_identifier, "container_identifier")
-        # This tool fetches all containers and then filters by ID or name.
-        # More detailed query for a single container if found:
-        detailed_query_fields = """
+
+        # Phase 1: Lightweight resolve — fetch only id+names from the cached list
+        # to find the target container without pulling heavy JSON blobs
+        # (networkSettings, mounts, labels) for all containers.
+        resolve_query = f"""
+        query ResolveContainerForDetails {{
+          docker {{
+            containers(skipCache: false) {{
+              {CONTAINER_LIST_FIELDS}
+            }}
+          }}
+        }}
+        """
+        resolve_data = await make_graphql_request(resolve_query)
+        resolve_containers = []
+        if resolve_data.get("docker"):
+            resolve_containers = resolve_data["docker"].get("containers", [])
+
+        resolved = find_container_by_identifier(container_identifier, resolve_containers)
+        if not resolved or not resolved.get("id"):
+            available_names = get_available_container_names(resolve_containers)
+            logger.warning(f"Container with identifier '{container_identifier}' not found.")
+            logger.info(f"Available containers: {available_names}")
+
+            error_msg = f"Container '{container_identifier}' not found."
+            if available_names:
+                error_msg += f" Available containers: {', '.join(available_names[:CONTAINER_DISPLAY_LIMIT])}"
+                if len(available_names) > CONTAINER_DISPLAY_LIMIT:
+                    error_msg += f" (and {len(available_names) - CONTAINER_DISPLAY_LIMIT} more)"
+            else:
+                error_msg += " No containers are currently available."
+            raise ToolError(error_msg)
+
+        actual_id = str(resolved["id"])
+        logger.info(f"Resolved '{container_identifier}' to container ID: {actual_id}")
+
+        # Phase 2: Fetch detailed fields for all containers, then filter to the
+        # resolved one. The API doesn't support single-container queries, but
+        # skipCache=false means this hits the Unraid API cache and the payload
+        # is bounded by the field selection (no networkSettings/mounts/labels
+        # which are the heaviest blobs).
+        detailed_query = """
+        query GetContainerDetails {
+          docker {
+            containers(skipCache: false) {
               id
               names
               image
@@ -333,53 +375,28 @@ def register_docker_tools(mcp: FastMCP) -> None:
               created
               ports { ip privatePort publicPort type }
               sizeRootFs
-              labels # JSONObject
               state
               status
               hostConfig { networkMode }
-              networkSettings # JSONObject
-              mounts # JSONObject array
               autoStart
+            }
+          }
+        }
         """
-
-        # Fetch all containers first
-        list_query = f"""
-        query GetAllContainerDetailsForFiltering {{
-          docker {{
-            containers(skipCache: false) {{
-              {detailed_query_fields}
-            }}
-          }}
-        }}
-        """
-        response_data = await make_graphql_request(list_query)
+        response_data = await make_graphql_request(detailed_query)
 
         containers = []
         if response_data.get("docker"):
             containers = response_data["docker"].get("containers", [])
 
-        # Use our enhanced container lookup
-        container = find_container_by_identifier(container_identifier, containers)
+        container = find_container_by_identifier(actual_id, containers)
         if container:
-            logger.info(f"Found container {container_identifier}")
+            logger.info(f"Found detailed info for container {container_identifier}")
             return container
 
-        # Container not found - provide helpful error message with available containers
-        available_names = get_available_container_names(containers)
-        logger.warning(f"Container with identifier '{container_identifier}' not found.")
-        logger.info(f"Available containers: {available_names}")
-
-        error_msg = f"Container '{container_identifier}' not found."
-        if available_names:
-            error_msg += (
-                f" Available containers: {', '.join(available_names[:CONTAINER_DISPLAY_LIMIT])}"
-            )
-            if len(available_names) > CONTAINER_DISPLAY_LIMIT:
-                error_msg += f" (and {len(available_names) - CONTAINER_DISPLAY_LIMIT} more)"
-        else:
-            error_msg += " No containers are currently available."
-
-        raise ToolError(error_msg)
+        # Fallback: return the lightweight data from Phase 1
+        logger.warning(f"Could not find detailed data for {actual_id}, returning lightweight data")
+        return resolved
 
     @mcp.tool()
     @tool_error_handler("retrieve Docker container logs")
