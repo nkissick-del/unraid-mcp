@@ -5,6 +5,7 @@ from __future__ import annotations
 import hmac
 import json
 import logging
+import posixpath
 import time
 from typing import Any
 
@@ -164,3 +165,67 @@ class BearerAuthMiddleware:
             }
         )
         await send({"type": "http.response.body", "body": body})
+
+
+class WellKnownMiddleware:
+    """ASGI middleware serving RFC 9728 OAuth Protected Resource Metadata.
+
+    MCP clients (e.g. Claude Code) probe GET /.well-known/oauth-protected-resource
+    when they receive a 401 from the MCP endpoint — trying to discover an OAuth
+    authorization server. Without a valid response here they cascade into a series
+    of failed discovery requests and surface a generic "unknown error" to the user.
+
+    This server does NOT implement OAuth. Returning the resource metadata with an
+    empty authorization_servers list tells compliant clients: "Bearer auth is
+    required; you must configure the token yourself — there is no OAuth flow."
+
+    Place this OUTSIDE BearerAuthMiddleware (before it in the middleware list) so
+    the discovery endpoint is reachable without a token. Only GET is handled for
+    the well-known paths; all other requests fall through to the auth layer.
+    """
+
+    _WELL_KNOWN_PATHS: frozenset[str] = frozenset(
+        {
+            "/.well-known/oauth-protected-resource",
+            "/.well-known/oauth-protected-resource/mcp",
+        }
+    )
+
+    def __init__(self, app: Any) -> None:
+        self.app = app
+
+    async def __call__(self, scope: dict[str, Any], receive: Any, send: Any) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        path: str = posixpath.normpath(scope.get("path", ""))
+        method: str = scope.get("method", "").upper()
+
+        if method != "GET" or path not in self._WELL_KNOWN_PATHS:
+            await self.app(scope, receive, send)
+            return
+
+        host = "localhost"
+        for key, val in scope.get("headers", []):
+            if key.lower() == b"host":
+                host = val.decode("latin-1")
+                break
+
+        scheme = scope.get("scheme", "http")
+        resource = f"{scheme}://{host}"
+
+        body: bytes = json.dumps(
+            {
+                "resource": resource,
+                "bearer_methods_supported": ["header"],
+            },
+            separators=(",", ":"),
+        ).encode()
+
+        headers: list[tuple[bytes, bytes]] = [
+            (b"content-type", b"application/json"),
+            (b"content-length", str(len(body)).encode()),
+        ]
+        await send({"type": "http.response.start", "status": 200, "headers": headers})
+        await send({"type": "http.response.body", "body": body, "more_body": False})

@@ -149,3 +149,149 @@ class TestBearerAuthMiddleware:
 
         source = inspect.getsource(auth.BearerAuthMiddleware)
         assert "hmac.compare_digest" in source or "compare_digest" in source
+
+
+class TestWellKnownMiddleware:
+    """Tests for the RFC 9728 OAuth Protected Resource Metadata endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_well_known_middleware_serves_oauth_discovery(self):
+        """GET /.well-known/oauth-protected-resource returns 200 with RFC 9728 body."""
+        from unraid_mcp.core.auth import WellKnownMiddleware
+
+        async def inner_app(scope, receive, send):
+            raise AssertionError("inner app should not be called")
+
+        mw = WellKnownMiddleware(inner_app)
+
+        messages: list = []
+
+        async def receive():
+            return {"type": "http.request"}
+
+        async def send(message):
+            messages.append(message)
+
+        scope = {
+            "type": "http",
+            "method": "GET",
+            "path": "/.well-known/oauth-protected-resource",
+            "scheme": "http",
+            "headers": [(b"host", b"example.test:6970")],
+        }
+
+        await mw(scope, receive, send)
+
+        assert messages[0]["type"] == "http.response.start"
+        assert messages[0]["status"] == 200
+        assert dict(messages[0]["headers"])[b"content-type"] == b"application/json"
+
+        body = json.loads(messages[1]["body"])
+        assert body["resource"] == "http://example.test:6970"
+        assert body["bearer_methods_supported"] == ["header"]
+        assert "authorization_servers" not in body
+
+    @pytest.mark.asyncio
+    async def test_well_known_middleware_serves_mcp_variant(self):
+        """GET /.well-known/oauth-protected-resource/mcp is also handled."""
+        from unraid_mcp.core.auth import WellKnownMiddleware
+
+        async def inner_app(scope, receive, send):
+            raise AssertionError("inner app should not be called")
+
+        mw = WellKnownMiddleware(inner_app)
+        messages: list = []
+
+        async def receive():
+            return {"type": "http.request"}
+
+        async def send(message):
+            messages.append(message)
+
+        scope = {
+            "type": "http",
+            "method": "GET",
+            "path": "/.well-known/oauth-protected-resource/mcp",
+            "scheme": "http",
+            "headers": [(b"host", b"localhost")],
+        }
+        await mw(scope, receive, send)
+        assert messages[0]["status"] == 200
+
+    @pytest.mark.asyncio
+    async def test_well_known_middleware_passes_through_other_paths(self):
+        """GET /mcp and other paths pass through to inner app."""
+        from unraid_mcp.core.auth import WellKnownMiddleware
+
+        called = {"flag": False}
+
+        async def inner_app(scope, receive, send):
+            called["flag"] = True
+
+        mw = WellKnownMiddleware(inner_app)
+        scope = {
+            "type": "http",
+            "method": "GET",
+            "path": "/mcp",
+            "scheme": "http",
+            "headers": [(b"host", b"localhost")],
+        }
+
+        async def receive():
+            return {"type": "http.request"}
+
+        async def send(message):
+            pass
+
+        await mw(scope, receive, send)
+        assert called["flag"] is True
+
+    @pytest.mark.asyncio
+    async def test_well_known_middleware_rejects_non_get(self):
+        """POST /.well-known/oauth-protected-resource passes through (only GET is handled)."""
+        from unraid_mcp.core.auth import WellKnownMiddleware
+
+        called = {"flag": False}
+
+        async def inner_app(scope, receive, send):
+            called["flag"] = True
+
+        mw = WellKnownMiddleware(inner_app)
+        scope = {
+            "type": "http",
+            "method": "POST",
+            "path": "/.well-known/oauth-protected-resource",
+            "scheme": "http",
+            "headers": [(b"host", b"localhost")],
+        }
+
+        async def receive():
+            return {"type": "http.request"}
+
+        async def send(message):
+            pass
+
+        await mw(scope, receive, send)
+        assert called["flag"] is True
+
+    @pytest.mark.asyncio
+    async def test_well_known_middleware_skips_non_http_scope(self):
+        """Lifespan / websocket scopes pass straight through."""
+        from unraid_mcp.core.auth import WellKnownMiddleware
+
+        called = {"flag": False}
+
+        async def inner_app(scope, receive, send):
+            called["flag"] = True
+
+        mw = WellKnownMiddleware(inner_app)
+        scope = {"type": "lifespan"}
+
+        async def receive():
+            return {"type": "lifespan.startup"}
+
+        async def send(message):
+            pass
+
+        await mw(scope, receive, send)
+        assert called["flag"] is True
