@@ -20,6 +20,7 @@ FROM python:3.11-slim-bookworm AS runtime
 
 # hadolint ignore=DL3008
 RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
     && apt-get install -y --no-install-recommends curl gosu \
     && rm -rf /var/lib/apt/lists/*
 
