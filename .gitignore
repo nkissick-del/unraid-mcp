@@ -1,36 +1,70 @@
-# Python-generated files
+# ── Secrets ──────────────────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Runtime / hook artifacts ─────────────────────────────────────────────────
+backups/*
+!backups/.gitkeep
+logs/*
+!logs/.gitkeep
+*.log
+*.bak
+*.bak-*
+
+# ── Claude Code / AI tooling ────────────────────────────────────────────────
+.claude/settings.local.json
+.claude/worktrees/
+.omc/
+.lavra/
+.beads/
+.dolt/
+*.db
+*.db-shm
+*.db-wal
+.beads-credential-key
+.serena/
+.worktrees
+.full-review/
+.full-review-archive-*
+
+# ── IDE / editor ─────────────────────────────────────────────────────────────
+.vscode/
+.cursor/
+.windsurf/
+.1code/
+.bivvy
+.emdash.json
+
+# ── Caches ───────────────────────────────────────────────────────────────────
+.cache/
+
+# ── Documentation artifacts ─────────────────────────────────────────────────
+.docs/
+docs/plans/
+docs/sessions/
+docs/reports/
+docs/research/
+docs/superpowers/
+
+# ── Python ───────────────────────────────────────────────────────────────────
+.venv/
+.venv-backend/
 __pycache__/
 *.py[oc]
+*.egg-info
+*.egg
 build/
 dist/
 wheels/
-*.egg-info
-
-# Virtual environments
-.venv
-.venv-backend
-.env
-.env.local
-*.log
-logs/
-.bivvy
-.cursor
-
-# Serena IDE configuration
-.serena/
-
-# Google OAuth client secrets
-client_secret_*.apps.googleusercontent.com.json
-
-web-ui/frontend/node_modules
-web-ui/backend/.venv-backend/
-.pnpm-store/
-scripts/publish_dev_image.sh
-
-# Coverage reports
-coverage.xml
+.hypothesis/
+.pytest_cache/
+.ruff_cache/
+.ty_cache/
 htmlcov/
+.coverage
+coverage.xml
 
-# Claude Code
-.claude/worktrees/
-.claude/settings.local.json
+# ── Repo-specific ────────────────────────────────────────────────────────────
+/DESTRUCTIVE_ACTIONS.md
+client_secret_*.apps.googleusercontent.com.json

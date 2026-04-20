@@ -1,23 +1,54 @@
-Dockerfile
-.dockerignore
+# ── Version control ──────────────────────────────────────────────────────────
 .git
-.gitignore
-__pycache__
-*.pyc
-*.pyo
-*.pyd
+.github
+
+# ── Secrets ──────────────────────────────────────────────────────────────────
 .env
-.env.local
 .env.*
+!.env.example
+
+# ── Claude Code / AI tooling ────────────────────────────────────────────────
+.claude
+.claude-plugin
+.codex-plugin
+.omc
+.lavra
+.beads
+.serena
+.worktrees
+.full-review
+.full-review-archive-*
+
+# ── IDE / editor ─────────────────────────────────────────────────────────────
+.vscode
+.cursor
+.windsurf
+.1code
+
+# ── Docs, tests, scripts (not needed at runtime) ────────────────────────────
+docs
+tests
+scripts
+*.md
+!README.md
+
+# ── Runtime artifacts ────────────────────────────────────────────────────────
+logs
+backups
 *.log
-logs/
-*.db
-*.sqlite3
-instance/
+.cache
+
+# ── Python ───────────────────────────────────────────────────────────────────
+.venv
+__pycache__/
+*.py[oc]
+*.egg-info
+dist/
+build/
+.hypothesis/
 .pytest_cache/
-.mypy_cache/
-.venv/
-venv/
-env/
-.vscode/
-cline_docs/
+.ruff_cache/
+.ty_cache/
+htmlcov/
+.coverage
+coverage.xml
