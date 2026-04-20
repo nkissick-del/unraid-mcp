@@ -35,6 +35,11 @@ COPY pyproject.toml uv.lock README.md /app/
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
+# Remove base-image pip/setuptools/wheel. The runtime uses /app/.venv directly
+# and these packages can pull in known CVEs (e.g. wheel, jaraco.context)
+# that Trivy flags as CRITICAL/HIGH.
+RUN pip uninstall -y wheel setuptools pip 2>/dev/null || true
+
 # Ensure venv bin is on PATH so `unraid-mcp-server` resolves without uv
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
