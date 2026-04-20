@@ -1,0 +1,49 @@
+repos:
+  - repo: local
+    hooks:
+      # check-docker-security.sh reports a FAIL for "non-root user" against this
+      # fork's Dockerfile because the runtime stage intentionally has no USER
+      # directive (entrypoint.sh starts as root to chown bind-mounted
+      # /app/logs, then drops to `mcp` via gosu — required by Unraid's
+      # security_opt: no-new-privileges:true). To avoid blocking every
+      # unrelated commit, this hook is scoped to runs where the Dockerfile
+      # actually changes; even then the expected FAIL remains — use
+      # `SKIP=docker-security git commit ...` to bypass.
+      - id: docker-security
+        name: Docker security check
+        entry: bash scripts/check-docker-security.sh
+        language: system
+        pass_filenames: false
+        files: '^Dockerfile$'
+
+      - id: no-baked-env
+        name: No baked env vars
+        entry: bash scripts/check-no-baked-env.sh
+        language: system
+        pass_filenames: false
+
+      - id: ensure-ignore-files
+        name: Ensure ignore files
+        entry: bash scripts/ensure-ignore-files.sh --check
+        language: system
+        pass_filenames: false
+
+      - id: block-env-commits
+        name: Block .env file commits (allow only .env.example)
+        entry: bash scripts/block-env-commits.sh
+        language: system
+        pass_filenames: false
+        files: '\.env'
+        exclude: '\.env\.example$'
+
+      - id: ruff-check
+        name: Ruff lint
+        entry: uv run ruff check unraid_mcp/ tests/
+        language: system
+        pass_filenames: false
+
+      - id: ruff-format
+        name: Ruff format check
+        entry: uv run ruff format --check unraid_mcp/ tests/
+        language: system
+        pass_filenames: false
