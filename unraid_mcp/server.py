@@ -32,7 +32,7 @@ from .config.settings import (
     UNRAID_MCP_PORT,
     UNRAID_MCP_TRANSPORT,
 )
-from .core.auth import BearerAuthMiddleware, HealthMiddleware
+from .core.auth import BearerAuthMiddleware, HealthMiddleware, WellKnownMiddleware
 from .core.client import close_http_client
 from .core.utils import safe_display_url
 from .registry import MODULE_REGISTRY
@@ -180,13 +180,19 @@ def run_server() -> None:
                 transport="streamable-http",
                 path="/mcp",
             )
-            # Wrap with ASGI middleware (outermost added last)
-            wrapped = BearerAuthMiddleware(
+            # ASGI middleware order (outermost → innermost):
+            # 1. HealthMiddleware      — GET /health bypasses auth (docker healthcheck).
+            # 2. WellKnownMiddleware   — GET /.well-known/oauth-protected-resource bypasses
+            #    auth. MCP clients probe this after a 401 to discover how to authenticate;
+            #    responding correctly (RFC 9728) stops the 401 cascade in Claude Code.
+            # 3. BearerAuthMiddleware  — all other HTTP requires a valid token.
+            auth_layer = BearerAuthMiddleware(
                 asgi_app,
                 token=MCP_AUTH_TOKEN,
                 disabled=not MCP_AUTH_TOKEN,
             )
-            final_app = HealthMiddleware(wrapped)
+            well_known_layer = WellKnownMiddleware(auth_layer)
+            final_app = HealthMiddleware(well_known_layer)
             uvicorn.run(
                 final_app,
                 host=UNRAID_MCP_HOST,
