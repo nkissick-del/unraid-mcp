@@ -52,3 +52,13 @@ build/
 htmlcov/
 .coverage
 coverage.xml
+
+# ── Dev & tooling ────────────────────────────────────────────────────────────
+.idea
+Justfile
+.pre-commit-config.yaml
+*.bak
+*.bak-*
+
+# ── Local data ───────────────────────────────────────────────────────────────
+data
