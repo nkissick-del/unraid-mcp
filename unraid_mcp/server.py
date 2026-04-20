@@ -167,10 +167,13 @@ def run_server() -> None:
     # Register all modules
     register_all_modules()
 
-    logger.info(
-        f"Starting Unraid MCP Server on {UNRAID_MCP_HOST}:{UNRAID_MCP_PORT} "
-        f"using {UNRAID_MCP_TRANSPORT} transport..."
-    )
+    if UNRAID_MCP_TRANSPORT == "stdio":
+        logger.info("Starting Unraid MCP Server (transport=stdio)")
+    else:
+        logger.info(
+            f"Starting Unraid MCP Server on {UNRAID_MCP_HOST}:{UNRAID_MCP_PORT} "
+            f"(transport={UNRAID_MCP_TRANSPORT})"
+        )
 
     try:
         if UNRAID_MCP_TRANSPORT == "streamable-http":
