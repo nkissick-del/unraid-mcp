@@ -46,7 +46,8 @@ logs:
 
 # Check /health endpoint
 health:
-    @PORT=$$(grep -E '^UNRAID_MCP_PORT=' .env 2>/dev/null | cut -d= -f2 || echo 6970); \
+    @PORT=$$(grep -E '^UNRAID_MCP_PORT=' .env 2>/dev/null | cut -d= -f2); \
+    PORT=$${PORT:-6970}; \
     curl -sf "http://localhost:$$PORT/health" | python3 -m json.tool || echo "Health check failed"
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
